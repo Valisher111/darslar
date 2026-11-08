@@ -385,7 +385,7 @@ const FBV = '10.12.2', LCOL = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], LSH 
 function loadScript(src) {
   return new Promise((ok, no) => {
     if (Array.from(document.scripts).some(x => x.src === src)) return ok();
-    const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => no(new Error('Could not load the game. Check the internet.')); document.head.appendChild(el);
+    const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => { el.remove(); no(new Error('Could not load the game. Check the internet.')); }; document.head.appendChild(el);
   });
 }
 async function fbApp(name) {
