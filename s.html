@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My lessons · Darslar</title>
+<meta name="theme-color" content="#0b7a5f">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b7a5f'/%3E%3Cpath d='M18 16h14a16 16 0 0 1 0 32H18z' fill='none' stroke='white' stroke-width='6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f6f5; --panel:#fff; --ink:#14201c; --muted:#5d6d67; --line:#e2e8e5; --soft:#f7faf9;
+  --accent:#0b7a5f; --accent-2:#10a37f; --accent-ink:#fff; --accent-soft:#e3f4ee; --head:#0d2b23;
+  --good:#16865a; --good-soft:#e3f4ee; --warn:#b26a00; --warn-soft:#fff3dd; --bad:#c43a3a; --bad-soft:#fdeceb; --ro:#f1f4f3;
+  --r:16px; --tap:48px; --shadow:0 1px 2px rgba(16,40,32,.06),0 4px 14px rgba(16,40,32,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e1513; --panel:#151f1c; --ink:#e4efeb; --muted:#93a8a0; --line:#24332e; --soft:#1a2622;
+    --accent:#34c79c; --accent-2:#5fd8b2; --accent-ink:#06231a; --accent-soft:#173a30; --head:#0a1210;
+    --good:#4ccf94; --good-soft:#173a30; --warn:#e6a940; --warn-soft:#3a2d14; --bad:#ff7b7b; --bad-soft:#3b1f1f; --ro:#1b2622; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+header{background:var(--head);color:#fff;padding:18px 16px 54px}
+header .in,.wrap{max-width:640px;margin:0 auto}
+header .hi{font-size:13px;color:#9cc3b5}
+header h1{margin:2px 0 0;font-size:21px;line-height:1.25}
+header .sub{font-size:13px;color:#9cc3b5;margin-top:2px}
+.wrap{padding:0 16px calc(96px + env(safe-area-inset-bottom));margin-top:-40px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+h2{font-size:16px;margin:0 0 10px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
+.stat b{display:block;font-size:22px;line-height:1.2}
+.stat span{font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.pill.gray{background:var(--ro);color:var(--muted)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 18px;min-height:var(--tap);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.55}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.mk{min-width:44px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:700;background:var(--accent-soft);color:var(--accent)}
+.mk.nb{background:var(--bad-soft);color:var(--bad)} .mk.low{background:var(--warn-soft);color:var(--warn)}
+.quizcard{border:2px solid var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--panel) 70%)}
+.quizcard .t{font-size:18px;font-weight:700}
+.big{font-size:40px;font-weight:700;line-height:1}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:30}
+nav.tabs .in{display:flex;max-width:640px;width:100%}
+nav.tabs button{flex:1;border:0;background:none;padding:6px 2px;min-height:54px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted);cursor:pointer;border-radius:12px}
+nav.tabs button.on{color:var(--accent);font-weight:600;background:var(--accent-soft)}
+nav.tabs svg{width:22px;height:22px}
+.loading{padding:40px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;z-index:90;max-width:92vw}
+.toast.err{background:var(--bad);color:#fff}
+/* quiz */
+.qtop{position:sticky;top:0;z-index:20;background:var(--head);color:#fff;padding:12px 16px}
+.qtop .in{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.timer{font-variant-numeric:tabular-nums;font-weight:700;font-size:20px;background:rgba(255,255,255,.12);padding:4px 12px;border-radius:10px}
+.timer.low{background:var(--bad);color:#fff}
+.qprog{height:4px;background:rgba(255,255,255,.15)} .qprog i{display:block;height:100%;background:var(--accent-2);transition:width .2s}
+.qwrap{max-width:640px;margin:0 auto;padding:14px 16px 120px}
+.q .n{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.q .p{font-weight:600;font-size:17px;margin:4px 0 12px}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 14px;min-height:var(--tap);margin-bottom:8px;cursor:pointer}
+.opt .k{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;color:var(--muted)}
+.opt.on{border-color:var(--accent);background:var(--accent-soft)} .opt.on .k{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+input.gap{width:100%;border:1.5px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 14px;min-height:var(--tap)}
+input.gap:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.mrow{display:grid;grid-template-columns:1fr 1.2fr;gap:8px;align-items:center;margin-bottom:8px}
+.mrow .l{font-weight:500}
+select{width:100%;border:1.5px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 12px;min-height:var(--tap)}
+.ord{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:6px 6px 6px 12px;margin-bottom:6px;background:var(--panel)}
+.ord .tx{flex:1;min-width:0}
+.ord button{width:40px;height:40px;border:1px solid var(--line);background:var(--soft);border-radius:10px;cursor:pointer;font-size:16px}
+.qbar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:30}
+.qbar .in{max-width:640px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.rv{padding:10px 0;border-bottom:1px solid var(--line)} .rv:last-child{border-bottom:0}
+.rv .y{color:var(--bad)} .rv.ok .y{color:var(--good)} .rv .r{color:var(--good)}
+svg text{fill:var(--muted);font-size:10px;font-family:inherit}
+</style>
+</head>
+<body>
+<div id="main">
+  <header><div class="in"><div class="hi" id="hi">Darslar</div><h1 id="who">Loading…</h1><div class="sub" id="sub"></div></div></header>
+  <div class="wrap" id="view"><div class="card loading">Loading…</div></div>
+  <nav class="tabs hidden" id="tabs"><div class="in"></div></nav>
+</div>
+<div id="quiz" class="hidden"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH/exec';
+const $ = (q, el) => (el || document).querySelector(q), $$ = (q, el) => Array.from((el || document).querySelectorAll(q));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+function toast(m, err) { $$('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), err ? 6000 : 2600); }
+const fail = e => toast((e && e.message) || String(e), true);
+const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').map(Number); let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--; return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+
+let KEY = null;
+const m = /k=([a-f0-9]{40})/.exec(location.hash);
+if (m) { KEY = m[1]; ls.set('ds_k', KEY); } else KEY = ls.get('ds_k');
+
+async function api(action, ...args) {
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, key: KEY, args }) });
+  if (!r.ok) throw new Error('Server error ' + r.status + '. Try again.');
+  const j = await r.json();
+  if (!j.ok) { if (j.error === 'LINK_INVALID') { noAccess(); throw new Error('This link no longer works.'); } throw new Error(j.error); }
+  return j.data;
+}
+function noAccess() {
+  $('#who').textContent = 'Personal link needed'; $('#sub').textContent = ''; $('#tabs').classList.add('hidden');
+  $('#view').innerHTML = `<div class="card"><h2>Open your page from Telegram</h2><p class="muted">Open the student bot of your teacher and send <b>/link</b>. You will get your personal link. If you are new, send <b>/start</b> and choose your name.</p></div>`;
+}
+
+const TABS = [['home', 'Home', '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'], ['marks', 'Marks', '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
+  ['lessons', 'Lessons', '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/>'], ['quizzes', 'Quizzes', '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>']];
+let H = null, tab = 'home', pingT = null;
+function buildTabs() {
+  $('#tabs .in').innerHTML = TABS.map(t => `<button data-t="${t[0]}" class="${t[0] === tab ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${t[2]}</svg>${t[1]}</button>`).join('');
+  $$('#tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; buildTabs(); render(); window.scrollTo(0, 0); });
+  $('#tabs').classList.remove('hidden');
+}
+async function load(quiet) {
+  try {
+    H = await api('stHome');
+    $('#hi').textContent = 'Group ' + H.group + ' · ' + H.subject; $('#who').textContent = H.name;
+    $('#sub').textContent = 'Today is ' + dayName(H.today);
+    buildTabs(); render();
+  } catch (e) { if (KEY && !quiet) fail(e); if (!H && KEY) $('#view').innerHTML = `<div class="card"><p>Could not load. Check the internet.</p><button class="btn primary" onclick="load()">Try again</button></div>`; }
+}
+function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return `<span class="mk ${v.toLowerCase() === 'nb' ? 'nb' : (isFinite(n) && n < 6 ? 'low' : '')}">${esc(v || '—')}</span>`; }
+function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes })[tab](); }
+
+function quizBox() {
+  const q = H.quiz; if (!q) return '';
+  const left = Math.max(0, Math.round((Date.parse(q.closes_at) - Date.parse(H.now)) / 60000));
+  if (q.state === 'done') return `<div class="card quizcard"><div class="small muted">Quiz · done</div><div class="t">${esc(q.title)}</div><p style="margin:8px 0 0">Your mark: <b>${q.score10}</b> / 10. You will see the answers when your teacher closes the quiz.</p></div>`;
+  return `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Quiz is open now</div><div class="t">${esc(q.title)}</div>
+    <p class="small muted" style="margin:4px 0 12px">${q.count} questions · about ${left} min left · one attempt</p>
+    <button class="btn primary block" id="qgo">${q.state === 'working' ? 'Continue the quiz' : 'Start the quiz'}</button></div>`;
+}
+function tHome() {
+  const dl = H.deadlines.slice(0, 4).map(d => `<li><div style="flex:1;min-width:0"><b>${esc(d.title)}</b><div class="small muted">${esc(d.due_date)} · ${esc(d.type)}${d.notes ? ' · ' + esc(d.notes) : ''}</div></div>
+    ${d.days < 0 ? '<span class="pill gray">passed</span>' : d.days === 0 ? '<span class="pill bad">today</span>' : d.days <= 3 ? `<span class="pill warn">in ${d.days} d</span>` : `<span class="pill">in ${d.days} d</span>`}</li>`).join('');
+  const hw = H.lessons.filter(l => l.homework).slice(-1)[0];
+  $('#view').innerHTML = `${quizBox()}
+    <div class="card"><div class="stats">
+      <div class="stat"><b>${H.avg == null ? '—' : H.avg}</b><span>your average</span></div>
+      <div class="stat"><b>${H.rank ? ord(H.rank) : '—'}</b><span>${H.rank ? 'of ' + H.ranked + ' in group' : 'place'}</span></div>
+      <div class="stat"><b>${H.attended}/${H.marked}</b><span>lessons${H.nb ? ' · ' + H.nb + ' nb' : ''}</span></div></div>
+      <p class="small muted" style="margin:10px 0 0">Group average: <b>${H.groupAvg == null ? '—' : H.groupAvg}</b>. Other students' names and marks are not shown.</p></div>
+    ${hw ? `<div class="card"><h2>Latest homework</h2><div class="small muted">${esc(dayName(hw.date))}${hw.unit ? ' · ' + esc(hw.unit) : ''}${hw.topic ? ' · ' + esc(hw.topic) : ''}</div><p style="margin:6px 0 0">${esc(hw.homework)}</p></div>` : ''}
+    <div class="card"><h2>Deadlines</h2>${dl ? `<ul class="list">${dl}</ul>` : '<p class="muted" style="margin:0">No deadlines now.</p>'}</div>
+    <div class="card"><h2>Gradebook totals</h2><ul class="list">${H.totals.filter(t => t.value !== '').map(t => `<li><span style="flex:1">${esc(t.label)}</span><b>${esc(t.value)}</b><span class="small muted">/ ${t.max}</span></li>`).join('') || '<li class="muted">Nothing yet.</li>'}</ul></div>`;
+  if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
+}
+function chart(series) {
+  const pts = series.filter(s => s.raw !== ''); if (pts.length < 2) return '';
+  const W = Math.max(320, pts.length * 26), Ht = 150, L = 22, B = 22, T = 10;
+  const x = i => L + 10 + i * ((W - L - 20) / Math.max(1, pts.length - 1)), y = v => T + (Ht - T - B) * (1 - v / 10);
+  let path = '', grid = '';
+  [0, 5, 10].forEach(v => grid += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 5}" y="${y(v) + 3}" text-anchor="end">${v}</text>`);
+  pts.map((p, i) => [p, i]).filter(([p]) => p.val != null).forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
+  const dots = pts.map((p, i) => p.val == null ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:12px">×</text>` : `<circle cx="${x(i)}" cy="${y(p.val)}" r="3.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>`).join('');
+  return `<div class="card"><h2>My marks</h2><div style="overflow-x:auto"><svg width="${W}" height="${Ht}" role="img" aria-label="Marks chart">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}</svg></div><div class="small muted">× = absent (nb)</div></div>`;
+}
+function tMarks() {
+  const rows = H.series.slice().reverse();
+  $('#view').innerHTML = `${chart(H.series)}<div class="card"><h2>Daily marks</h2><ul class="list">${rows.map(s => `<li><span style="flex:1">${esc(dayName(s.date))}</span>${s.raw === '' ? '<span class="small muted">no mark</span>' : mk(s.raw)}</li>`).join('') || '<li class="muted">No marks yet.</li>'}</ul></div>`;
+}
+function tLessons() {
+  const ls2 = H.lessons.slice().reverse();
+  $('#view').innerHTML = `<div class="card"><h2>Lessons & homework</h2>${ls2.length ? `<ul class="list">${ls2.map(l => `<li style="align-items:flex-start"><div style="min-width:74px"><b>${esc(l.date)}</b><div class="small muted">${esc(dayName(l.date).split(' ')[0])}</div></div>
+    <div style="flex:1;min-width:0">${l.unit ? `<span class="pill">${esc(l.unit)}</span> ` : ''}<b>${esc(l.topic)}</b>${l.homework ? `<div class="small" style="margin-top:4px"><span class="muted">Homework:</span> ${esc(l.homework)}</div>` : ''}</div></li>`).join('')}</ul>` : '<p class="muted" style="margin:0">Nothing yet.</p>'}</div>`;
+}
+function tQuizzes() {
+  const r = H.results;
+  $('#view').innerHTML = `${quizBox()}<div class="card"><h2>My quiz results</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(x.date) + ' · ' : ''}${x.missed ? 'missed' : x.right + ' of ' + x.total + ' right'}${x.reviewable || x.missed ? ' · tap to see answers' : ' · answers after the quiz closes'}</div></div>
+    ${x.missed ? '<span class="pill gray">—</span>' : mk(x.score10)}</li>`).join('')}</ul>` : '<p class="muted" style="margin:0">No quizzes yet.</p>'}</div>`;
+  if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
+  $$('[data-rv]').forEach(li => li.onclick = () => review(li.dataset.rv));
+}
+async function review(id) {
+  $('#view').innerHTML = '<div class="card loading">Loading…</div>';
+  try {
+    const r = await api('stQuizReview', id);
+    $('#view').innerHTML = `<button class="btn" id="rb" style="margin-bottom:12px">← Back</button>
+      <div class="card"><h2 style="margin-bottom:2px">${esc(r.title)}</h2><div class="small muted">${r.missed ? 'You did not take this quiz. Here are the right answers.' : 'Your mark: <b>' + r.score10 + '</b> / 10'}</div></div>
+      <div class="card">${r.items.map((x, i) => { const ok = x.score >= 1; return `<div class="rv ${ok ? 'ok' : ''}"><div class="small muted">${i + 1}. ${ok ? '✓ right' : x.score > 0 ? '◐ partly right' : '✗ wrong'}</div><b>${esc(x.prompt)}</b>
+        ${r.missed ? '' : `<div class="small y">Your answer: ${esc(x.your)}</div>`}${ok ? '' : `<div class="small r">Right answer: ${esc(x.right)}</div>`}${x.explain && !ok ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`; }).join('')}</div>`;
+    $('#rb').onclick = () => { tab = 'quizzes'; buildTabs(); render(); };
+  } catch (e) { fail(e); tQuizzes(); }
+}
+
+/* ===================== quiz taking ===================== */
+let Q = null, A = {}, touched = {}, off = 0, qTimer = null, saveT = null, dirty = false, submitting = false;
+async function startQuiz(id) {
+  const btn = $('#qgo'); if (btn) btn.disabled = true;
+  try {
+    Q = await api('stQuizStart', id);
+    off = Date.parse(Q.now) - Date.now(); A = Q.saved || {}; touched = {};
+    Object.keys(A).forEach(k => touched[k] = true);
+    clearInterval(pingT);
+    $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); window.scrollTo(0, 0);
+    drawQuiz(); qTimer = setInterval(tickQ, 1000); tickQ();
+  } catch (e) { fail(e); if (btn) btn.disabled = false; load(true); }
+}
+const answered = () => Q.questions.filter(q => isAnswered(q)).length;
+function isAnswered(q) {
+  const a = A[q.id]; if (a == null || a === '') return false;
+  if (q.type === 'match') return q.left.every(l => a[l.i] !== undefined && a[l.i] !== '');
+  return true;
+}
+function drawQuiz() {
+  const L = 'ABCDEF';
+  $('#quiz').innerHTML = `<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5" id="qcount"></div></div><div class="timer" id="tmr">--:--</div></div></div>
+    <div class="qprog"><i id="qpi" style="width:0"></i></div>
+    <div class="qwrap">${Q.questions.map((q, n) => `<div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${n + 1} of ${Q.questions.length}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>`).join('')}
+      <p class="small muted" style="text-align:center">Your answers are saved as you go. When you finish, press <b>Finish</b>.</p></div>
+    <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1">Saved</span><button class="btn primary" id="qfin" style="min-width:140px">Finish</button></div></div>`;
+  Q.questions.forEach(q => drawQ(q, L));
+  $('#qfin').onclick = () => finish(false);
+  progress();
+}
+function drawQ(q, L) {
+  const box = $(`.q[data-q="${q.id}"] .body`); const a = A[q.id];
+  if (q.type === 'mc' || q.type === 'tf') {
+    box.innerHTML = q.options.map((o, k) => `<button class="opt ${a !== undefined && +a === o.i ? 'on' : ''}" data-i="${o.i}"><span class="k">${q.type === 'tf' ? (o.i ? 'T' : 'F') : L[k]}</span><span>${esc(o.t)}</span></button>`).join('');
+    $$('.opt', box).forEach(b => b.onclick = () => { A[q.id] = +b.dataset.i; changed(q); drawQ(q, L); });
+  } else if (q.type === 'gap') {
+    box.innerHTML = `<input class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer" value="${esc(a || '')}">`;
+    $('input', box).oninput = e => { A[q.id] = e.target.value; changed(q, true); };
+  } else if (q.type === 'match') {
+    const cur = a || {};
+    box.innerHTML = q.left.map(l => `<div class="mrow"><div class="l">${esc(l.t)}</div><select data-l="${l.i}"><option value="">Choose…</option>${q.right.map(r => `<option value="${r.i}" ${cur[l.i] !== undefined && cur[l.i] !== '' && +cur[l.i] === r.i ? 'selected' : ''}>${esc(r.t)}</option>`).join('')}</select></div>`).join('');
+    $$('select', box).forEach(s => s.onchange = () => { const m2 = Object.assign({}, A[q.id] || {}); m2[s.dataset.l] = s.value === '' ? '' : +s.value; A[q.id] = m2; changed(q); });
+  } else if (q.type === 'order') {
+    const seq = Array.isArray(a) ? a : q.items.map(x => x.i);
+    const txt = i => (q.items.find(x => x.i === i) || {}).t;
+    box.innerHTML = `<div class="small muted" style="margin-bottom:8px">Use ↑ ↓ to move the items.</div>` + seq.map((i, k) => `<div class="ord"><span class="small muted" style="min-width:18px">${k + 1}</span><span class="tx">${esc(txt(i))}</span>
+      <button data-up="${k}" ${k === 0 ? 'disabled' : ''} aria-label="Up">↑</button><button data-dn="${k}" ${k === seq.length - 1 ? 'disabled' : ''} aria-label="Down">↓</button></div>`).join('');
+    const mv = (k, d) => { const s2 = seq.slice(); [s2[k], s2[k + d]] = [s2[k + d], s2[k]]; A[q.id] = s2; changed(q); drawQ(q, L); };
+    $$('[data-up]', box).forEach(b => b.onclick = () => mv(+b.dataset.up, -1));
+    $$('[data-dn]', box).forEach(b => b.onclick = () => mv(+b.dataset.dn, 1));
+  }
+}
+function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 2500 : 1200); }
+function progress() { const n = answered(); $('#qcount').textContent = n + ' of ' + Q.questions.length + ' answered'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
+async function save() {
+  if (!dirty || !Q) return; dirty = false;
+  try { const r = await api('stQuizSave', Q.quiz_id, A); $('#qsave').textContent = r.ok ? 'Saved' : 'Time is over'; }
+  catch (e) { dirty = true; $('#qsave').textContent = 'Not saved — check the internet'; }
+}
+function tickQ() {
+  if (!Q) return;
+  const left = Math.max(0, Math.round((Date.parse(Q.closes_at) - Date.now() - off) / 1000));
+  const el = $('#tmr'); el.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); el.classList.toggle('low', left <= 60);
+  if (left === 60) toast('1 minute left');
+  if (left === 0) finish(true);
+}
+async function finish(auto) {
+  if (submitting || !Q) return;
+  const n = answered();
+  if (!auto && n < Q.questions.length && !confirm(`You answered ${n} of ${Q.questions.length}. Finish anyway?`)) return;
+  submitting = true; clearInterval(qTimer); clearTimeout(saveT);
+  $('#qfin').disabled = true; $('#qsave').textContent = 'Sending…';
+  let tries = 0;
+  while (true) {
+    try {
+      const r = await api('stQuizSubmit', Q.quiz_id, A);
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+        <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
+        <p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook. You will see the right answers when your teacher closes the quiz.</p>
+        <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+      $('#qdone').onclick = backHome; Q = null; submitting = false; return;
+    } catch (e) {
+      if (++tries >= 4) { submitting = false; $('#qfin').disabled = false; $('#qsave').textContent = 'Not sent. Press Finish again.'; return fail(e); }
+      await new Promise(r => setTimeout(r, 1500 * tries));
+    }
+  }
+}
+function backHome() { $('#quiz').classList.add('hidden'); $('#quiz').innerHTML = ''; $('#main').classList.remove('hidden'); tab = 'home'; load(true); startPing(); }
+window.addEventListener('beforeunload', e => { if (Q && !submitting) { save(); e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && Q) save(); });
+
+function startPing() {
+  clearInterval(pingT);
+  pingT = setInterval(async () => {
+    if (document.hidden || Q || !H) return;
+    try { const p = await api('stPing'); if ((p.open || null) !== (H.quiz ? H.quiz.quiz_id : null)) load(true); } catch (e) {}
+  }, 15000);
+}
+if (KEY) { load(); startPing(); } else noAccess();
+</script>
+</body>
+</html>
