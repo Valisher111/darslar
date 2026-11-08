@@ -229,7 +229,7 @@ const PAGES = [
   ['today', 'Today'], ['grades', 'Grades'], ['lessons', 'Lessons'], ['students', 'Students'],
   ['deadlines', 'Deadlines & PW'], ['quizzes', 'Quizzes'], ['settings', 'Settings']
 ];
-const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines'];
+const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines', 'quizzes'];
 
 /* ===================== helpers ===================== */
 const $ = (q, el) => (el || document).querySelector(q);
@@ -353,7 +353,7 @@ function go(page, group) {
 window.addEventListener('hashchange', () => { if (KEY) route(); });
 function route() {
   if (Object.keys(S.pending).length && !confirm(Object.keys(S.pending).length + ' unsaved change(s) will be lost. Continue?')) return;
-  S.pending = {}; updateSavebar(); S.navId = (S.navId || 0) + 1;
+  S.pending = {}; updateSavebar(); S.navId = (S.navId || 0) + 1; stopQuizTimer();
   const parts = location.hash.replace(/^#\/?/, '').split('/');
   S.page = PAGES.some(p => p[0] === parts[0]) ? parts[0] : 'today';
   if (parts[1] && S.groups.includes(parts[1])) S.group = parts[1];
@@ -607,14 +607,27 @@ function lessonEditor(l, g) {
 async function pageStudents() {
   loading();
   try {
-    const my = S.navId; const d = await getGroup(); if (my !== S.navId) return;
+    const my = S.navId; const [d, acc] = await Promise.all([getGroup(), api('accounts', S.group).catch(() => null)]); if (my !== S.navId) return;
     const avgOf = s => { const n = d.cols.filter(c => c.kind === 'day').map(c => String(s.v[c.c - 1] || '').trim()).filter(v => v && v.toLowerCase() !== 'nb').map(v => +v.replace(',', '.')).filter(isFinite); return n.length ? (n.reduce((a, b) => a + b, 0) / n.length).toFixed(1) : '—'; };
     const nbOf = s => d.cols.filter(c => c.kind === 'day' && String(s.v[c.c - 1] || '').trim().toLowerCase() === 'nb').length;
-    view().innerHTML = `<div class="card"><div class="row" style="margin-bottom:8px"><input type="text" id="q" placeholder="Search a student…" style="max-width:320px"><span class="spacer"></span><span class="small muted">avg · absences</span></div>
-      <ul class="slist">${d.students.map(s => `<li data-r="${s.row}" data-n="${esc(s.name.toLowerCase())}"><span class="muted" style="min-width:26px">${esc(s.no)}</span><span style="flex:1">${esc(s.name)}</span>
+    const by = (acc && acc.byName) || {};
+    const linked = d.students.filter(s => by[s.name] && by[s.name].status === 'active').length;
+    const tgPill = s => { const a = by[s.name]; return !a ? '' : a.status === 'active' ? '<span class="pill" title="Linked in Telegram">TG</span>' : '<span class="pill warn">waiting</span>'; };
+    const pend = acc ? acc.pending : [];
+    const pendHtml = pend.length ? `<div class="card" style="border-color:var(--warn);margin-bottom:14px"><h2>Waiting for approval (${pend.length})</h2>${pend.map(p => `<div class="up"><span class="gbadge">${esc(p.group)}</span>
+        <div style="flex:1;min-width:0"><b>${esc(p.full_name)}</b><div class="small muted">${p.tg_username ? '@' + esc(p.tg_username) + ' · ' : ''}${esc(p.at)}</div></div>
+        <button class="btn sm primary" data-ap="${esc(p.tg_id)}">Approve</button><button class="btn sm danger" data-rj="${esc(p.tg_id)}">Reject</button></div>`).join('')}</div>` : '';
+    const botHtml = !acc ? '' : !acc.botSet ? `<div class="card small muted" style="margin-bottom:14px">Student accounts: connect the student bot in <a href="#/settings">Settings</a> first.</div>`
+      : `<div class="small muted" style="margin:0 0 10px">Telegram: <b>${linked}/${d.students.length}</b> linked · students press /start in <a href="https://t.me/${esc(acc.botUsername)}" target="_blank" rel="noopener">@${esc(acc.botUsername)}</a></div>`;
+    view().innerHTML = `${pendHtml}${botHtml}<div class="card"><div class="row" style="margin-bottom:8px"><input type="text" id="q" placeholder="Search a student…" style="max-width:320px"><span class="spacer"></span><span class="small muted">avg · absences</span></div>
+      <ul class="slist">${d.students.map(s => `<li data-r="${s.row}" data-n="${esc(s.name.toLowerCase())}"><span class="muted" style="min-width:26px">${esc(s.no)}</span><span style="flex:1">${esc(s.name)} ${tgPill(s)}</span>
         <b>${avgOf(s)}</b><span class="pill ${nbOf(s) ? 'bad' : 'gray'}">${nbOf(s)} nb</span></li>`).join('')}</ul></div>`;
     $('#q').oninput = e => { const q = e.target.value.toLowerCase(); $$('.slist li').forEach(li => li.classList.toggle('hidden', !li.dataset.n.includes(q))); };
     $$('.slist li').forEach(li => li.onclick = () => showProfile(+li.dataset.r));
+    const doAcc = (attr, action, msg) => $$('[' + attr + ']').forEach(b => b.onclick = async () => {
+      b.disabled = true; try { await api(action, b.getAttribute(attr), S.group); toast(msg); pageStudents(); } catch (e) { b.disabled = false; fail(e); } });
+    doAcc('data-ap', 'approve', 'Approved — the student got the link in Telegram');
+    doAcc('data-rj', 'reject', 'Rejected');
   } catch (e) { fail(e); }
 }
 async function showProfile(row) {
@@ -630,8 +643,13 @@ async function showProfile(row) {
         ${stat(a('MI (10)'), 'Independent work (10)')}${stat(a('Jami (100)'), 'Total (100)')}</div></div>
       <div class="card"><h2>Daily marks</h2>${chart(p.series)}</div>
       <div class="card"><h2>Lowest marks</h2>${p.series.filter(s => s.val != null).sort((x, y) => x.val - y.val).slice(0, 6).map(s => `<span class="pill gray" style="margin:2px">${esc(s.date)}: ${esc(s.raw)}</span>`).join('') || '<span class="muted">—</span>'}</div>
-      <div class="card muted small">Quiz mistakes will appear here when the quiz module is ready.</div>`;
+      <div class="card"><h2>Quizzes</h2>${(p.quizzes || []).length ? p.quizzes.map(x => `<div class="up"><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${esc(x.date || '')}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
+        ${x.missed ? '<span class="pill gray">missed</span>' : `<span class="small muted">${x.right}/${x.total}</span> <b>${x.score10}</b>`}</div>`).join('') : '<div class="muted">No quiz results yet.</div>'}
+        ${(p.weak || []).length ? `<h3 style="margin-top:14px">Recent mistakes</h3>${p.weak.map(w => `<div class="small" style="padding:5px 0;border-bottom:1px solid var(--line)">${esc(w.prompt)} <span style="color:var(--good)">✓ ${esc(w.right)}</span> <span class="muted">· ${esc(w.quiz)}</span></div>`).join('')}` : ''}</div>
+      <div class="card"><div class="row"><div style="flex:1"><h2 style="margin:0">Telegram account</h2><div class="small muted">${p.account ? (p.account.status === 'active' ? 'Linked' : 'Waiting for approval') + (p.account.tg_username ? ' · @' + esc(p.account.tg_username) : '') + ' · ' + esc(p.account.linked_at) : 'Not linked. The student presses /start in the student bot.'}</div></div>
+        ${p.account ? '<button class="btn sm danger" id="unl">Unlink</button>' : ''}</div></div>`;
     $('#back').onclick = pageStudents;
+    if ($('#unl')) $('#unl').onclick = async () => { if (!confirm('Unlink ' + p.name + '? The old personal link stops working; the student can /start again.')) return; try { await api('unlink', S.group, p.name); toast('Unlinked'); showProfile(row); } catch (e) { fail(e); } };
   } catch (e) { fail(e); }
 }
 function chart(series) {
@@ -695,9 +713,154 @@ function deadlineEditor(x) {
 }
 
 /* ===================== QUIZZES ===================== */
-function pageQuizzes() {
-  view().innerHTML = `<div class="card"><h2>Quizzes</h2><p class="muted">The in-class quiz module is the next stage: you start a quiz in the lesson, students answer on their phones, marks go into the gradebook automatically and each student sees their mistakes.</p>
-    <span class="pill gray">Coming soon</span></div>`;
+const QPILL = { draft: 'gray', ready: '', open: 'warn', closed: 'gray' };
+const QTYPE = { mc: 'Multiple choice', tf: 'True / False', gap: 'Gap fill', match: 'Matching', order: 'Ordering' };
+let quizTimer = null;
+function stopQuizTimer() { clearInterval(quizTimer); quizTimer = null; }
+async function pageQuizzes() {
+  stopQuizTimer(); loading();
+  try {
+    const my = S.navId; const r = await api('quizzes', S.group); if (my !== S.navId) return;
+    const open = r.openNow[0];
+    const banner = open ? `<div class="card lesson-card" style="margin-bottom:14px"><div class="row"><span class="gbadge">${esc(open.group)}</span>
+        <div style="flex:1;min-width:0"><b>Open now:</b> ${esc(open.title)}<div class="small muted">${open.done} answered so far</div></div>
+        <button class="btn primary" data-res="${esc(open.quiz_id)}">Live results</button></div></div>` : '';
+    const card = q => `<div class="card"><div class="row"><b style="flex:1;min-width:0">${esc(q.title)}</b><span class="pill ${QPILL[q.status]}">${esc(q.status)}</span></div>
+      <div class="small muted" style="margin:4px 0 10px">${q.unit ? esc(q.unit) + ' · ' : ''}${q.count} questions · ${q.duration_min} min${q.lesson_date ? ' · lesson ' + esc(q.lesson_date) : ''}${q.status === 'closed' || q.status === 'open' ? ' · ' + q.done + ' results' : ''}</div>
+      <div class="row">${q.status === 'ready' || q.status === 'draft' ? `<button class="btn primary" data-start="${esc(q.quiz_id)}">Start quiz</button>` : ''}
+        ${q.status === 'open' ? `<button class="btn primary" data-res="${esc(q.quiz_id)}">Live results</button>` : ''}
+        ${q.status === 'closed' ? `<button class="btn" data-res="${esc(q.quiz_id)}">Results</button>` : ''}
+        <button class="btn sm" data-prev="${esc(q.quiz_id)}">Preview</button>
+        <button class="btn sm" data-copy="${esc(q.quiz_id)}">Copy to…</button>
+        ${q.status === 'ready' || q.status === 'draft' ? `<button class="btn sm" data-edit="${esc(q.quiz_id)}">Edit</button><button class="btn sm danger" data-del="${esc(q.quiz_id)}">Delete</button>` : ''}</div></div>`;
+    view().innerHTML = `${banner}<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1;min-width:220px">Group ${esc(S.group)} · ${r.list.length} quiz${r.list.length === 1 ? '' : 'zes'}. Start one in class: students answer on their phones, marks go to the gradebook.</p>
+      <button class="btn primary sm" id="newq">+ New quiz</button></div>
+      <div class="grid" style="gap:10px">${r.list.map(card).join('') || '<div class="card empty">No quizzes for this group yet. Ask Claude to add one (“quiz qo\'sh”), or press + New quiz.</div>'}</div>`;
+    $('#newq').onclick = () => quizEditor({ group: S.group, duration_min: 10, status: 'ready', questions: [] });
+    $$('[data-res]').forEach(b => b.onclick = () => quizLive(b.dataset.res));
+    $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
+    $$('[data-prev]').forEach(b => b.onclick = () => quizPreview(b.dataset.prev));
+    $$('[data-edit]').forEach(b => b.onclick = async () => { try { quizEditor(await api('quiz', b.dataset.edit)); } catch (e) { fail(e); } });
+    $$('[data-copy]').forEach(b => b.onclick = () => copyDialog(b.dataset.copy));
+    $$('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('Delete this quiz?')) return; try { await api('deleteQuiz', b.dataset.del); toast('Deleted'); pageQuizzes(); } catch (e) { fail(e); } });
+  } catch (e) { fail(e); }
+}
+function qBody(q, showAnswer) {
+  const ok = s => `<div class="small" style="color:var(--good);margin-top:4px">✓ ${esc(s)}</div>`;
+  if (q.type === 'mc') return `<ol type="A" style="margin:6px 0 0;padding-left:22px">${q.options.map((o, i) => `<li style="${showAnswer && i === q.answer ? 'color:var(--good);font-weight:600' : ''}">${esc(o)}</li>`).join('')}</ol>`;
+  if (q.type === 'tf') return showAnswer ? ok(q.answer ? 'True' : 'False') : '';
+  if (q.type === 'gap') return showAnswer ? ok(q.accept.join(' / ')) : '';
+  if (q.type === 'match') return `<div class="small" style="margin-top:4px">${q.pairs.map(p => `${esc(p[0])} → <b>${esc(p[1])}</b>`).join('<br>')}</div>`;
+  if (q.type === 'order') return `<div class="small" style="margin-top:4px">${q.items.map((x, i) => `${i + 1}. ${esc(x)}`).join('<br>')}</div>`;
+  return '';
+}
+async function quizPreview(id) {
+  try {
+    const q = await api('quiz', id);
+    modal(`<h3>${esc(q.title)}</h3><p class="small muted" style="margin-top:0">Group ${esc(q.group)} · ${q.count} questions · ${q.duration_min} min · answers are shown only to you</p>
+      ${q.questions.map((x, i) => `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="small muted">${i + 1}. ${QTYPE[x.type]}</div><b>${esc(x.prompt)}</b>${qBody(x, true)}${x.explain ? `<div class="small muted" style="margin-top:4px">Rule: ${esc(x.explain)}</div>` : ''}</div>`).join('')}
+      <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn" data-close>Close</button></div>`);
+  } catch (e) { fail(e); }
+}
+const QSAMPLE = `[
+  {"type":"mc","prompt":"She ___ to work by bus.","options":["go","goes","going","is go"],"answer":1,"explain":"he/she/it + -s"},
+  {"type":"tf","prompt":"'Few' goes with countable nouns.","answer":true},
+  {"type":"gap","prompt":"I have lived here ___ 2019.","answer":"since","accept":[]},
+  {"type":"match","prompt":"Match the opposites.","pairs":[["wide","narrow"],["deep","shallow"]]},
+  {"type":"order","prompt":"Make a question.","items":["How","long","have","you","known","her?"]}
+]`;
+function quizEditor(q) {
+  modal(`<h3>${q.quiz_id ? 'Edit quiz' : 'New quiz'} · group ${esc(q.group)}</h3>
+    <label class="f"><span>Title (e.g. Unit 12 - The Cycle of Life)</span><input type="text" id="q_t" value="${esc(q.title || '')}"></label>
+    <div class="row"><label class="f" style="flex:1"><span>Unit</span><input type="text" id="q_u" value="${esc(q.unit || '')}"></label>
+      <label class="f" style="width:120px"><span>Minutes</span><input type="text" id="q_m" inputmode="numeric" value="${esc(q.duration_min || 10)}"></label></div>
+    <label class="f"><span>Questions (JSON). Types: mc, tf, gap, match, order. Claude usually fills this for you.</span>
+      <textarea id="q_j" style="min-height:220px;font:12px/1.45 ui-monospace,Consolas,monospace" placeholder='${esc(QSAMPLE)}'>${q.questions && q.questions.length ? esc(JSON.stringify(q.questions, null, 1)) : ''}</textarea></label>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="q_ok">Save</button></div>`, m => {
+    $('#q_ok', m).onclick = async () => {
+      $('#q_ok', m).disabled = true;
+      try {
+        await api('saveQuiz', { quiz_id: q.quiz_id || '', group: q.group, title: $('#q_t', m).value.trim(), unit: $('#q_u', m).value.trim(), duration_min: $('#q_m', m).value.trim(), questions: $('#q_j', m).value, status: 'ready' });
+        closeModal(); toast('Quiz saved'); pageQuizzes();
+      } catch (e) { $('#q_ok', m).disabled = false; fail(e); }
+    };
+  });
+}
+function copyDialog(id) {
+  modal(`<h3>Copy quiz to another group</h3><label class="f"><span>Group</span><select id="cg">${S.groups.map(g => `<option ${g === S.group ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="cok">Copy</button></div>`, m => {
+    $('#cok', m).onclick = async () => { try { const g = $('#cg', m).value; await api('copyQuiz', id, g); closeModal(); toast('Copied to ' + g); go('quizzes', g); if (g === S.group) pageQuizzes(); } catch (e) { fail(e); } };
+  });
+}
+async function startDialog(id) {
+  let c;
+  try { c = await api('startCheck', id); } catch (e) { return fail(e); }
+  const info = c => !c.dateOk ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">There is no column ${esc(c.date || 'for today')} in the gradebook. Choose the lesson date, or marks will not be written.</p>`
+    : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(c.date)}. Their quiz marks will not replace it — you will see a warning and can choose.</p>`
+    : `<p class="small muted">Marks will go to the column <b>${esc(c.date)}</b> (all ${c.students} cells are empty).</p>`;
+  modal(`<h3>Start quiz</h3>
+    ${c.otherOpen.length ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">Another quiz is open (group ${esc(c.otherOpen.join(', '))}). Close it first.</p>` : ''}
+    <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="sd"><option value="">— choose —</option>${c.dates.map(d => `<option ${d === c.date ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+      <label class="f" style="width:120px"><span>Minutes</span><input type="text" id="sm" inputmode="numeric" value="10"></label></div>
+    <div id="sinfo">${info(c)}</div>
+    <p class="small muted">The timer starts now for everyone. Each student has one attempt. Students see the quiz on their page; press “Notify students” after starting to send a Telegram message.</p>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="sgo">Start now</button></div>`, async m => {
+    try { const q = await api('quiz', id); $('#sm', m).value = q.duration_min; } catch (e) {}
+    $('#sd', m).onchange = async e => { try { $('#sinfo', m).innerHTML = info(await api('startCheck', id, e.target.value)); } catch (er) { fail(er); } };
+    $('#sgo', m).onclick = async () => {
+      if (!$('#sd', m).value && !confirm('No lesson date chosen: marks will not be written to the gradebook. Start anyway?')) return;
+      $('#sgo', m).disabled = true;
+      try { const res = await api('startQuiz', id, $('#sm', m).value, $('#sd', m).value); closeModal(); toast('Quiz started'); quizLive(id, res); }
+      catch (e) { $('#sgo', m).disabled = false; fail(e); }
+    };
+  });
+}
+async function quizLive(id, res) {
+  stopQuizTimer();
+  const my = S.navId;
+  if (!res) { loading(); try { res = await api('quizResults', id); } catch (e) { return fail(e); } }
+  if (my !== S.navId) return;
+  const off = Date.parse(res.now) - Date.now();
+  const q = res.quiz, isOpen = q.status === 'open';
+  const nbCand = res.rows.filter(r => r.state === 'not started' && r.cell === '');
+  const st = r => r.state === 'done' ? (r.written ? '<span class="pill">in gradebook</span>'
+      : /conflict/.test(r.note) ? `<span class="pill warn">cell has ${esc((r.note.match(/has ([^;]+)/) || [])[1] || '?')}</span> <button class="btn sm" data-use="${esc(r.name)}">Use quiz mark</button>`
+      : `<span class="pill bad">${esc(r.note || 'not written')}</span>`)
+    : r.state === 'working' ? '<span class="pill warn">working…</span>' : `<span class="pill gray">not started</span>${r.cell ? ' <span class="small muted">(' + esc(r.cell) + ')</span>' : ''}`;
+  view().innerHTML = `<div class="row" style="margin-bottom:14px"><button class="btn sm" id="qback">← Quizzes</button></div>
+    <div class="card"><div class="row"><span class="gbadge">${esc(q.group)}</span><b style="flex:1;min-width:0;font-size:17px">${esc(q.title)}</b><span class="pill ${QPILL[q.status]}">${esc(q.status)}</span></div>
+      <div class="grid g4" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+        <div class="stat"><b id="qleft">${isOpen ? '—' : 'closed'}</b><span>time left</span></div>
+        <div class="stat"><b>${res.done}/${res.students}</b><span>finished</span></div>
+        <div class="stat"><b>${res.avg == null ? '—' : res.avg}</b><span>average /10</span></div>
+        <div class="stat"><b>${esc(q.lesson_date || '—')}</b><span>${res.dateOk ? 'gradebook column' : '<span style="color:var(--bad)">no column</span>'}</span></div></div>
+      ${isOpen ? `<div class="row" style="margin-top:14px"><button class="btn" id="qnot">Notify students</button><button class="btn" id="qext">+2 min</button><span class="spacer"></span><button class="btn danger" id="qclose">Close now</button></div>` : ''}
+      ${!isOpen && nbCand.length && res.dateOk ? `<div class="row" style="margin-top:14px"><span class="small muted" style="flex:1">${nbCand.length} did not take it and have no mark on ${esc(q.lesson_date)}.</span><button class="btn danger" id="qnb">Mark them nb…</button></div>` : ''}</div>
+    <div class="card"><h2>Students</h2><ul class="dlist">${res.rows.map(r => `<li><div class="nm">${esc(r.name)}${r.linked ? '' : ' <span class="small muted">(no account)</span>'}</div>
+      <b style="min-width:36px;text-align:right">${r.score10 == null ? '' : r.score10}</b><div style="text-align:right">${st(r)}</div></li>`).join('')}</ul></div>
+    <div class="card"><h2>Most missed</h2>${res.top.length ? res.top.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="row"><b style="flex:1;min-width:0">${x.n}. ${esc(x.prompt)}</b><span class="pill bad">${x.wrongPct}% wrong</span></div>
+      <div class="small" style="color:var(--good)">✓ ${esc(x.right)}</div>${x.explain ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`).join('') : '<div class="muted">No results yet.</div>'}
+      <h3 style="margin-top:16px">All questions</h3>${res.stats.map(x => `<div class="row small" style="padding:4px 0"><span style="min-width:22px" class="muted">${x.n}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.prompt)}</span>
+        <div class="progress" style="width:90px"><i style="width:${x.wrongPct || 0}%;background:var(--bad)"></i></div><span style="min-width:38px;text-align:right">${x.wrongPct == null ? '—' : x.wrongPct + '%'}</span></div>`).join('')}</div>`;
+  $('#qback').onclick = () => { stopQuizTimer(); pageQuizzes(); };
+  const act = (sel, fn) => { const b = $(sel); if (b) b.onclick = async () => { b.disabled = true; try { await fn(); } catch (e) { fail(e); } finally { b.disabled = false; } }; };
+  act('#qnot', async () => { const r = await api('notifyQuiz', id); toast(`Sent to ${r.sent} of ${r.of} linked students`); });
+  act('#qext', async () => quizLive(id, await api('extendQuiz', id, 2)));
+  act('#qclose', async () => { if (!confirm('Close the quiz now? Unfinished students are graded on what they saved.')) return; quizLive(id, await api('closeQuiz', id)); });
+  act('#qnb', async () => { if (!confirm('Put nb on ' + q.lesson_date + ' for:\n' + nbCand.map(r => r.name).join('\n'))) return; quizLive(id, await api('quizMarkNb', id, nbCand.map(r => r.row))); S.data = {}; toast('nb saved'); });
+  $$('[data-use]').forEach(b => b.onclick = async () => { if (!confirm('Replace the existing mark of ' + b.dataset.use + ' with the quiz mark?')) return; try { quizLive(id, await api('quizUseMark', id, b.dataset.use)); S.data = {}; toast('Saved'); } catch (e) { fail(e); } });
+  if (isOpen) {
+    const closes = Date.parse(q.closes_at); let n = 0;
+    const tickFn = async () => {
+      if (my !== S.navId) return stopQuizTimer();
+      const left = Math.max(0, Math.round((closes - Date.now() - off) / 1000)); const el = $('#qleft');
+      if (el) el.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+      if (++n % 6 === 0 || (left === 0 && n % 3 === 0)) {
+        try { const r2 = await api('quizResults', id); if (my === S.navId && (r2.done !== res.done || r2.quiz.status !== 'open' || r2.quiz.closes_at !== q.closes_at || JSON.stringify(r2.rows) !== JSON.stringify(res.rows))) { if (r2.quiz.status !== 'open') S.data = {}; quizLive(id, r2); } } catch (e) {}
+      }
+    };
+    tickFn(); quizTimer = setInterval(tickFn, 1000);
+  }
 }
 
 /* ===================== SETTINGS ===================== */
@@ -714,14 +877,24 @@ async function pageSettings() {
         <div class="row"><button class="btn" id="so">Sign out</button><button class="btn danger" id="soa">Sign out everywhere</button></div></div>
       <div class="card"><h2>Minimum mark for quiz takers</h2><p class="muted">When on, a student who takes an in-class quiz gets at least 5.</p>
         <div class="seg"><button data-m="off" class="${s.minAttendScore !== 'on' ? 'on' : ''}">Off</button><button data-m="on" class="${s.minAttendScore === 'on' ? 'on' : ''}">On</button></div></div>
-      <div class="card"><h2>Student bot</h2><p class="muted">Status: ${s.botTokenSet ? '<b style="color:var(--good)">connected</b>' : 'not connected yet'}. Paste the token from BotFather for the new student bot.</p>
-        <div class="row"><input type="text" id="bt" placeholder="123456:ABC…" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="bts">Save</button></div></div>
+      <div class="card"><h2>Student bot</h2>
+        ${s.botTokenSet ? `<p>Status: <b style="color:var(--good)">connected</b> · <a href="https://t.me/${esc(s.botUsername)}" target="_blank" rel="noopener">@${esc(s.botUsername)}</a><br>
+          <span class="small muted">Send this link to your groups: students press Start, choose their name, you approve.</span></p>
+          <p class="small">Your Telegram: ${s.teacherLinked ? '<b style="color:var(--good)">connected</b> — approval requests come to you in the bot.' : '<b>not connected</b> — connect it to approve students right in Telegram.'}</p>
+          <div class="row" style="margin-bottom:14px"><button class="btn primary" id="tgme">${s.teacherLinked ? 'Reconnect my Telegram' : 'Connect my Telegram'}</button></div>`
+        : '<p class="muted">Not connected yet. Create a new bot in @BotFather (/newbot) and paste its token here.</p>'}
+        <div class="row"><input type="text" id="bt" placeholder="${s.botTokenSet ? 'New token (only to replace)' : '123456:ABC…'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="bts">Save</button></div></div>
     </div><p class="small muted" style="margin-top:16px">Groups: ${s.groups.map(esc).join(', ')} · Version ${esc(s.version)} · Data: Google Sheets “Baholash jurnali 2026-2027”</p>`;
     $('#cpw').onclick = async () => { try { await api('changePassword', $('#op').value, $('#np').value); $('#op').value = $('#np').value = ''; toast('Password changed'); } catch (e) { fail(e); } };
     $('#so').onclick = () => signOut();
     $('#soa').onclick = async () => { if (!confirm('Sign out on all devices?')) return; try { await api('logoutAll'); signOut(); } catch (e) { fail(e); } };
     $$('[data-m]').forEach(b => b.onclick = async () => { try { await api('setMinAttend', b.dataset.m === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
-    $('#bts').onclick = async () => { try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { fail(e); } };
+    $('#bts').onclick = async () => { $('#bts').disabled = true; try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { $('#bts').disabled = false; fail(e); } };
+    if ($('#tgme')) $('#tgme').onclick = async () => {
+      try { const link = await api('teacherTgLink');
+        modal(`<h3>Connect your Telegram</h3><p class="muted">Open the bot and press <b>Start</b>. The link works for 15 minutes, only once.</p>
+          <div class="row"><span class="spacer"></span><button class="btn" data-close>Close</button><a class="btn primary" href="${esc(link)}" target="_blank" rel="noopener" data-close>Open Telegram</a></div>`);
+      } catch (e) { fail(e); } };
   } catch (e) { fail(e); }
 }
 
