@@ -162,6 +162,9 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .toast.err{background:var(--bad);color:#fff}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);width:100%;max-width:560px;border-radius:16px;padding:20px;max-height:90vh;overflow:auto}
+.modal.pmodal{max-width:440px;padding:14px 16px}
+.phone{margin:0 auto;width:min(390px,100%);height:min(760px,calc(90vh - 110px));border:10px solid #111;border-radius:34px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.phone iframe{width:100%;height:100%;border:0;display:block}
 @media (max-width:600px){.modal-bg{align-items:flex-end;padding:0}.modal{border-radius:18px 18px 0 0}}
 
 /* auth */
@@ -737,7 +740,8 @@ async function pageQuizzes() {
       <div class="row">${q.status === 'ready' || q.status === 'draft' ? `<button class="btn primary" data-start="${esc(q.quiz_id)}">Start quiz</button>` : ''}
         ${q.status === 'open' ? `<button class="btn primary" data-res="${esc(q.quiz_id)}">Live results</button>` : ''}
         ${q.status === 'closed' ? `<button class="btn" data-res="${esc(q.quiz_id)}">Results</button>` : ''}
-        <button class="btn sm" data-prev="${esc(q.quiz_id)}">Preview</button>
+        <button class="btn sm" data-sv="${esc(q.quiz_id)}">Student view</button>
+        <button class="btn sm" data-prev="${esc(q.quiz_id)}">Answer key</button>
         <button class="btn sm" data-copy="${esc(q.quiz_id)}">Copy to…</button>
         ${q.status === 'ready' || q.status === 'draft' ? `<button class="btn sm" data-edit="${esc(q.quiz_id)}">Edit</button><button class="btn sm danger" data-del="${esc(q.quiz_id)}">Delete</button>` : ''}</div></div>`;
     view().innerHTML = `${banner}<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1;min-width:220px">Group ${esc(S.group)} · ${r.list.length} quiz${r.list.length === 1 ? '' : 'zes'}. Start one in class: students answer on their phones, marks go to the gradebook.</p>
@@ -747,6 +751,7 @@ async function pageQuizzes() {
     $$('[data-res]').forEach(b => b.onclick = () => quizLive(b.dataset.res));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
     $$('[data-prev]').forEach(b => b.onclick = () => quizPreview(b.dataset.prev));
+    $$('[data-sv]').forEach(b => b.onclick = () => studentView(b.dataset.sv));
     $$('[data-edit]').forEach(b => b.onclick = async () => { try { quizEditor(await api('quiz', b.dataset.edit)); } catch (e) { fail(e); } });
     $$('[data-copy]').forEach(b => b.onclick = () => copyDialog(b.dataset.copy));
     $$('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('Delete this quiz?')) return; try { await api('deleteQuiz', b.dataset.del); toast('Deleted'); pageQuizzes(); } catch (e) { fail(e); } });
@@ -760,6 +765,12 @@ function qBody(q, showAnswer) {
   if (q.type === 'match') return `<div class="small" style="margin-top:4px">${q.pairs.map(p => `${esc(p[0])} → <b>${esc(p[1])}</b>`).join('<br>')}</div>`;
   if (q.type === 'order') return `<div class="small" style="margin-top:4px">${q.items.map((x, i) => `${i + 1}. ${esc(x)}`).join('<br>')}</div>`;
   return '';
+}
+/* "Student view": the real student page inside a phone frame, in preview mode (nothing is saved) */
+window.dpKey = () => KEY;
+function studentView(id) {
+  modal(`<div class="row" style="margin-bottom:10px"><div style="flex:1;min-width:0"><h3 style="margin:0">Student view</h3><div class="small muted">Exactly what students see on their phones. Try it: answer, press Finish, see the mark and the answers. Nothing goes to the gradebook.</div></div><button class="btn sm" data-close>Close</button></div>
+    <div class="phone"><iframe title="Student view" src="s.html#preview=${encodeURIComponent(id)}"></iframe></div>`, m => { m.querySelector('.modal').classList.add('pmodal'); });
 }
 async function quizPreview(id) {
   try {
