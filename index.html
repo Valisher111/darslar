@@ -1122,7 +1122,7 @@ async function lvSave() {
       P.questions.forEach((q, i) => { const a = (all[i] || {})[p.uid], m = LV.qmeta[i]; if (a && m && a.t <= m.startedAt + m.dur * 1000 + 1500) answers[q.id] = q.type === 'tf' ? (a.a === 0 ? 1 : 0) : (q.perm ? q.perm[a.a] : a.a); });
       return { ticket: LV.tickets[p.uid], answers };
     });
-    LV.saved = await api('liveFinish', P.gid, results, report);
+    LV.saved = await api('liveFinish', P.gid, results, report, { mapped: true });
   } catch (e) { LV.saveErr = e.message || String(e); }
   LV.saving = false; lvRender();
 }
