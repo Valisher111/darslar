@@ -140,6 +140,8 @@ let KEY = null;
 const m = /k=([a-f0-9]{40})/.exec(location.hash);
 if (m) { KEY = m[1]; ls.set('ds_k', KEY); } else KEY = ls.get('ds_k');
 // Teacher "Student view": s.html#preview=<quiz_id>, opened from the teacher site (uses the teacher key, writes nothing)
+const PLm = /play=([a-f0-9]{16,64})/.exec(location.hash);
+const PLAY = PLm ? PLm[1] : null;   // opened from the QR code on the projector
 const PVm = /preview=([^&]+)/.exec(location.hash);
 const PREVIEW = PVm ? decodeURIComponent(PVm[1]) : null;
 if (PREVIEW) {
@@ -399,33 +401,48 @@ async function fbApp(name) {
 }
 let SL = null;
 const slBox = h => `<div class="lvs">${h}</div>`;
-async function joinLive() {
-  clearInterval(pingT);
+async function joinLive(playGid) {
+  clearInterval(pingT); if (typeof playGid !== 'string') playGid = null;
   $('#main').classList.add('hidden'); const el = $('#live'); el.classList.remove('hidden'); window.scrollTo(0, 0);
   el.innerHTML = slBox('<div class="lvs-big">Connecting…</div>');
   try {
-    const j = await api('stLiveJoin');
+    let j = null;
+    if (KEY) { try { j = await api('stLiveJoin'); } catch (e) { j = null; } if (j && playGid && j.gid !== playGid) j = null; }
+    if (!j && !playGid) throw new Error('There is no live game for your group now.');
+    if (!j) j = { gid: playGid, title: '', ticket: null, guest: true };   // not on the group list: play as a guest, no mark
     const fb = await fbApp('student');
     SL = { j, fb, g: fb.db.ref('games/' + j.gid), state: undefined, rt: 0, my: {}, qi: -1, qd: null, sent: null, rev: {}, tick: null, n: 0 };
+    if (j.guest) {
+      const meta = (await SL.g.child('meta').once('value')).val();
+      if (!meta) throw new Error('This game is over, or the QR code is old.');
+      j.title = meta.title || 'Live game';
+    }
     if ((await SL.g.child('kicked/' + fb.uid).once('value')).val()) await slNewUser();
     const me = (await SL.g.child('players/' + SL.fb.uid).once('value')).val();
     if (me && me.nick) slListen(); else slNick();
-  } catch (e) { SL = null; el.innerHTML = slBox(`<div class="lvs-big">Could not join</div><p class="lvs-dim" style="text-align:center">${esc(e.message || e)}</p><button class="btn block" onclick="leaveLive()">Back</button>`); }
+  } catch (e) { SL = null; el.innerHTML = slBox(`<div class="lvs-big">Could not join</div><p class="lvs-dim" style="text-align:center">${esc(e.message || e)}</p><button class="btn block" onclick="joinLive(PLAY)">Try again</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Back</button>' : ''}`); }
 }
 async function slNewUser() { await SL.fb.auth.signOut(); await SL.fb.auth.signInAnonymously(); SL.fb.uid = SL.fb.auth.currentUser.uid; }
 function slNick(msg) {
-  $('#live').innerHTML = slBox(`<div class="lvs-dim">${esc(SL.j.title)}</div><h2 class="lvs-h">Choose a nickname</h2>${msg ? `<p style="color:#fde68a;margin:0">${esc(msg)}</p>` : ''}
+  const G = SL.j.guest;
+  $('#live').innerHTML = slBox(`<div class="lvs-dim">${esc(SL.j.title)}</div>${msg ? `<p style="color:#fde68a;margin:0">${esc(msg)}</p>` : ''}
+    ${G ? `<div class="lvs-card" style="text-align:left;font-size:15px">You are joining as a <b style="display:inline;font-size:inherit">guest</b>: you can play, but your result does not go to the gradebook. Students of this group: open your page from the bot to get a mark.</div>
+    <h2 class="lvs-h">Your first and last name</h2><input id="lvname" maxlength="60" autocomplete="name" placeholder="e.g. Aziza Karimova" value="${esc(ls.get('ds_gname') || '')}">` : ''}
+    <h2 class="lvs-h">Choose a nickname</h2>
     <input id="lvnick" maxlength="20" autocomplete="off" placeholder="e.g. Tiger" value="${esc(ls.get('ds_nick') || '')}">
     <p class="small lvs-dim" style="margin:0">Everyone sees it on the screen. Your teacher knows who you are, so choose a polite one.</p>
-    <button class="btn block lvs-go" id="lvgo">Join</button><button class="btn block" onclick="leaveLive()">Back</button>`);
+    <button class="btn block lvs-go" id="lvgo">Join</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Back</button>' : ''}`);
   const go = async () => {
     const nick = $('#lvnick').value.trim().replace(/\s+/g, ' ').slice(0, 20);
+    const gname = G ? $('#lvname').value.trim().replace(/\s+/g, ' ').slice(0, 60) : '';
+    if (G && gname.length < 2) return toast('Type your first and last name', true);
     if (!nick) return toast('Type a nickname', true);
     $('#lvgo').disabled = true;
     try {
-      ls.set('ds_nick', nick);
-      await SL.g.child('tickets/' + SL.fb.uid).set(SL.j.ticket);
-      await SL.g.child('players/' + SL.fb.uid).set({ nick, at: firebase.database.ServerValue.TIMESTAMP });
+      ls.set('ds_nick', nick); if (G) ls.set('ds_gname', gname);
+      const me = { nick, at: firebase.database.ServerValue.TIMESTAMP };
+      if (G) me.guest = gname; else await SL.g.child('tickets/' + SL.fb.uid).set(SL.j.ticket);
+      await SL.g.child('players/' + SL.fb.uid).set(me);
       slListen();
     } catch (e) { $('#lvgo').disabled = false; toast(/permission/i.test(e.message || '') ? 'The game is closed or you were removed.' : 'Could not join: ' + e.message, true); }
   };
@@ -446,14 +463,16 @@ function slOff() {
   ['state', 'meta/n', 'scores/' + uid, 'kicked/' + uid].forEach(k => SL.g.child(k).off());
   if (SL.revRef) SL.revRef.off(); clearInterval(SL.tick);
 }
-function leaveLive() { slOff(); SL = null; $('#live').classList.add('hidden'); $('#live').innerHTML = ''; $('#main').classList.remove('hidden'); load(true); startPing(); }
+function leaveLive() {
+  if (!KEY) { slOff(); SL = null; $('#live').innerHTML = slBox('<div class="lvs-big">Thanks for playing!</div><p class="lvs-dim" style="text-align:center">You can close this page.</p>'); return; }
+  slOff(); SL = null; $('#live').classList.add('hidden'); $('#live').innerHTML = ''; $('#main').classList.remove('hidden'); load(true); startPing(); }
 const slRank = () => SL.my && SL.my.rank ? `<div class="lvs-card"><span class="lvs-dim">${esc(SL.my.nick || '')}</span><b>${ord(SL.my.rank)} place</b>${(SL.my.score || 0).toLocaleString('en-US')} points</div>` : '';
 async function slRender() {
   if (!SL) return;
   const st = SL.state, el = $('#live'), my = ++SL.rt;
   clearInterval(SL.tick);
   if (st === undefined) return;
-  if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">Back to my page</button>`); return; }
+  if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`); return; }
   if (st.phase === 'lobby') { el.innerHTML = slBox(`<div class="lvs-big">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>`); return; }
   if (st.phase === 'question') {
     if (SL.qi !== st.q) {
@@ -492,8 +511,8 @@ async function slRender() {
   }
   if (st.phase === 'end') {
     el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">Game over!</div>${slRank()}
-      ${SL.my && SL.my.rank ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. Your mark goes to the gradebook.</div>` : ''}
-      <button class="btn block lvs-go" onclick="leaveLive()">Back to my page</button>`);
+      ${SL.my && SL.my.rank ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. ${SL.j.guest ? 'You played as a guest, so there is no mark in the gradebook.' : 'Your mark goes to the gradebook.'}</div>` : ''}
+      <button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`);
   }
 }
 async function slAnswer(k) {
@@ -503,7 +522,7 @@ async function slAnswer(k) {
   catch (e) { if (SL && SL.qi === qi) { SL.sent = null; SL.late = true; slRender(); } }
 }
 
-if (PREVIEW) startPreview(); else if (KEY) { load(); startPing(); } else noAccess();
+if (PREVIEW) startPreview(); else if (PLAY) joinLive(PLAY); else if (KEY) { load(); startPing(); } else noAccess();
 </script>
 </body>
 </html>
