@@ -486,6 +486,8 @@ async function pageToday() {
         <b>Homework</b><span>${esc(l.homework) || '<span class="muted">—</span>'}</span></div>
         <div class="row small muted" style="margin-bottom:6px"><span>Marks entered</span><span class="spacer"></span><span>${l.marked}/${l.students}</span></div>
         <div class="progress"><i style="width:${pct}%"></i></div>
+        ${l.quiz ? `<div class="row" style="margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--soft,rgba(16,122,87,.08))"><div style="flex:1;min-width:0"><div class="small muted">Today's quiz (homework check)</div><b>${esc(l.quiz.title)}</b></div>
+          <button class="btn primary sm" data-live="${esc(l.quiz.quiz_id)}">▶ Live game</button><button class="btn sm" data-start="${esc(l.quiz.quiz_id)}">As test</button></div>` : ''}
         <div class="row" style="margin-top:14px">
           <button class="btn primary" data-mark="${esc(l.group)}|${l.col}">Mark grades</button>
           <button class="btn" data-lesson="${esc(l.group)}|${esc(l.date)}">Edit lesson</button>
@@ -497,7 +499,7 @@ async function pageToday() {
     const upHtml = h.upcoming.length ? h.upcoming.map(u => `<div class="up">
         <div class="d">${esc(u.date)}<div class="small muted" style="font-weight:500">${shortDay(u.date)}</div></div>
         <span class="gbadge">${esc(u.group)}</span>
-        <div style="flex:1;min-width:0"><div>${esc(u.subject)}</div><div class="small muted">${u.topic ? esc((u.unit ? u.unit + ' · ' : '') + u.topic) : 'Topic not set'}</div></div>
+        <div style="flex:1;min-width:0"><div>${esc(u.subject)}</div><div class="small muted">${u.topic ? esc((u.unit ? u.unit + ' · ' : '') + u.topic) : 'Topic not set'}</div>${u.quiz ? `<div class="small">Quiz: ${esc(u.quiz.title)}</div>` : ''}</div>
         <button class="btn sm" data-lesson="${esc(u.group)}|${esc(u.date)}">Plan</button></div>`).join('') : '<div class="empty">Nothing scheduled.</div>';
     const dlHtml = h.deadlines.length ? h.deadlines.map(x => {
       const p = x.days < 0 ? `<span class="pill gray">${-x.days} d ago</span>` : x.days === 0 ? '<span class="pill bad">today</span>' : x.days <= 3 ? `<span class="pill warn">in ${x.days} d</span>` : `<span class="pill">in ${x.days} d</span>`;
@@ -525,6 +527,8 @@ async function pageToday() {
     $$('[data-mark]').forEach(b => b.onclick = () => { const [g, c] = b.dataset.mark.split('|'); S.day[g] = +c; S.view = 'day'; go('grades', g); });
     $$('[data-lesson]').forEach(b => b.onclick = () => { const [g, d] = b.dataset.lesson.split('|'); S.group = g; openLessonByDate(g, d); });
     $$('.gcard').forEach(c => c.onclick = () => go('grades', c.dataset.g));
+    $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
+    $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
   } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
 }
 
