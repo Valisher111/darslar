@@ -163,6 +163,43 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);width:100%;max-width:560px;border-radius:16px;padding:20px;max-height:90vh;overflow:auto}
 .modal.pmodal{max-width:440px;padding:14px 16px}
+
+/* ---- live game host (projector) ---- */
+#lv{position:fixed;inset:0;z-index:300;background:#0e3b2e;color:#fff;display:flex;flex-direction:column;font-size:18px;overflow:auto}
+#lv .lv-top{display:flex;align-items:center;gap:14px;padding:12px 22px;background:rgba(0,0,0,.25);flex-wrap:wrap}
+#lv .lv-dim{color:#a9cfc1}
+#lv .lv-pill{background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;font-weight:700}
+#lv .lv-main{flex:1;display:flex;flex-direction:column;padding:24px clamp(16px,4vw,56px);gap:22px;min-height:0}
+#lv .lv-btn{background:#fff;color:#0e3b2e;border:0;border-radius:12px;padding:12px 24px;font:inherit;font-weight:800;cursor:pointer}
+#lv .lv-btn.ghost{background:rgba(255,255,255,.12);color:#fff;padding:8px 14px;font-weight:600}
+#lv .lv-btn.big{font-size:26px;padding:16px 44px}
+#lv .lv-btn:disabled{opacity:.4;cursor:default}
+#lv .lv-h1{font-size:clamp(26px,3.2vw,44px);font-weight:800;line-height:1.15;text-align:center;margin:0}
+#lv .lv-key{background:#fff;color:#0e3b2e;border-radius:10px;padding:0 12px;white-space:nowrap}
+#lv .lv-count{text-align:center;font-size:22px}#lv .lv-count b{font-size:64px;display:block;line-height:1}
+#lv .lv-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-content:flex-start;flex:1}
+#lv .lv-chip{background:#fff;color:#0e3b2e;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:800;font-size:22px;cursor:pointer}
+#lv .lv-chip:hover{text-decoration:line-through;background:#ffd5d5}
+#lv .lv-center{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+#lv .lv-prompt{font-size:clamp(26px,3.4vw,50px);font-weight:800;text-align:center;background:#fff;color:#111;border-radius:16px;padding:22px 28px;line-height:1.2}
+#lv .lv-mid{display:flex;align-items:center;justify-content:space-between;flex:1;min-height:110px;gap:16px}
+#lv .lv-timer{width:130px;height:130px;border-radius:50%;background:#6d28d9;display:grid;place-items:center;font-size:60px;font-weight:800}
+#lv .lv-ans{text-align:center;font-size:22px}#lv .lv-ans b{font-size:60px;display:block;line-height:1}
+#lv .lv-expl{flex:1;text-align:center;font-size:clamp(18px,2vw,28px);color:#e6f4ee}
+#lv .lv-opts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#lv .lv-opt{display:flex;align-items:center;gap:16px;border-radius:12px;padding:18px 22px;font-size:clamp(20px,2.3vw,34px);font-weight:800;min-height:96px;color:#fff;transition:opacity .3s}
+#lv .lv-opt.dim{opacity:.28}
+#lv .lv-shape{font-size:1.15em;width:1.3em;text-align:center;flex:none}
+#lv .lv-cnt{font-size:1.1em;background:rgba(0,0,0,.25);border-radius:10px;padding:2px 14px}
+#lv .lv-board{max-width:860px;width:100%;margin:0 auto;display:grid;gap:12px}
+#lv .lv-row{display:flex;align-items:center;gap:18px;background:#fff;color:#111;border-radius:12px;padding:14px 22px;font-size:clamp(22px,2.4vw,32px);font-weight:800}
+#lv .lv-row .n{width:44px;color:#6b7280}#lv .lv-row .s{margin-left:auto}
+#lv .lv-pod{display:flex;align-items:flex-end;justify-content:center;gap:clamp(10px,2vw,26px);flex:1;min-height:320px}
+#lv .lv-pod .col{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(26vw,280px)}
+#lv .lv-pod .nm{font-size:clamp(22px,2.6vw,36px);font-weight:800;text-align:center;word-break:break-word}
+#lv .lv-pod .bar{width:100%;border-radius:14px 14px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14px;font-size:44px;font-weight:800}
+#lv .lv-note{background:rgba(255,255,255,.1);border-radius:12px;padding:12px 16px;font-size:16px;max-width:860px;margin:0 auto;width:100%}
+@media (max-width:700px){#lv .lv-opts{grid-template-columns:1fr}#lv .lv-timer{width:90px;height:90px;font-size:40px}}
 .phone{margin:0 auto;width:min(390px,100%);height:min(760px,calc(90vh - 110px));border:10px solid #111;border-radius:34px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .phone iframe{width:100%;height:100%;border:0;display:block}
 @media (max-width:600px){.modal-bg{align-items:flex-end;padding:0}.modal{border-radius:18px 18px 0 0}}
@@ -730,26 +767,34 @@ function stopQuizTimer() { clearInterval(quizTimer); quizTimer = null; }
 async function pageQuizzes() {
   stopQuizTimer(); loading();
   try {
-    const my = S.navId; const r = await api('quizzes', S.group); if (my !== S.navId) return;
+    const my = S.navId; const [r, lvs] = await Promise.all([api('quizzes', S.group), api('liveState').catch(() => null)]); if (my !== S.navId) return;
     const open = r.openNow[0];
+    const lvBanner = lvs ? `<div class="card lesson-card" style="margin-bottom:14px"><div class="row"><span class="gbadge">${esc(lvs.group)}</span>
+        <div style="flex:1;min-width:0"><b>Live game is running:</b> ${esc(lvs.title)}</div>
+        <button class="btn primary" id="lvback">Back to the screen</button><button class="btn danger sm" id="lvcancel">Close it</button></div></div>` : '';
     const banner = open ? `<div class="card lesson-card" style="margin-bottom:14px"><div class="row"><span class="gbadge">${esc(open.group)}</span>
         <div style="flex:1;min-width:0"><b>Open now:</b> ${esc(open.title)}<div class="small muted">${open.done} answered so far</div></div>
         <button class="btn primary" data-res="${esc(open.quiz_id)}">Live results</button></div></div>` : '';
     const card = q => `<div class="card"><div class="row"><b style="flex:1;min-width:0">${esc(q.title)}</b><span class="pill ${QPILL[q.status]}">${esc(q.status)}</span></div>
       <div class="small muted" style="margin:4px 0 10px">${q.unit ? esc(q.unit) + ' · ' : ''}${q.count} questions · ${q.duration_min} min${q.lesson_date ? ' · lesson ' + esc(q.lesson_date) : ''}${q.status === 'closed' || q.status === 'open' ? ' · ' + q.done + ' results' : ''}</div>
-      <div class="row">${q.status === 'ready' || q.status === 'draft' ? `<button class="btn primary" data-start="${esc(q.quiz_id)}">Start quiz</button>` : ''}
+      <div class="row">${q.status === 'ready' || q.status === 'draft' ? `<button class="btn primary" data-live="${esc(q.quiz_id)}">▶ Live game</button><button class="btn" data-start="${esc(q.quiz_id)}">Start as test</button>` : ''}
         ${q.status === 'open' ? `<button class="btn primary" data-res="${esc(q.quiz_id)}">Live results</button>` : ''}
         ${q.status === 'closed' ? `<button class="btn" data-res="${esc(q.quiz_id)}">Results</button>` : ''}
         <button class="btn sm" data-sv="${esc(q.quiz_id)}">Student view</button>
         <button class="btn sm" data-prev="${esc(q.quiz_id)}">Answer key</button>
         <button class="btn sm" data-copy="${esc(q.quiz_id)}">Copy to…</button>
         ${q.status === 'ready' || q.status === 'draft' ? `<button class="btn sm" data-edit="${esc(q.quiz_id)}">Edit</button><button class="btn sm danger" data-del="${esc(q.quiz_id)}">Delete</button>` : ''}</div></div>`;
-    view().innerHTML = `${banner}<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1;min-width:220px">Group ${esc(S.group)} · ${r.list.length} quiz${r.list.length === 1 ? '' : 'zes'}. Start one in class: students answer on their phones, marks go to the gradebook.</p>
+    view().innerHTML = `${lvBanner}${banner}<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1;min-width:220px">Group ${esc(S.group)} · ${r.list.length} quiz${r.list.length === 1 ? '' : 'zes'}. Start one in class: students answer on their phones, marks go to the gradebook.</p>
       <button class="btn primary sm" id="newq">+ New quiz</button></div>
       <div class="grid" style="gap:10px">${r.list.map(card).join('') || '<div class="card empty">No quizzes for this group yet. Ask Claude to add one (“quiz qo\'sh”), or press + New quiz.</div>'}</div>`;
     $('#newq').onclick = () => quizEditor({ group: S.group, duration_min: 10, status: 'ready', questions: [] });
     $$('[data-res]').forEach(b => b.onclick = () => quizLive(b.dataset.res));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
+    $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
+    if (lvs) {
+      $('#lvback').onclick = async () => { try { openLiveHost(await api('liveOpen', lvs.quiz_id)); } catch (e) { fail(e); } };
+      $('#lvcancel').onclick = async () => { if (!confirm('Close the live game? No marks will be saved.')) return; try { await lvCancelGame(lvs.gid); toast('Live game closed'); pageQuizzes(); } catch (e) { fail(e); } };
+    }
     $$('[data-prev]').forEach(b => b.onclick = () => quizPreview(b.dataset.prev));
     $$('[data-sv]').forEach(b => b.onclick = () => studentView(b.dataset.sv));
     $$('[data-edit]').forEach(b => b.onclick = async () => { try { quizEditor(await api('quiz', b.dataset.edit)); } catch (e) { fail(e); } });
@@ -772,6 +817,235 @@ function studentView(id) {
   modal(`<div class="row" style="margin-bottom:10px"><div style="flex:1;min-width:0"><h3 style="margin:0">Student view</h3><div class="small muted">Exactly what students see on their phones. Try it: answer, press Finish, see the mark and the answers. Nothing goes to the gradebook.</div></div><button class="btn sm" data-close>Close</button></div>
     <div class="phone"><iframe title="Student view" src="s.html#preview=${encodeURIComponent(id)}"></iframe></div>`, m => { m.querySelector('.modal').classList.add('pmodal'); });
 }
+
+/* ===================== LIVE GAME (host screen for the projector) ===================== */
+const FB_CFG = { apiKey: 'AIzaSyDgrzdKXA_cOfiMeMX6EOYLSyeSZrAUOfc', authDomain: 'darslar-live.firebaseapp.com', databaseURL: 'https://darslar-live-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'darslar-live', appId: '1:400814296064:web:f2c8964ce914602158dce5' };
+const FBV = '10.12.2', LCOL = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], LSH = ['▲', '◆', '●', '■'];
+function loadScript(src) {
+  return new Promise((ok, no) => {
+    if (Array.from(document.scripts).some(x => x.src === src)) return ok();
+    const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => no(new Error('Could not load Firebase. Check the internet.')); document.head.appendChild(el);
+  });
+}
+async function fbApp(name) {
+  for (const f of ['app', 'auth', 'database']) await loadScript(`https://www.gstatic.com/firebasejs/${FBV}/firebase-${f}-compat.js`);
+  const app = firebase.apps.find(a => a.name === name) || firebase.initializeApp(FB_CFG, name);
+  const auth = app.auth();
+  await new Promise(r => { const u = auth.onAuthStateChanged(() => { u(); r(); }); });
+  if (!auth.currentUser) await auth.signInAnonymously();
+  const db = app.database(); const o = { app, auth, db, uid: auth.currentUser.uid, off: 0 };
+  db.ref('.info/serverTimeOffset').on('value', x => { o.off = x.val() || 0; });
+  o.now = () => Date.now() + o.off;
+  return o;
+}
+async function lvCancelGame(gid) {
+  await api('liveCancel');
+  try { const fb = await fbApp('host'); await fb.db.ref('games/' + gid).remove(); } catch (e) {}
+}
+async function liveStartDialog(id) {
+  let c, q;
+  try { [c, q] = await Promise.all([api('startCheck', id), api('quiz', id)]); } catch (e) { return fail(e); }
+  const n = q.questions.filter(x => x.type === 'mc' || x.type === 'tf').length;
+  const info = c => !c.date ? `<p class="small muted">No date chosen: the game is played for fun, no marks are written.</p>`
+    : !c.dateOk ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">There is no column ${esc(c.date)} in the gradebook.</p>`
+    : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(c.date)}. Their game marks will not replace it.</p>`
+    : `<p class="small muted">Marks (0–10, right answers only) go to the column <b>${esc(c.date)}</b>.</p>`;
+  modal(`<h3>▶ Live game · ${esc(q.title)}</h3>
+    <p class="small muted" style="margin-top:0">Everyone sees the same question at the same time, on the projector and on their phones. Faster right answers get more points. ${n} of ${q.questions.length} questions are played live (multiple choice and true/false)${n < q.questions.length ? '; the others are skipped' : ''}.</p>
+    <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="ld"><option value="">— no marks —</option>${c.dates.map(d => `<option ${d === c.date ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+      <label class="f" style="width:160px"><span>Seconds per question</span><select id="lsec">${[10, 15, 20, 30, 45, 60].map(x => `<option ${x === 20 ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
+    <div id="linfo">${info(c)}</div>
+    <p class="small muted">Open this on the projector. Students open their page from the bot and press <b>Join live game</b>.</p>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="lgo" ${n ? '' : 'disabled'}>Open the game</button></div>`, m => {
+    $('#ld', m).onchange = async e => { try { const c2 = e.target.value ? await api('startCheck', id, e.target.value) : { date: '' }; $('#linfo', m).innerHTML = info(c2); } catch (er) { fail(er); } };
+    $('#lgo', m).onclick = async () => {
+      $('#lgo', m).disabled = true;
+      try { const P = await api('liveOpen', id, $('#ld', m).value, $('#lsec', m).value); closeModal(); openLiveHost(P); }
+      catch (e) { $('#lgo', m).disabled = false; fail(e); }
+    };
+  });
+}
+let LV = null;
+async function openLiveHost(P) {
+  if (LV) lvDetach();
+  let el = $('#lv'); if (!el) { el = document.createElement('div'); el.id = 'lv'; document.body.appendChild(el); }
+  el.innerHTML = '<div class="lv-main" style="justify-content:center"><p class="lv-h1">Connecting…</p></div>';
+  try {
+    const fb = await fbApp('host');
+    const g = fb.db.ref('games/' + P.gid);
+    const h = (await g.child('host').once('value')).val();
+    if (h && h !== fb.uid) throw new Error('This game is controlled from another browser. Open it there, or close it on the Quizzes page and start again.');
+    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs }, state: { phase: 'lobby' } }); }
+    LV = { P, fb, g, players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
+      byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
+    const qm = (await g.child('questions').once('value')).val() || {}; Object.keys(qm).forEach(k => { if (qm[k]) LV.qmeta[k] = qm[k]; });
+    g.child('players').on('value', x => { LV.players = x.val() || {}; lvCheckPlayers(); lvRender(); });
+    g.child('tickets').on('value', x => { LV.tickets = x.val() || {}; lvCheckPlayers(); lvRender(); });
+    g.child('kicked').on('value', x => { LV.kicked = x.val() || {}; lvRender(); });
+    g.child('state').on('value', x => { LV.state = x.val() || {}; lvOnState(); });
+  } catch (e) { el.innerHTML = `<div class="lv-main" style="justify-content:center;align-items:center"><p class="lv-h1">Could not open the game</p><p>${esc(e.message || e)}</p><button class="lv-btn" id="lvx0">Close</button></div>`; $('#lvx0').onclick = () => { el.remove(); }; }
+}
+function lvDetach() {
+  if (!LV) return; clearInterval(LV.tick);
+  ['players', 'tickets', 'kicked', 'state'].forEach(k => LV.g.child(k).off()); if (LV.ansRef) LV.ansRef.off();
+  LV = null;
+}
+const lvSorted = () => Object.entries(LV.players).sort((a, b) => ((a[1] && a[1].at) || 0) - ((b[1] && b[1].at) || 0));
+function lvValid() {
+  const seen = {}, out = [];
+  lvSorted().forEach(([uid, p]) => {
+    if (!p || LV.kicked[uid]) return;
+    const name = LV.byTicket[LV.tickets[uid]];
+    if (!name || seen[name]) return; seen[name] = 1; out.push({ uid, nick: p.nick, name });
+  });
+  return out;
+}
+function lvCheckPlayers() {  // wrong ticket or the same student twice (second device): remove
+  const seen = {};
+  lvSorted().forEach(([uid, p]) => {
+    if (!p || LV.kicked[uid]) return; const t = LV.tickets[uid]; if (t === undefined) return;
+    const name = LV.byTicket[t];
+    if (!name || seen[name]) lvKick(uid); else seen[name] = 1;
+  });
+}
+function lvKick(uid) { LV.kicked[uid] = true; LV.g.update({ ['kicked/' + uid]: true, ['players/' + uid]: null }); }
+async function lvOnState() {
+  const st = LV.state; clearInterval(LV.tick);
+  if (st.phase === 'question') {
+    if (!LV.qmeta[st.q]) LV.qmeta[st.q] = (await LV.g.child('questions/' + st.q).once('value')).val();
+    if (!LV.ansRef || LV.ansQ !== st.q) {
+      if (LV.ansRef) LV.ansRef.off(); LV.ansQ = st.q; LV.cur = {};
+      LV.ansRef = LV.g.child('answers/' + st.q);
+      LV.ansRef.on('value', x => {
+        LV.cur = x.val() || {}; const a = $('#lva'); if (a) a.textContent = Object.keys(LV.cur).length;
+        const act = lvValid(); if (LV.state.phase === 'question' && act.length && act.every(p => LV.cur[p.uid])) lvReveal(st.q);
+      });
+    }
+    LV.tick = setInterval(() => {
+      const left = Math.ceil((st.startedAt + st.dur * 1000 - LV.fb.now()) / 1000); const t = $('#lvt'); if (t) t.textContent = Math.max(0, left);
+      if (left <= 0) lvReveal(st.q);
+    }, 250);
+  } else if (LV.ansRef) { LV.ansRef.off(); LV.ansRef = null; LV.ansQ = null; }
+  if (st.phase === 'reveal' || st.phase === 'board') {
+    if (!LV.rev[st.q]) { const r = (await LV.g.child('reveal/' + st.q).once('value')).val(); if (r) LV.rev[st.q] = r; else await lvComputeReveal(st.q); }
+  }
+  if ((st.phase === 'board' || st.phase === 'end') && !LV.sc) LV.sc = (await LV.g.child('scores').once('value')).val() || {};
+  lvRender();
+  if (st.phase === 'end' && !LV.saved && !LV.saving && !LV.saveErr) lvSave();
+}
+async function lvAsk(i) {
+  const q = LV.P.questions[i], dur = LV.P.secs, TS = firebase.database.ServerValue.TIMESTAMP;
+  await LV.g.child('questions/' + i).set({ prompt: q.prompt, type: q.type, options: q.options, n: i, total: LV.P.questions.length, dur, startedAt: TS });
+  LV.qmeta[i] = (await LV.g.child('questions/' + i).once('value')).val();
+  await LV.g.child('state').set({ phase: 'question', q: i, startedAt: LV.qmeta[i].startedAt, dur });
+}
+async function lvReveal(i) {
+  if (LV.revealing === i) return; LV.revealing = i; clearInterval(LV.tick);
+  await LV.g.child('state').update({ phase: 'reveal' });
+}
+function lvScores(upto) {
+  const players = lvValid(), res = {};
+  players.forEach(p => { res[p.uid] = { nick: p.nick, score: 0, last: 0, right: 0, lastOk: false, answered: false, rank: 0 }; });
+  for (let i = 0; i <= upto; i++) {
+    const q = LV.P.questions[i], m = LV.qmeta[i], ans = (LV.ans && LV.ans[i]) || {};
+    if (!m) continue;
+    players.forEach(p => {
+      const a = ans[p.uid], r = res[p.uid]; let pts = 0, ok = false;
+      if (a && a.a === q.correct && a.t <= m.startedAt + m.dur * 1000 + 1500) {
+        ok = true; const rt = Math.max(0, a.t - m.startedAt) / (m.dur * 1000); pts = Math.round(1000 * (1 - Math.min(1, rt) / 2));
+      }
+      r.score += pts; if (ok) r.right++;
+      if (i === upto) { r.last = pts; r.lastOk = ok; r.answered = !!a; }
+    });
+  }
+  Object.keys(res).sort((a, b) => res[b].score - res[a].score).forEach((u, k) => { res[u].rank = k + 1; });
+  return res;
+}
+function lvComputeReveal(i) {
+  if (LV.rp && LV.rp.i === i) return LV.rp.p;
+  const p = (async () => {
+    LV.ans = (await LV.g.child('answers').once('value')).val() || {};
+    const q = LV.P.questions[i], counts = q.options.map(() => 0);
+    Object.values(LV.ans[i] || {}).forEach(a => { if (a && counts[a.a] !== undefined) counts[a.a]++; });
+    LV.rev[i] = { correct: q.correct, counts }; LV.sc = lvScores(i);
+    await LV.g.update({ ['reveal/' + i]: LV.rev[i], scores: LV.sc });
+  })();
+  LV.rp = { i, p }; return p;
+}
+async function lvSave() {
+  const P = LV.P; LV.saving = true; lvRender();
+  try {
+    const all = (await LV.g.child('answers').once('value')).val() || {};
+    const results = lvValid().map(p => {
+      const answers = {};
+      P.questions.forEach((q, i) => { const a = (all[i] || {})[p.uid], m = LV.qmeta[i]; if (a && m && a.t <= m.startedAt + m.dur * 1000 + 1500) answers[q.id] = q.type === 'tf' ? (a.a === 0 ? 1 : 0) : a.a; });
+      return { ticket: LV.tickets[p.uid], answers };
+    });
+    LV.saved = await api('liveFinish', P.gid, results);
+  } catch (e) { LV.saveErr = e.message || String(e); }
+  LV.saving = false; lvRender();
+}
+async function lvClose() {
+  const st = LV ? LV.state : {};
+  if (LV && st.phase !== 'end' && !confirm('End the live game now? No marks will be saved.')) return;
+  try {
+    if (LV && st.phase !== 'end') { await api('liveCancel'); await LV.g.remove(); }
+  } catch (e) { fail(e); }
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  lvDetach(); const el = $('#lv'); if (el) el.remove();
+  if (S.page === 'quizzes') pageQuizzes();
+}
+function lvRender() {
+  if (!LV) return;
+  const el = $('#lv'), st = LV.state || {}, P = LV.P, n = P.questions.length, act = lvValid();
+  const top = `<div class="lv-top"><b style="font-size:20px">${esc(P.title)}</b><span class="lv-dim">Group ${esc(P.group)}</span>
+    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}<span class="lv-pill">${act.length} players</span>
+    <span style="flex:1"></span><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
+  let body = '';
+  if (!st.phase || st.phase === 'lobby') {
+    body = `<p class="lv-h1">Open your page from the bot and press <span class="lv-key">Join live game</span></p>
+      <div class="lv-count"><b>${act.length}</b>players joined</div>
+      <div class="lv-chips">${act.map(p => `<button class="lv-chip" data-kick="${esc(p.uid)}" title="${esc(p.name)} · click to remove">${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
+      <div class="lv-center"><button class="lv-btn big" id="lvgo" ${act.length ? '' : 'disabled'}>Start ▶</button></div>
+      <div class="lv-center lv-dim small">${n} questions · ${P.secs} s each${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div>`;
+  } else if (st.phase === 'question') {
+    const q = P.questions[st.q];
+    body = `<div class="lv-prompt">${esc(q.prompt)}</div>
+      <div class="lv-mid"><div class="lv-timer" id="lvt">${st.dur}</div><div class="lv-expl lv-dim">Answer on your phone</div><div class="lv-ans"><b id="lva">${Object.keys(LV.cur || {}).length}</b>answers</div></div>
+      <div class="lv-opts">${q.options.map((o, k) => `<div class="lv-opt" style="background:${LCOL[k]}"><span class="lv-shape">${LSH[k]}</span><span>${esc(o)}</span></div>`).join('')}</div>
+      <div class="lv-center"><button class="lv-btn ghost" id="lvskip">Stop the time</button></div>`;
+  } else if (st.phase === 'reveal') {
+    const q = P.questions[st.q], rv = LV.rev[st.q];
+    body = !rv ? '<p class="lv-h1" style="margin:auto">Time is up!</p>' : `<div class="lv-prompt">${esc(q.prompt)}</div>
+      <div class="lv-mid"><div class="lv-expl">${q.explain ? esc(q.explain) : ''}</div></div>
+      <div class="lv-opts">${q.options.map((o, k) => `<div class="lv-opt ${k === rv.correct ? '' : 'dim'}" style="background:${LCOL[k]}"><span class="lv-shape">${k === rv.correct ? '✓' : LSH[k]}</span><span style="flex:1">${esc(o)}</span><b class="lv-cnt">${rv.counts[k] || 0}</b></div>`).join('')}</div>
+      <div class="lv-center"><button class="lv-btn big" id="lvnext">${st.q + 1 < n ? 'Next ▶' : 'Final results ▶'}</button></div>`;
+  } else if (st.phase === 'board') {
+    const sc = LV.sc || {}, top5 = Object.values(sc).sort((a, b) => a.rank - b.rank).slice(0, 5);
+    body = `<p class="lv-h1">Top 5</p><div class="lv-board">${top5.map(r => `<div class="lv-row"><span class="n">${r.rank}</span><span>${esc(r.nick)}</span><span class="s">${r.score.toLocaleString('en-US')}</span></div>`).join('') || '<p class="lv-dim" style="text-align:center">No points yet.</p>'}</div>
+      <div class="lv-center"><button class="lv-btn big" id="lvnext">Next question ▶</button></div>`;
+  } else if (st.phase === 'end') {
+    const sc = LV.sc || {}, top = Object.values(sc).sort((a, b) => a.rank - b.rank);
+    const col = (r, h, c, place) => r ? `<div class="col"><div class="nm">${esc(r.nick)}</div><div class="lv-dim">${r.score.toLocaleString('en-US')}</div><div class="bar" style="height:${h}px;background:${c}">${place}</div></div>` : '<div class="col"></div>';
+    const sv = LV.saved;
+    body = `<p class="lv-h1">🏆 Winners</p><div class="lv-pod">${col(top[1], 170, '#9ca3af', 2)}${col(top[0], 240, '#d89e00', 1)}${col(top[2], 120, '#b45309', 3)}</div>
+      <div class="lv-note">${LV.saving ? 'Saving marks to the gradebook…' : LV.saveErr ? `Marks were not saved: ${esc(LV.saveErr)} <button class="lv-btn" id="lvretry" style="margin-left:10px">Try again</button>`
+        : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(P.date) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}` : ''}</div>`;
+  }
+  el.innerHTML = top + `<div class="lv-main">${body}</div>`;
+  $('#lvx').onclick = lvClose;
+  $('#lvfs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => {}); };
+  $$('[data-kick]', el).forEach(b => b.onclick = () => { if (confirm('Remove "' + b.textContent + '"? The student can join again with another nickname.')) lvKick(b.dataset.kick); });
+  const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; lvAsk(0).catch(fail); };
+  const sk = $('#lvskip'); if (sk) sk.onclick = () => lvReveal(st.q);
+  const rt = $('#lvretry'); if (rt) rt.onclick = () => { LV.saveErr = null; lvSave(); };
+  const nx = $('#lvnext'); if (nx) nx.onclick = () => {
+    nx.disabled = true;
+    const p = st.phase === 'reveal' ? (st.q + 1 < n ? LV.g.child('state').set({ phase: 'board', q: st.q }) : LV.g.child('state').set({ phase: 'end', q: st.q })) : lvAsk(st.q + 1);
+    p.catch(e => { nx.disabled = false; fail(e); });
+  };
+}
+
 async function quizPreview(id) {
   try {
     const q = await api('quiz', id);
