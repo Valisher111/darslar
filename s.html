@@ -89,6 +89,7 @@ select{width:100%;border:1.5px solid var(--line);background:var(--panel);border-
 .qbar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:30}
 .qbar .in{max-width:640px;margin:0 auto;display:flex;gap:10px;align-items:center}
 .rv{padding:10px 0;border-bottom:1px solid var(--line)} .rv:last-child{border-bottom:0}
+.pvbar{background:#fef3c7;color:#92400e;padding:8px 14px;font-size:13px;text-align:center;font-weight:600}
 .rv .y{color:var(--bad)} .rv.ok .y{color:var(--good)} .rv .r{color:var(--good)}
 svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 </style>
@@ -114,6 +115,14 @@ function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').
 let KEY = null;
 const m = /k=([a-f0-9]{40})/.exec(location.hash);
 if (m) { KEY = m[1]; ls.set('ds_k', KEY); } else KEY = ls.get('ds_k');
+// Teacher "Student view": s.html#preview=<quiz_id>, opened from the teacher site (uses the teacher key, writes nothing)
+const PVm = /preview=([^&]+)/.exec(location.hash);
+const PREVIEW = PVm ? decodeURIComponent(PVm[1]) : null;
+if (PREVIEW) {
+  KEY = null;
+  try { if (parent !== window && parent.dpKey) KEY = parent.dpKey(); } catch (e) {}
+  if (!KEY) { try { KEY = localStorage.getItem('dp_key') || sessionStorage.getItem('dp_key'); } catch (e) {} }
+}
 
 async function api(action, ...args) {
   const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, key: KEY, args }) });
@@ -262,6 +271,7 @@ function drawQ(q, L) {
 function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 2500 : 1200); }
 function progress() { const n = answered(); $('#qcount').textContent = n + ' of ' + Q.questions.length + ' answered'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
 async function save() {
+  if (PREVIEW) { dirty = false; if ($('#qsave')) $('#qsave').textContent = 'Saved (preview)'; return; }
   if (!dirty || !Q) return; dirty = false;
   try { const r = await api('stQuizSave', Q.quiz_id, A); $('#qsave').textContent = r.ok ? 'Saved' : 'Time is over'; }
   catch (e) { dirty = true; $('#qsave').textContent = 'Not saved — check the internet'; }
@@ -277,6 +287,7 @@ async function finish(auto) {
   if (submitting || !Q) return;
   const n = answered();
   if (!auto && n < Q.questions.length && !confirm(`You answered ${n} of ${Q.questions.length}. Finish anyway?`)) return;
+  if (PREVIEW) return finishPreview(auto);
   submitting = true; clearInterval(qTimer); clearTimeout(saveT);
   $('#qfin').disabled = true; $('#qsave').textContent = 'Sending…';
   let tries = 0;
@@ -295,7 +306,7 @@ async function finish(auto) {
   }
 }
 function backHome() { $('#quiz').classList.add('hidden'); $('#quiz').innerHTML = ''; $('#main').classList.remove('hidden'); tab = 'home'; load(true); startPing(); }
-window.addEventListener('beforeunload', e => { if (Q && !submitting) { save(); e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (Q && !submitting && !PREVIEW) { save(); e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && Q) save(); });
 
 function startPing() {
@@ -305,7 +316,39 @@ function startPing() {
     try { const p = await api('stPing'); if ((p.open || null) !== (H.quiz ? H.quiz.quiz_id : null)) load(true); } catch (e) {}
   }, 15000);
 }
-if (KEY) { load(); startPing(); } else noAccess();
+async function startPreview() {
+  $('#hi').textContent = 'Teacher preview'; $('#who').textContent = 'Student view'; $('#sub').textContent = '';
+  $('#main').classList.remove('hidden'); $('#quiz').classList.add('hidden');
+  if (!KEY) { $('#view').innerHTML = '<div class="card"><h2>Sign in first</h2><p class="muted">Open the teacher site, sign in, then press <b>Student view</b> on a quiz.</p></div>'; return; }
+  $('#view').innerHTML = '<div class="card loading">Loading…</div>';
+  try {
+    const p = await api('quizPreview', PREVIEW);
+    Q = { quiz_id: PREVIEW, title: p.title, questions: p.questions, closes_at: new Date(Date.now() + p.duration_min * 60000).toISOString() };
+    off = 0; A = {}; touched = {}; dirty = false; submitting = false;
+    $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); window.scrollTo(0, 0);
+    drawQuiz();
+    $('#quiz').insertAdjacentHTML('afterbegin', '<div class="pvbar">Preview: this is exactly what students see. Nothing is saved.</div>');
+    clearInterval(qTimer); qTimer = setInterval(tickQ, 1000); tickQ();
+  } catch (e) { $('#view').innerHTML = `<div class="card"><h2>Could not open the quiz</h2><p class="muted">${esc(e.message || e)}</p><button class="btn primary" onclick="startPreview()">Try again</button></div>`; }
+}
+async function finishPreview(auto) {
+  submitting = true; clearInterval(qTimer); clearTimeout(saveT);
+  $('#qfin').disabled = true; $('#qsave').textContent = 'Checking…';
+  try {
+    const r = await api('quizPreviewCheck', PREVIEW, A);
+    $('#quiz').innerHTML = `<div class="pvbar">Preview: nothing was written to the gradebook.</div>
+      <div class="qwrap" style="padding-top:24px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+        <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
+        <p class="small muted">${auto ? 'Time is over, the answers were sent. ' : ''}A real student sees this screen. The answers below appear on their page after you close the quiz.</p>
+        <button class="btn primary block" id="pvagain">Try again</button></div>
+      <div class="card"><h2>Answers (what the student sees after the quiz)</h2>${r.items.map((x, i) => { const ok = x.score >= 1; return `<div class="rv ${ok ? 'ok' : ''}"><div class="small muted">${i + 1}. ${ok ? '✓ right' : x.score > 0 ? '◐ partly right' : '✗ wrong'}</div><b>${esc(x.prompt)}</b>
+        <div class="small y">Your answer: ${esc(x.your)}</div>${ok ? '' : `<div class="small r">Right answer: ${esc(x.right)}</div>`}${x.explain && !ok ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`; }).join('')}</div></div>`;
+    $('#pvagain').onclick = startPreview; window.scrollTo(0, 0);
+    Q = null;
+  } catch (e) { $('#qfin').disabled = false; $('#qsave').textContent = 'Not checked. Press Finish again.'; fail(e); }
+  submitting = false;
+}
+if (PREVIEW) startPreview(); else if (KEY) { load(); startPing(); } else noAccess();
 </script>
 </body>
 </html>
