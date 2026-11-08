@@ -29,6 +29,29 @@
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
 .hidden{display:none!important}
+/* ---- live game (student) ---- */
+#live{min-height:100vh;background:#0e3b2e;color:#fff;padding:14px 16px 40px}
+.lvs{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-top:6px}
+.lvs-big{font-size:26px;font-weight:800;text-align:center;margin-top:22vh;line-height:1.25}
+.lvs-h{font-size:24px;margin:0;color:#fff}
+.lvs-dim{color:#a9cfc1}
+#live input{width:100%;font:inherit;font-size:22px;padding:14px;border-radius:12px;border:0;color:#111;background:#fff}
+.lvs-go{background:#fff!important;color:#0e3b2e!important;font-weight:800!important;font-size:20px!important;padding:14px!important;border:0!important}
+.lvs-q{background:#fff;color:#111;border-radius:14px;padding:16px;font-size:20px;font-weight:700;line-height:1.3}
+.lvs-opts{display:grid;gap:10px}
+.lvs-opt{display:flex;align-items:center;gap:12px;border:0;border-radius:12px;padding:14px 16px;min-height:62px;color:#fff;font:inherit;font-size:18px;font-weight:700;text-align:left;cursor:pointer;width:100%}
+.lvs-opt .sh{font-size:24px;width:28px;text-align:center;flex:none}
+.lvs-opt.dim{opacity:.3}.lvs-opt.pick{box-shadow:0 0 0 4px #fff}
+.lvs-opt:disabled{cursor:default}
+.lvs-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.lvs-timer{background:rgba(255,255,255,.16);border-radius:99px;padding:4px 14px;font-weight:800;font-size:20px;min-width:56px;text-align:center}
+.lvs-res{border-radius:16px;padding:24px 16px;text-align:center;font-size:30px;font-weight:800}
+.lvs-res small{display:block;font-size:17px;font-weight:600;margin-top:6px}
+.lvs-res.ok{background:#26890c}.lvs-res.no{background:#e21b3c}.lvs-res.na{background:#4b5563}
+.lvs-card{background:rgba(255,255,255,.1);border-radius:14px;padding:16px;text-align:center;font-size:18px}
+.lvs-card b{font-size:30px;display:block}
+.livecard{background:linear-gradient(135deg,#0e3b2e,#17694f)!important;color:#fff;border:0!important}
+
 header{background:var(--head);color:#fff;padding:18px 16px 54px}
 header .in,.wrap{max-width:640px;margin:0 auto}
 header .hi{font-size:13px;color:#9cc3b5}
@@ -101,6 +124,7 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
   <nav class="tabs hidden" id="tabs"><div class="in"></div></nav>
 </div>
 <div id="quiz" class="hidden"></div>
+<div id="live" class="hidden"></div>
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH/exec';
@@ -153,13 +177,17 @@ async function load(quiet) {
   } catch (e) { if (KEY && !quiet) fail(e); if (!H && KEY) $('#view').innerHTML = `<div class="card"><p>Could not load. Check the internet.</p><button class="btn primary" onclick="load()">Try again</button></div>`; }
 }
 function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return `<span class="mk ${v.toLowerCase() === 'nb' ? 'nb' : (isFinite(n) && n < 6 ? 'low' : '')}">${esc(v || '—')}</span>`; }
-function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes })[tab](); }
+function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes })[tab](); $$('[data-join]').forEach(b => b.onclick = joinLive); }
 
+function liveCard() {
+  return H && H.live ? `<div class="card livecard"><div class="small" style="color:#fde68a;font-weight:800">● LIVE GAME NOW</div><div class="t" style="color:#fff;font-size:20px;font-weight:800;margin:4px 0">${esc(H.live.title)}</div>
+    <p class="small" style="margin:0 0 12px;color:#cfe9df">Watch the screen in class and answer on your phone. Faster right answers get more points.</p><button class="btn block lvs-go" data-join>Join live game</button></div>` : '';
+}
 function quizBox() {
-  const q = H.quiz; if (!q) return '';
+  const q = H.quiz; if (!q) return liveCard();
   const left = Math.max(0, Math.round((Date.parse(q.closes_at) - Date.parse(H.now)) / 60000));
   if (q.state === 'done') return `<div class="card quizcard"><div class="small muted">Quiz · done</div><div class="t">${esc(q.title)}</div><p style="margin:8px 0 0">Your mark: <b>${q.score10}</b> / 10. You will see the answers when your teacher closes the quiz.</p></div>`;
-  return `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Quiz is open now</div><div class="t">${esc(q.title)}</div>
+  return liveCard() + `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Quiz is open now</div><div class="t">${esc(q.title)}</div>
     <p class="small muted" style="margin:4px 0 12px">${q.count} questions · about ${left} min left · one attempt</p>
     <button class="btn primary block" id="qgo">${q.state === 'working' ? 'Continue the quiz' : 'Start the quiz'}</button></div>`;
 }
@@ -312,8 +340,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && Q) 
 function startPing() {
   clearInterval(pingT);
   pingT = setInterval(async () => {
-    if (document.hidden || Q || !H) return;
-    try { const p = await api('stPing'); if ((p.open || null) !== (H.quiz ? H.quiz.quiz_id : null)) load(true); } catch (e) {}
+    if (document.hidden || Q || SL || !H) return;
+    try { const p = await api('stPing'); if ((p.open || null) !== (H.quiz ? H.quiz.quiz_id : null) || (p.live || null) !== (H.live ? H.live.gid : null)) load(true); } catch (e) {}
   }, 15000);
 }
 async function startPreview() {
@@ -348,6 +376,133 @@ async function finishPreview(auto) {
   } catch (e) { $('#qfin').disabled = false; $('#qsave').textContent = 'Not checked. Press Finish again.'; fail(e); }
   submitting = false;
 }
+
+/* ===================== live game (student) ===================== */
+const FB_CFG = { apiKey: 'AIzaSyDgrzdKXA_cOfiMeMX6EOYLSyeSZrAUOfc', authDomain: 'darslar-live.firebaseapp.com', databaseURL: 'https://darslar-live-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'darslar-live', appId: '1:400814296064:web:f2c8964ce914602158dce5' };
+const FBV = '10.12.2', LCOL = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], LSH = ['▲', '◆', '●', '■'];
+function loadScript(src) {
+  return new Promise((ok, no) => {
+    if (Array.from(document.scripts).some(x => x.src === src)) return ok();
+    const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => no(new Error('Could not load the game. Check the internet.')); document.head.appendChild(el);
+  });
+}
+async function fbApp(name) {
+  for (const f of ['app', 'auth', 'database']) await loadScript(`https://www.gstatic.com/firebasejs/${FBV}/firebase-${f}-compat.js`);
+  const app = firebase.apps.find(a => a.name === name) || firebase.initializeApp(FB_CFG, name);
+  const auth = app.auth();
+  await new Promise(r => { const u = auth.onAuthStateChanged(() => { u(); r(); }); });
+  if (!auth.currentUser) await auth.signInAnonymously();
+  const db = app.database(); const o = { app, auth, db, uid: auth.currentUser.uid, off: 0 };
+  db.ref('.info/serverTimeOffset').on('value', x => { o.off = x.val() || 0; });
+  o.now = () => Date.now() + o.off;
+  return o;
+}
+let SL = null;
+const slBox = h => `<div class="lvs">${h}</div>`;
+async function joinLive() {
+  clearInterval(pingT);
+  $('#main').classList.add('hidden'); const el = $('#live'); el.classList.remove('hidden'); window.scrollTo(0, 0);
+  el.innerHTML = slBox('<div class="lvs-big">Connecting…</div>');
+  try {
+    const j = await api('stLiveJoin');
+    const fb = await fbApp('student');
+    SL = { j, fb, g: fb.db.ref('games/' + j.gid), state: undefined, rt: 0, my: {}, qi: -1, qd: null, sent: null, rev: {}, tick: null, n: 0 };
+    if ((await SL.g.child('kicked/' + fb.uid).once('value')).val()) await slNewUser();
+    const me = (await SL.g.child('players/' + SL.fb.uid).once('value')).val();
+    if (me && me.nick) slListen(); else slNick();
+  } catch (e) { SL = null; el.innerHTML = slBox(`<div class="lvs-big">Could not join</div><p class="lvs-dim" style="text-align:center">${esc(e.message || e)}</p><button class="btn block" onclick="leaveLive()">Back</button>`); }
+}
+async function slNewUser() { await SL.fb.auth.signOut(); await SL.fb.auth.signInAnonymously(); SL.fb.uid = SL.fb.auth.currentUser.uid; }
+function slNick(msg) {
+  $('#live').innerHTML = slBox(`<div class="lvs-dim">${esc(SL.j.title)}</div><h2 class="lvs-h">Choose a nickname</h2>${msg ? `<p style="color:#fde68a;margin:0">${esc(msg)}</p>` : ''}
+    <input id="lvnick" maxlength="20" autocomplete="off" placeholder="e.g. Tiger" value="${esc(ls.get('ds_nick') || '')}">
+    <p class="small lvs-dim" style="margin:0">Everyone sees it on the screen. Your teacher knows who you are, so choose a polite one.</p>
+    <button class="btn block lvs-go" id="lvgo">Join</button><button class="btn block" onclick="leaveLive()">Back</button>`);
+  const go = async () => {
+    const nick = $('#lvnick').value.trim().replace(/\s+/g, ' ').slice(0, 20);
+    if (!nick) return toast('Type a nickname', true);
+    $('#lvgo').disabled = true;
+    try {
+      ls.set('ds_nick', nick);
+      await SL.g.child('tickets/' + SL.fb.uid).set(SL.j.ticket);
+      await SL.g.child('players/' + SL.fb.uid).set({ nick, at: firebase.database.ServerValue.TIMESTAMP });
+      slListen();
+    } catch (e) { $('#lvgo').disabled = false; toast(/permission/i.test(e.message || '') ? 'The game is closed or you were removed.' : 'Could not join: ' + e.message, true); }
+  };
+  $('#lvgo').onclick = go; $('#lvnick').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function slListen() {
+  const uid = SL.fb.uid;
+  SL.g.child('state').on('value', x => { SL.state = x.val(); slRender(); });
+  SL.g.child('meta/n').on('value', x => { SL.n = x.val() || 0; });
+  SL.g.child('scores/' + uid).on('value', x => { SL.my = x.val() || {}; slRender(); });
+  SL.g.child('kicked/' + uid).on('value', x => {
+    if (!x.val()) return;
+    slOff(); slNewUser().then(() => slNick('Your teacher removed your nickname. Choose another one.')).catch(fail);
+  });
+}
+function slOff() {
+  if (!SL) return; const uid = SL.fb.uid;
+  ['state', 'meta/n', 'scores/' + uid, 'kicked/' + uid].forEach(k => SL.g.child(k).off());
+  if (SL.revRef) SL.revRef.off(); clearInterval(SL.tick);
+}
+function leaveLive() { slOff(); SL = null; $('#live').classList.add('hidden'); $('#live').innerHTML = ''; $('#main').classList.remove('hidden'); load(true); startPing(); }
+const slRank = () => SL.my && SL.my.rank ? `<div class="lvs-card"><span class="lvs-dim">${esc(SL.my.nick || '')}</span><b>${ord(SL.my.rank)} place</b>${(SL.my.score || 0).toLocaleString('en-US')} points</div>` : '';
+async function slRender() {
+  if (!SL) return;
+  const st = SL.state, el = $('#live'), my = ++SL.rt;
+  clearInterval(SL.tick);
+  if (st === undefined) return;
+  if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">Back to my page</button>`); return; }
+  if (st.phase === 'lobby') { el.innerHTML = slBox(`<div class="lvs-big">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>`); return; }
+  if (st.phase === 'question') {
+    if (SL.qi !== st.q) {
+      SL.qi = st.q; SL.qd = null; SL.sent = null; SL.late = false;
+      const [qd, sent] = await Promise.all([SL.g.child('questions/' + st.q).once('value'), SL.g.child(`answers/${st.q}/${SL.fb.uid}`).once('value')]);
+      if (my !== SL.rt) return;
+      SL.qd = qd.val(); SL.sent = sent.val();
+    }
+    const q = SL.qd; if (!q) return;
+    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1} of ${q.total}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
+      <div class="lvs-q">${esc(q.prompt)}</div>
+      <div class="lvs-opts">${q.options.map((o, k) => `<button class="lvs-opt ${SL.sent ? (SL.sent.a === k ? 'pick' : 'dim') : ''}" data-k="${k}" style="background:${LCOL[k]}" ${SL.sent || SL.late ? 'disabled' : ''}><span class="sh">${LSH[k]}</span><span>${esc(o)}</span></button>`).join('')}</div>
+      ${SL.sent ? '<div class="lvs-card">Answer sent ✓<br><span class="lvs-dim">Wait for the others.</span></div>' : SL.late ? '<div class="lvs-card">Too late for this question.</div>' : ''}`);
+    $$('[data-k]', el).forEach(b => b.onclick = () => slAnswer(+b.dataset.k));
+    const upd = () => { const t = $('#slt'); if (!t) return; t.textContent = Math.max(0, Math.ceil((st.startedAt + st.dur * 1000 - SL.fb.now()) / 1000)); };
+    upd(); SL.tick = setInterval(upd, 250);
+    return;
+  }
+  if (st.phase === 'reveal' || st.phase === 'board') {
+    if (!SL.rev[st.q]) {
+      el.innerHTML = slBox('<div class="lvs-big">Time is up!</div>');
+      if (SL.revRef) SL.revRef.off();
+      SL.revRef = SL.g.child('reveal/' + st.q);
+      SL.revRef.on('value', x => { if (x.val()) { SL.rev[st.q] = x.val(); SL.revRef.off(); slRender(); } });
+      return;
+    }
+    const rv = SL.rev[st.q], q = SL.qi === st.q ? SL.qd : (await SL.g.child('questions/' + st.q).once('value')).val();
+    if (my !== SL.rt) return;
+    const mine = (SL.qi === st.q && SL.sent) || (SL.my && SL.my.answered);
+    const ok = !!(SL.my && SL.my.lastOk);
+    const right = q ? `${LSH[rv.correct]} ${esc(q.options[rv.correct])}` : '';
+    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1}${q ? ' of ' + q.total : ''}</span></div>
+      ${!mine ? `<div class="lvs-res na">No answer<small>Right answer: ${right}</small></div>` : ok ? `<div class="lvs-res ok">✓ Correct<small>+${(SL.my.last || 0).toLocaleString('en-US')} points</small></div>` : `<div class="lvs-res no">✗ Wrong<small>Right answer: ${right}</small></div>`}
+      ${slRank()}${st.phase === 'board' ? '<p class="lvs-dim" style="text-align:center">Look at the screen for the top 5.</p>' : ''}`);
+    return;
+  }
+  if (st.phase === 'end') {
+    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">Game over!</div>${slRank()}
+      ${SL.my && SL.my.rank ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. Your mark goes to the gradebook.</div>` : ''}
+      <button class="btn block lvs-go" onclick="leaveLive()">Back to my page</button>`);
+  }
+}
+async function slAnswer(k) {
+  if (!SL || SL.sent || !SL.state || SL.state.phase !== 'question') return;
+  const qi = SL.state.q; SL.sent = { a: k }; slRender();
+  try { await SL.g.child(`answers/${qi}/${SL.fb.uid}`).set({ a: k, t: firebase.database.ServerValue.TIMESTAMP }); }
+  catch (e) { if (SL && SL.qi === qi) { SL.sent = null; SL.late = true; slRender(); } }
+}
+
 if (PREVIEW) startPreview(); else if (KEY) { load(); startPing(); } else noAccess();
 </script>
 </body>
