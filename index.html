@@ -912,6 +912,95 @@ async function liveStartDialog(id) {
     };
   });
 }
+/* ---- music: generated in the browser (Web Audio) — no files, no copyright ---- */
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const LVM = { ctx: null, out: null, nb: null, on: lsGet('lv_music', 'on') === 'on', mode: null, timer: null, next: 0, step: 0 };
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function lvmCtx() {
+  if (!LVM.ctx) {
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
+    LVM.ctx = new C(); LVM.out = LVM.ctx.createGain(); LVM.out.gain.value = 0.55; LVM.out.connect(LVM.ctx.destination);
+  }
+  if (LVM.ctx.state === 'suspended') LVM.ctx.resume().catch(() => {});
+  return LVM.ctx;
+}
+function lvmTone(t, f, d, type, v) {
+  const c = LVM.ctx, o = c.createOscillator(), g = c.createGain(); o.type = type || 'triangle'; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.3, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(g); g.connect(LVM.out); o.start(t); o.stop(t + d + 0.05);
+}
+function lvmNoise(t, d, v) {
+  const c = LVM.ctx;
+  if (!LVM.nb) { const b = c.createBuffer(1, Math.floor(c.sampleRate * 0.2), c.sampleRate), a = b.getChannelData(0); for (let i = 0; i < a.length; i++) a[i] = Math.random() * 2 - 1; LVM.nb = b; }
+  const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); f.type = 'highpass'; f.frequency.value = 7000; src.buffer = LVM.nb;
+  g.gain.setValueAtTime(v || 0.1, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); src.connect(f); f.connect(g); g.connect(LVM.out); src.start(t); src.stop(t + d + 0.02);
+}
+function lvmKick(t, v) {
+  const c = LVM.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+  g.gain.setValueAtTime(v || 0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.connect(g); g.connect(LVM.out); o.start(t); o.stop(t + 0.2);
+}
+const LV_SONGS = {
+  lobby: { bpm: 116, bars: [[36, 60, 64, 67], [33, 57, 60, 64], [29, 57, 60, 65], [31, 55, 59, 62]],   // C – Am – F – G, cheerful
+    play(t, s, sp) {
+      const b = this.bars[Math.floor(s / 16) % 4], i = s % 16;
+      if (i % 4 === 0) lvmKick(t, 0.32);
+      if (i % 4 === 2) lvmNoise(t, 0.05, 0.05);
+      if (i === 0 || i === 6 || i === 8 || i === 14) lvmTone(t, mtof(b[0] + 12), sp * 1.8, 'triangle', 0.3);
+      if (i % 2 === 0) lvmTone(t, mtof([b[1], b[2], b[3], b[2] + 12][(i / 2) % 4] + 12), sp * 1.5, 'square', 0.04);
+      if (i === 0) [b[1], b[2], b[3]].forEach(n => lvmTone(t, mtof(n), sp * 15, 'sine', 0.045));
+    } },
+  question: { bpm: 140, bars: [[33, 69, 72, 76], [33, 69, 72, 76], [29, 69, 72, 77], [31, 67, 71, 74]],  // Am – Am – F – G, tense
+    play(t, s, sp) {
+      const b = this.bars[Math.floor(s / 16) % 4], i = s % 16;
+      if (i % 4 === 0) lvmKick(t, 0.42);
+      lvmNoise(t, 0.03, i % 2 ? 0.03 : 0.06);
+      if (i % 2 === 0) lvmTone(t, mtof(b[0] + 12), sp * 1.4, 'sawtooth', 0.05);
+      lvmTone(t, mtof([b[1], b[2], b[3], b[2]][i % 4]), sp * 0.9, 'square', 0.03);
+    } }
+};
+function lvmPlay(mode) {
+  if (!LVM.on) mode = null;
+  if (LVM.mode === mode) return;
+  LVM.mode = mode; clearInterval(LVM.timer); LVM.timer = null;
+  if (!mode) return;
+  const c = lvmCtx(); if (!c) return;
+  const song = LV_SONGS[mode], sp = 60 / song.bpm / 4; LVM.step = 0; LVM.next = c.currentTime + 0.08;
+  LVM.timer = setInterval(() => { while (LVM.next < c.currentTime + 0.15) { song.play(LVM.next, LVM.step, sp); LVM.next += sp; LVM.step++; } }, 40);
+}
+function lvmSting(kind) {
+  if (!LVM.on) return; const c = lvmCtx(); if (!c) return; const t = c.currentTime + 0.03;
+  const seq = kind === 'end' ? [60, 64, 67, 72, 76, 79, 84] : [67, 72, 76, 79], gap = kind === 'end' ? 0.14 : 0.09;
+  seq.forEach((n, i) => lvmTone(t + i * gap, mtof(n), kind === 'end' ? 0.7 : 0.35, 'square', 0.08));
+  if (kind === 'end') [60, 64, 67, 72].forEach(n => lvmTone(t + seq.length * gap, mtof(n), 1.6, 'triangle', 0.08));
+}
+function lvmTick(left) { if (!LVM.on || !LVM.ctx || LVM.ctx.state !== 'running') return; lvmTone(LVM.ctx.currentTime + 0.01, left <= 3 ? 1320 : 880, 0.09, 'square', 0.07); }
+function lvMusicFor(st) {
+  const ph = st.phase || 'lobby';
+  if (ph === 'reveal' || ph === 'end') { lvmPlay(null); const k = ph + ':' + st.q + ':' + (ph === 'end' || LV.rev[st.q] ? 1 : 0); if (LV.sting !== k && (ph === 'end' || LV.rev[st.q])) { LV.sting = k; lvmSting(ph === 'end' ? 'end' : 'reveal'); } return; }
+  lvmPlay(ph === 'question' ? 'question' : 'lobby');
+}
+/* ---- autoplay: after the answer and the top 5 the game moves on by itself ---- */
+function lvAuto(st) {
+  const ready = st.phase === 'reveal' ? !!LV.rev[st.q] : st.phase === 'board';
+  const key = st.phase + ':' + st.q + ':' + (ready ? 1 : 0) + ':' + (LV.auto ? 1 : 0);
+  if (LV.autoKey !== key) {
+    clearInterval(LV.autoT); LV.autoT = null; LV.autoKey = key;
+    if (LV.auto && ready) {
+      LV.autoLeft = st.phase === 'reveal' ? 7 : 5;
+      LV.autoT = setInterval(() => {
+        LV.autoLeft--; lvAutoLabel();
+        if (LV.autoLeft <= 0) { clearInterval(LV.autoT); LV.autoT = null; const nx = $('#lvnext'); if (nx && !nx.disabled) nx.click(); }
+      }, 1000);
+    }
+  }
+  lvAutoLabel();
+}
+function lvAutoLabel() {
+  const nx = $('#lvnext'); if (!nx) return;
+  if (!nx.dataset.base) nx.dataset.base = nx.textContent;
+  nx.textContent = nx.dataset.base + (LV.autoT ? ` (${LV.autoLeft})` : '');
+}
 let LV = null;
 async function openLiveHost(P) {
   if (LV) lvDetach();
@@ -923,7 +1012,8 @@ async function openLiveHost(P) {
     const h = (await g.child('host').once('value')).val();
     if (h && h !== fb.uid) throw new Error('This game is controlled from another browser. Open it there, or close it on the Quizzes page and start again.');
     if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs }, state: { phase: 'lobby' } }); }
-    LV = { P, fb, g, players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
+    lvmCtx();
+    LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
       byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
     const qm = (await g.child('questions').once('value')).val() || {}; Object.keys(qm).forEach(k => { if (qm[k]) LV.qmeta[k] = qm[k]; });
     g.child('players').on('value', x => { LV.players = x.val() || {}; lvCheckPlayers(); lvRender(); });
@@ -933,7 +1023,7 @@ async function openLiveHost(P) {
   } catch (e) { el.innerHTML = `<div class="lv-main" style="justify-content:center;align-items:center"><p class="lv-h1">Could not open the game</p><p>${esc(e.message || e)}</p><button class="lv-btn" id="lvx0">Close</button></div>`; $('#lvx0').onclick = () => { el.remove(); }; }
 }
 function lvDetach() {
-  if (!LV) return; clearInterval(LV.tick);
+  if (!LV) return; clearInterval(LV.tick); clearInterval(LV.autoT); lvmPlay(null);
   ['players', 'tickets', 'kicked', 'state'].forEach(k => LV.g.child(k).off()); if (LV.ansRef) LV.ansRef.off();
   LV = null;
 }
@@ -971,6 +1061,7 @@ async function lvOnState() {
     }
     LV.tick = setInterval(() => {
       const left = Math.ceil((st.startedAt + st.dur * 1000 - LV.fb.now()) / 1000); const t = $('#lvt'); if (t) t.textContent = Math.max(0, left);
+      if (left > 0 && left <= 5 && LV.lastTick !== left) { LV.lastTick = left; lvmTick(left); }
       if (left <= 0) lvReveal(st.q);
     }, 250);
   } else if (LV.ansRef) { LV.ansRef.off(); LV.ansRef = null; LV.ansQ = null; }
@@ -1050,7 +1141,8 @@ function lvRender() {
   const el = $('#lv'), st = LV.state || {}, P = LV.P, n = P.questions.length, act = lvValid();
   const top = `<div class="lv-top"><b style="font-size:20px">${esc(P.title)}</b><span class="lv-dim">Group ${esc(P.group)}</span>
     ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}<span class="lv-pill">${act.length} players</span>
-    <span style="flex:1"></span><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
+    <span style="flex:1"></span><button class="lv-btn ghost" id="lvauto" title="After each answer and the top 5, go on by itself">Autoplay: ${LV.auto ? 'On' : 'Off'}</button>
+    <button class="lv-btn ghost" id="lvmus">${LVM.on ? '♪ Music: On' : '♪ Music: Off'}</button><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
   let body = '';
   if (!st.phase || st.phase === 'lobby') {
     const guests = act.filter(p => p.guest).length;
@@ -1089,6 +1181,10 @@ function lvRender() {
   const qrEl = $('#lvqr'); if (qrEl) lvQr(qrEl);
   const rb = $('#lvrep'); if (rb) rb.onclick = () => showLiveReport(P.quiz_id);
   $('#lvx').onclick = lvClose;
+  $('#lvauto').onclick = () => { LV.auto = !LV.auto; lsSet('lv_auto', LV.auto ? 'on' : 'off'); lvRender(); };
+  $('#lvmus').onclick = () => { LVM.on = !LVM.on; lsSet('lv_music', LVM.on ? 'on' : 'off'); if (LVM.on) { lvmCtx(); LVM.mode = '__'; } lvRender(); };
+  el.onclick = () => { if (LVM.on) lvmCtx(); };
+  lvMusicFor(st); lvAuto(st);
   $('#lvfs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => {}); };
   $$('[data-kick]', el).forEach(b => b.onclick = () => { if (confirm('Remove "' + b.textContent + '"? The student can join again with another nickname.')) lvKick(b.dataset.kick); });
   const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; lvAsk(0).catch(fail); };
