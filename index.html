@@ -208,6 +208,18 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 #lv .lv-right{display:flex;flex-direction:column;gap:18px;min-height:0}
 #lv .lv-chip.g{background:#fde68a}
 .modal-bg.top{z-index:400}
+#lv .lv-racehead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+#lv .lv-pill.big{font-size:26px;padding:6px 18px}
+#lv .lv-racebox{position:relative;flex:1;min-height:200px;overflow-y:auto;overflow-x:hidden;background:rgba(0,0,0,.18);border-radius:16px;padding:8px 0}
+#lv .rl{display:grid;grid-template-columns:140px 1fr 150px;align-items:center;height:var(--lh,38px);padding:0 10px;font-size:clamp(12px,calc(var(--lh,38px)*.42),20px);font-weight:700;border-radius:8px}
+#lv .rl .rn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px}
+#lv .rl .rt{position:relative;height:70%;border-bottom:2px dashed rgba(255,255,255,.2)}
+#lv .rl .rr{position:absolute;bottom:-2px;transform:translateX(-50%);transition:left .6s ease;font-size:1.35em;line-height:1}
+#lv .rl .rs{text-align:right;color:#cfe9df;font-size:.85em;white-space:nowrap}
+#lv .rl.caught{background:rgba(226,27,60,.28)} #lv .rl.done .rs{color:#86efac}
+#lv .lv-robot{position:absolute;top:0;bottom:0;width:4px;background:rgba(226,27,60,.9);box-shadow:0 0 22px #e21b3c;transition:left .3s linear;pointer-events:none;z-index:2}
+#lv .lv-robot span{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:40px;filter:drop-shadow(0 0 6px #e21b3c)}
+#lv .lv-finish{position:absolute;top:0;bottom:0;right:156px;border-left:4px dotted rgba(255,255,255,.55);pointer-events:none}
 .rep{width:100%;border-collapse:collapse;font-size:14px}.rep th,.rep td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.rep th{font-size:12px;color:var(--muted);font-weight:600}.rep td.n{text-align:right;white-space:nowrap}
 .modal.wide{max-width:900px}
 @media (max-width:800px){#lv .lv-lobby{grid-template-columns:1fr}}
@@ -905,13 +917,21 @@ async function liveStartDialog(id) {
     <p class="small muted" style="margin-top:0">Everyone sees the same question at the same time, on the projector and on their phones. Faster right answers get more points. ${n} of ${q.questions.length} questions are played live (multiple choice and true/false)${n < q.questions.length ? '; the others are skipped' : ''}.</p>
     <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="ld"><option value="">— no marks —</option>${c.dates.map(d => `<option ${d === c.date ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
       <label class="f" style="width:160px"><span>Seconds per question</span><select id="lsec">${[10, 15, 20, 30, 45, 60].map(x => `<option ${x === 20 ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
+    <div class="row"><label class="f" style="flex:1"><span>Game mode</span><select id="lmode"><option value="classic">Classic — one question at a time on the screen</option><option value="robot">🤖 Robot Run — race on phones, a robot chases them</option></select></label>
+      <label class="f" style="width:160px" id="lminw" hidden><span>Race minutes</span><input type="text" id="lmin" inputmode="numeric" value="${Math.max(2, Math.ceil(n * 20 / 60))}"></label></div>
+    <p class="small muted" id="lmodeinfo" hidden>Robot Run: every student answers all questions on the phone at their own speed. Each right answer moves them one step forward; the robot runs at a steady speed and catches anyone who is too slow. The screen shows everyone's lane and speed.</p>
     <div id="linfo">${info(c)}</div>
     <p class="small muted">Open this on the projector. Students open their page from the bot and press <b>Join live game</b>.</p>
     <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="lgo" ${n ? '' : 'disabled'}>Open the game</button></div>`, m => {
+    $('#lmode', m).onchange = e => { const r = e.target.value === 'robot'; $('#lminw', m).hidden = !r; $('#lmodeinfo', m).hidden = !r; };
     $('#ld', m).onchange = async e => { try { const c2 = e.target.value ? await api('startCheck', id, e.target.value) : { date: '' }; $('#linfo', m).innerHTML = info(c2); } catch (er) { fail(er); } };
     $('#lgo', m).onclick = async () => {
       $('#lgo', m).disabled = true;
-      try { const P = await api('liveOpen', id, $('#ld', m).value, $('#lsec', m).value); closeModal(); openLiveHost(P); }
+      try {
+        const P = await api('liveOpen', id, $('#ld', m).value, $('#lsec', m).value);
+        P.mode = $('#lmode', m).value; P.minutes = Math.min(60, Math.max(1, Number($('#lmin', m).value) || 5));
+        closeModal(); openLiveHost(P);
+      }
       catch (e) { $('#lgo', m).disabled = false; fail(e); }
     };
   });
@@ -982,7 +1002,7 @@ function lvmTick(left) { if (!LVM.on || !LVM.ctx || LVM.ctx.state !== 'running')
 function lvMusicFor(st) {
   const ph = st.phase || 'lobby';
   if (ph === 'reveal' || ph === 'end') { lvmPlay(null); const k = ph + ':' + st.q + ':' + (ph === 'end' || LV.rev[st.q] ? 1 : 0); if (LV.sting !== k && (ph === 'end' || LV.rev[st.q])) { LV.sting = k; lvmSting(ph === 'end' ? 'end' : 'reveal'); } return; }
-  lvmPlay(ph === 'question' ? 'question' : 'lobby');
+  lvmPlay(ph === 'question' || ph === 'race' ? 'question' : 'lobby');
 }
 /* ---- autoplay: after the answer and the top 5 the game moves on by itself ---- */
 function lvAuto(st) {
@@ -1015,7 +1035,8 @@ async function openLiveHost(P) {
     const g = fb.db.ref('games/' + P.gid);
     const h = (await g.child('host').once('value')).val();
     if (h && h !== fb.uid) throw new Error('This game is controlled from another browser. Open it there, or close it on the Quizzes page and start again.');
-    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs }, state: { phase: 'lobby' } }); }
+    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs, mode: P.mode || 'classic', minutes: P.minutes || 0 }, state: { phase: 'lobby' } }); }
+    else { const meta = (await g.child('meta').once('value')).val() || {}; P.mode = meta.mode || 'classic'; P.minutes = meta.minutes || 0; }
     lvmCtx();
     LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
       byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
@@ -1069,6 +1090,10 @@ async function lvOnState() {
       if (left <= 0) lvReveal(st.q);
     }, 250);
   } else if (LV.ansRef) { LV.ansRef.off(); LV.ansRef = null; LV.ansQ = null; }
+  if (st.phase === 'race') {
+    if (!LV.raceRef) { LV.vsent = LV.vsent || {}; LV.raceRef = LV.g.child('race'); LV.raceRef.on('value', x => { LV.race = x.val() || {}; lvRaceCompute(); }); }
+    LV.tick = setInterval(() => lvRaceTick(false), 250);
+  } else if (LV.raceRef) { LV.raceRef.off(); LV.raceRef = null; }
   if (st.phase === 'reveal' || st.phase === 'board') {
     if (!LV.rev[st.q]) { const r = (await LV.g.child('reveal/' + st.q).once('value')).val(); if (r) LV.rev[st.q] = r; else await lvComputeReveal(st.q); }
   }
@@ -1081,6 +1106,85 @@ async function lvAsk(i) {
   await LV.g.child('questions/' + i).set({ prompt: q.prompt, type: q.type, options: q.options, n: i, total: LV.P.questions.length, dur, startedAt: TS });
   LV.qmeta[i] = (await LV.g.child('questions/' + i).once('value')).val();
   await LV.g.child('state').set({ phase: 'question', q: i, startedAt: LV.qmeta[i].startedAt, dur });
+}
+/* ---- Robot Run: everyone races through all questions on the phone; a robot chases at a steady speed ---- */
+async function lvRaceStart() {
+  const P = LV.P, upd = {};
+  P.questions.forEach((q, i) => { upd['questions/' + i] = { prompt: q.prompt, type: q.type, options: q.options, n: i, total: P.questions.length }; });
+  upd['race'] = null; upd['verdict'] = null; upd['prog'] = null;
+  await LV.g.update(upd);
+  await LV.g.child('state').set({ phase: 'race', startedAt: firebase.database.ServerValue.TIMESTAMP, dur: Math.round((P.minutes || 5) * 60) });
+}
+function lvRobotPos() {
+  const st = LV.state, N = LV.P.questions.length;
+  const f = Math.min(1, Math.max(0, (LV.fb.now() - st.startedAt) / (st.dur * 1000)));
+  return -1.5 + (N + 1.5) * f;    // starts 1.5 steps behind, reaches the finish when time is up
+}
+function lvRaceCompute() {
+  if (!LV || LV.state.phase !== 'race') return;
+  const P = LV.P, N = P.questions.length, st = LV.state, end = st.startedAt + st.dur * 1000 + 1500, verd = {};
+  const res = {};
+  lvValid().forEach(p => {
+    const a = (LV.race || {})[p.uid] || {}; let right = 0, answered = 0, last = 0;
+    Object.keys(a).forEach(k => {
+      const v = a[k], q = P.questions[+k]; if (!v || !q || v.t > end) return;
+      answered++; last = Math.max(last, v.t); const ok = v.a === q.correct; if (ok) right++;
+      if (!(LV.vsent[p.uid] || {})[k]) { verd['verdict/' + p.uid + '/' + k] = ok ? 1 : 0; (LV.vsent[p.uid] = LV.vsent[p.uid] || {})[k] = 1; }
+    });
+    res[p.uid] = { nick: p.nick, right, answered, done: answered >= N, last };
+  });
+  if (Object.keys(verd).length) LV.g.update(verd);
+  LV.rc = res; lvRaceTick(true);
+}
+function lvRaceTick(force) {
+  if (!LV || LV.state.phase !== 'race' || !LV.rc) return;
+  const st = LV.state, N = LV.P.questions.length, now = LV.fb.now(), rp = lvRobotPos();
+  const left = Math.max(0, Math.ceil((st.startedAt + st.dur * 1000 - now) / 1000));
+  const list = Object.keys(LV.rc).map(uid => {
+    const r = LV.rc[uid], mins = Math.max(0.25, ((r.done ? r.last : now) - st.startedAt) / 60000);
+    return Object.assign({ uid }, r, { caught: !r.done && rp >= r.right, spm: r.right / mins });
+  });
+  const fin = r => r.done ? r.last : 9e15;
+  list.sort((a, b) => (b.right - a.right) || (fin(a) - fin(b)) || (a.last - b.last));
+  list.forEach((r, i) => { r.rank = i + 1; });
+  LV.rlist = list;
+  lvRaceDraw(rp, left);
+  const prog = {}; list.forEach(r => { prog[r.uid] = { nick: r.nick, pos: r.right, right: r.right, answered: r.answered, done: r.done, caught: r.caught, rank: r.rank }; });
+  const js = JSON.stringify(prog);
+  if (js !== LV.progJs && (force || now - (LV.progAt || 0) > 1000)) { LV.progJs = js; LV.progAt = now; LV.g.child('prog').set(prog); }
+  if (!LV.raceEnding && (left <= 0 || (list.length && list.every(r => r.done)))) lvRaceEnd();
+}
+function lvRaceDraw(rp, left) {
+  const box = $('#lvrace'); if (!box) return;
+  const N = LV.P.questions.length, order = Object.keys(LV.rc), by = {};
+  (LV.rlist || []).forEach(r => { by[r.uid] = r; });
+  const key = order.join(',');
+  if (box.dataset.key !== key) {
+    box.dataset.key = key;
+    const h = Math.max(20, Math.min(46, Math.floor(((($('#lvrbox') || {}).clientHeight || 500) - 16) / Math.max(1, order.length))));
+    box.style.setProperty('--lh', h + 'px');
+    box.innerHTML = order.map(uid => `<div class="rl" data-u="${esc(uid)}"><span class="rn">${esc(LV.rc[uid].nick)}</span><div class="rt"><span class="rr">🏃</span></div><span class="rs"></span></div>`).join('') || '<p class="lv-dim" style="text-align:center">No players.</p>';
+  }
+  const pc = x => Math.min(1, Math.max(0, x / N));
+  $$('.rl', box).forEach(row => {
+    const r = by[row.dataset.u]; if (!r) return;
+    row.classList.toggle('caught', r.caught); row.classList.toggle('done', r.done);
+    const rr = row.querySelector('.rr'); rr.style.left = (pc(r.right) * 100) + '%'; rr.textContent = r.done ? '✅' : r.caught ? '😵' : '🏃';
+    row.querySelector('.rs').textContent = `#${r.rank} · ${r.right}/${N}${r.done ? ' · finished' : ` · ${r.spm.toFixed(1)}/min`}`;
+  });
+  const rob = $('#lvrob'); if (rob) rob.style.left = `calc(150px + (100% - 310px) * ${pc(rp)})`;
+  const t = $('#lvrt'); if (t) t.textContent = '⏱ ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+}
+async function lvRaceEnd() {
+  if (!LV || LV.raceEnding) return; LV.raceEnding = true; clearInterval(LV.tick);
+  const st = LV.state, sc = {};
+  (LV.rlist || []).forEach(r => {
+    const bonus = r.done ? Math.round(Math.max(0, st.startedAt + st.dur * 1000 - r.last) / 1000) * 10 : 0;   // finishing early earns extra points
+    sc[r.uid] = { nick: r.nick, score: r.right * 1000 + bonus, right: r.right, last: 0, lastOk: false, answered: r.answered > 0, rank: 0 };
+  });
+  Object.keys(sc).sort((a, b) => sc[b].score - sc[a].score).forEach((u, i) => { sc[u].rank = i + 1; });
+  LV.sc = sc;
+  try { await LV.g.update({ scores: sc, 'state/phase': 'end' }); } catch (e) { LV.raceEnding = false; fail(e); }
 }
 async function lvReveal(i) {
   if (LV.revealing === i) return; LV.revealing = i; clearInterval(LV.tick);
@@ -1118,12 +1222,16 @@ function lvComputeReveal(i) {
 async function lvSave() {
   const P = LV.P; LV.saving = true; lvRender();
   try {
-    const all = (await LV.g.child('answers').once('value')).val() || {};
-    const players = lvValid(), sc = LV.sc || {};
+    const players = lvValid(), sc = LV.sc || {}, robot = P.mode === 'robot';
+    let all = {};
+    if (robot) {   // race answers are stored per player: race/<uid>/<question index>
+      const race = (await LV.g.child('race').once('value')).val() || {}, end = LV.state.startedAt + LV.state.dur * 1000 + 1500;
+      players.forEach(p => { const a = race[p.uid] || {}; P.questions.forEach((q, i) => { const v = a[i]; if (v && v.t <= end) (all[i] = all[i] || {})[p.uid] = v; }); });
+    } else all = (await LV.g.child('answers').once('value')).val() || {};
     const report = players.map(p => { const r = sc[p.uid] || {}; return Object.assign(p.guest ? { guest: p.name } : { ticket: LV.tickets[p.uid] }, { nick: p.nick, right: r.right || 0, total: P.questions.length, points: r.score || 0, rank: r.rank || 0 }); });
     const results = players.filter(p => !p.guest).map(p => {
       const answers = {};
-      P.questions.forEach((q, i) => { const a = (all[i] || {})[p.uid], m = LV.qmeta[i]; if (a && m && a.t <= m.startedAt + m.dur * 1000 + 1500) answers[q.id] = q.type === 'tf' ? (a.a === 0 ? 1 : 0) : (q.perm ? q.perm[a.a] : a.a); });
+      P.questions.forEach((q, i) => { const a = (all[i] || {})[p.uid], m = LV.qmeta[i]; if (a && (robot || (m && a.t <= m.startedAt + m.dur * 1000 + 1500))) answers[q.id] = q.type === 'tf' ? (a.a === 0 ? 1 : 0) : (q.perm ? q.perm[a.a] : a.a); });
       return { ticket: LV.tickets[p.uid], answers };
     });
     LV.saved = await api('liveFinish', P.gid, results, report, { mapped: true });
@@ -1144,7 +1252,7 @@ function lvRender() {
   if (!LV) return;
   const el = $('#lv'), st = LV.state || {}, P = LV.P, n = P.questions.length, act = lvValid();
   const top = `<div class="lv-top"><b style="font-size:20px">${esc(P.title)}</b><span class="lv-dim">Group ${esc(P.group)}</span>
-    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}<span class="lv-pill">${act.length} players</span>
+    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' && st.phase !== 'race' ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}${P.mode === 'robot' ? '<span class="lv-pill">🤖 Robot Run</span>' : ''}<span class="lv-pill">${act.length} players</span>
     <span style="flex:1"></span><button class="lv-btn ghost" id="lvauto" title="After each answer and the top 5, go on by itself">Autoplay: ${LV.auto ? 'On' : 'Off'}</button>
     <button class="lv-btn ghost" id="lvmus">${LVM.on ? '♪ Music: On' : '♪ Music: Off'}</button><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
   let body = '';
@@ -1155,7 +1263,7 @@ function lvRender() {
       <div class="lv-right"><div class="lv-count"><b>${act.length}</b>players joined${guests ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}</div>
       <div class="lv-chips">${act.map(p => `<button class="lv-chip ${p.guest ? 'g' : ''}" data-kick="${esc(p.uid)}" title="${esc(p.name)}${p.guest ? ' (guest)' : ''} · click to remove">${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvgo" ${act.length ? '' : 'disabled'}>Start ▶</button></div>
-      <div class="lv-center lv-dim small">${n} questions · ${P.secs} s each${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div></div></div>`;
+      <div class="lv-center lv-dim small">${n} questions · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' min' : P.secs + ' s each'}${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div></div></div>`;
   } else if (st.phase === 'question') {
     const q = P.questions[st.q];
     body = `<div class="lv-prompt">${esc(q.prompt)}</div>
@@ -1172,6 +1280,9 @@ function lvRender() {
     const sc = LV.sc || {}, top5 = Object.values(sc).sort((a, b) => a.rank - b.rank).slice(0, 5);
     body = `<p class="lv-h1">Top 5</p><div class="lv-board">${top5.map(r => `<div class="lv-row"><span class="n">${r.rank}</span><span>${esc(r.nick)}</span><span class="s">${r.score.toLocaleString('en-US')}</span></div>`).join('') || '<p class="lv-dim" style="text-align:center">No points yet.</p>'}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvnext">Next question ▶</button></div>`;
+  } else if (st.phase === 'race') {
+    body = `<div class="lv-racehead"><span class="lv-pill big" id="lvrt">⏱ --:--</span><span class="lv-dim">Answer on your phone. Every right answer = one step forward. Don't let the robot catch you!</span><span style="flex:1"></span><button class="lv-btn ghost" id="lvrend">End race now</button></div>
+      <div class="lv-racebox" id="lvrbox"><div id="lvrace"></div><div class="lv-finish"></div><div class="lv-robot" id="lvrob"><span>🤖</span></div></div>`;
   } else if (st.phase === 'end') {
     const sc = LV.sc || {}, top = Object.values(sc).sort((a, b) => a.rank - b.rank);
     const col = (r, h, c, place) => r ? `<div class="col"><div class="nm">${esc(r.nick)}</div><div class="lv-dim">${r.score.toLocaleString('en-US')}</div><div class="bar" style="height:${h}px;background:${c}">${place}</div></div>` : '<div class="col"></div>';
@@ -1191,7 +1302,9 @@ function lvRender() {
   lvMusicFor(st); lvAuto(st);
   $('#lvfs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => {}); };
   $$('[data-kick]', el).forEach(b => b.onclick = () => { if (confirm('Remove "' + b.textContent + '"? The student can join again with another nickname.')) lvKick(b.dataset.kick); });
-  const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; lvAsk(0).catch(fail); };
+  const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; (P.mode === 'robot' ? lvRaceStart() : lvAsk(0)).catch(e => { go.disabled = false; fail(e); }); };
+  const re = $('#lvrend'); if (re) re.onclick = () => { if (confirm('End the race now and show the results?')) lvRaceEnd(); };
+  if (st.phase === 'race') lvRaceTick(true);
   const sk = $('#lvskip'); if (sk) sk.onclick = () => lvReveal(st.q);
   const rt = $('#lvretry'); if (rt) rt.onclick = () => { LV.saveErr = null; lvSave(); };
   const nx = $('#lvnext'); if (nx) nx.onclick = () => {
