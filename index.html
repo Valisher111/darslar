@@ -199,6 +199,18 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 #lv .lv-pod .nm{font-size:clamp(22px,2.6vw,36px);font-weight:800;text-align:center;word-break:break-word}
 #lv .lv-pod .bar{width:100%;border-radius:14px 14px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14px;font-size:44px;font-weight:800}
 #lv .lv-note{background:rgba(255,255,255,.1);border-radius:12px;padding:12px 16px;font-size:16px;max-width:860px;margin:0 auto;width:100%}
+#lv .lv-lobby{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:28px;flex:1;min-height:0}
+#lv .lv-qrbox{background:#fff;color:#0e3b2e;border-radius:18px;padding:20px;text-align:center;align-self:start}
+#lv .lv-qrbox .lv-qr{display:flex;justify-content:center;margin:6px 0 12px}
+#lv .lv-qrbox .lv-qr img,#lv .lv-qrbox .lv-qr canvas{width:100%!important;max-width:280px;height:auto!important}
+#lv .lv-qrbox b{font-size:24px;display:block}
+#lv .lv-qrbox small{display:block;color:#4b5563;font-size:14px;margin-top:6px;line-height:1.35}
+#lv .lv-right{display:flex;flex-direction:column;gap:18px;min-height:0}
+#lv .lv-chip.g{background:#fde68a}
+.modal-bg.top{z-index:400}
+.rep{width:100%;border-collapse:collapse;font-size:14px}.rep th,.rep td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.rep th{font-size:12px;color:var(--muted);font-weight:600}.rep td.n{text-align:right;white-space:nowrap}
+.modal.wide{max-width:900px}
+@media (max-width:800px){#lv .lv-lobby{grid-template-columns:1fr}}
 @media (max-width:700px){#lv .lv-opts{grid-template-columns:1fr}#lv .lv-timer{width:90px;height:90px;font-size:40px}}
 .phone{margin:0 auto;width:min(390px,100%);height:min(760px,calc(90vh - 110px));border:10px solid #111;border-radius:34px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .phone iframe{width:100%;height:100%;border:0;display:block}
@@ -779,7 +791,7 @@ async function pageQuizzes() {
       <div class="small muted" style="margin:4px 0 10px">${q.unit ? esc(q.unit) + ' · ' : ''}${q.count} questions · ${q.duration_min} min${q.lesson_date ? ' · lesson ' + esc(q.lesson_date) : ''}${q.status === 'closed' || q.status === 'open' ? ' · ' + q.done + ' results' : ''}</div>
       <div class="row">${q.status === 'ready' || q.status === 'draft' ? `<button class="btn primary" data-live="${esc(q.quiz_id)}">▶ Live game</button><button class="btn" data-start="${esc(q.quiz_id)}">Start as test</button>` : ''}
         ${q.status === 'open' ? `<button class="btn primary" data-res="${esc(q.quiz_id)}">Live results</button>` : ''}
-        ${q.status === 'closed' ? `<button class="btn" data-res="${esc(q.quiz_id)}">Results</button>` : ''}
+        ${q.status === 'closed' ? `<button class="btn" data-res="${esc(q.quiz_id)}">Results</button>` : ''}${q.live ? `<button class="btn" data-lrep="${esc(q.quiz_id)}">📋 Live report</button>` : ''}
         <button class="btn sm" data-sv="${esc(q.quiz_id)}">Student view</button>
         <button class="btn sm" data-prev="${esc(q.quiz_id)}">Answer key</button>
         <button class="btn sm" data-copy="${esc(q.quiz_id)}">Copy to…</button>
@@ -791,6 +803,7 @@ async function pageQuizzes() {
     $$('[data-res]').forEach(b => b.onclick = () => quizLive(b.dataset.res));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
     $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
+    $$('[data-lrep]').forEach(b => b.onclick = () => showLiveReport(b.dataset.lrep));
     if (lvs) {
       $('#lvback').onclick = async () => { try { openLiveHost(await api('liveOpen', lvs.quiz_id)); } catch (e) { fail(e); } };
       $('#lvcancel').onclick = async () => { if (!confirm('Close the live game? No marks will be saved.')) return; try { await lvCancelGame(lvs.gid); toast('Live game closed'); pageQuizzes(); } catch (e) { fail(e); } };
@@ -837,6 +850,37 @@ async function fbApp(name) {
   db.ref('.info/serverTimeOffset').on('value', x => { o.off = x.val() || 0; });
   o.now = () => Date.now() + o.off;
   return o;
+}
+function lvJoinUrl() { return location.href.split('#')[0].replace(/[^/]*$/, '') + 's.html#play=' + LV.P.gid; }
+async function lvQr(el) {
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+    if (!el.isConnected) return; el.innerHTML = '';
+    new QRCode(el, { text: lvJoinUrl(), width: 280, height: 280, colorDark: '#0e3b2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch (e) { el.innerHTML = '<small>QR code could not load. Students open their page from the bot.</small>'; }
+}
+function liveReportHtml(r) {
+  const right = r.rows.length ? r.rows.reduce((a, x) => a + x.right, 0) / r.rows.length : 0;
+  return `<p class="small muted" style="margin-top:0">Group ${esc(r.group)}${r.date ? ' · lesson ' + esc(r.date) : ' · practice'} · ${r.rows.length} played${(g => g ? ` (${g} guest${g === 1 ? '' : 's'})` : '')(r.rows.filter(x => x.kind === 'guest').length)} · average ${right.toFixed(1)} of ${r.rows[0] ? r.rows[0].total : 0} right</p>
+    <div style="overflow:auto"><table class="rep"><thead><tr><th>#</th><th>Name</th><th>Nickname</th><th></th><th class="n">Right</th><th class="n">Points</th><th class="n">Mark</th><th>Note</th></tr></thead><tbody>
+    ${r.rows.map(x => `<tr><td>${x.rank || ''}</td><td>${esc(x.name)}</td><td>${esc(x.nick)}</td><td>${x.kind === 'guest' ? '<span class="pill warn">guest</span>' : ''}</td><td class="n"><b>${x.right}</b> / ${x.total}</td><td class="n">${(x.points || 0).toLocaleString('en-US')}</td><td class="n">${esc(x.mark || '—')}</td><td class="small muted">${esc(x.note || '')}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody played.</td></tr>'}
+    </tbody></table></div>
+    ${r.missing.length ? `<p class="small" style="margin-bottom:0"><b>Did not join (${r.missing.length}):</b> ${r.missing.map(esc).join(', ')}</p>` : ''}`;
+}
+async function showLiveReport(id) {
+  let r; try { r = await api('liveReport', id); } catch (e) { return fail(e); }
+  modal(`<h3>📋 Live game report · ${esc(r.title)}</h3>${liveReportHtml(r)}
+    <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn" id="repcsv">Download CSV</button><button class="btn primary" data-close>Close</button></div>`, bg => {
+    bg.classList.add('top'); bg.querySelector('.modal').classList.add('wide');
+    $('#repcsv', bg).onclick = () => {
+      const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const lines = [['Rank', 'Name', 'Nickname', 'Type', 'Right', 'Total', 'Points', 'Mark', 'Note'].map(q).join(',')]
+        .concat(r.rows.map(x => [x.rank, x.name, x.nick, x.kind, x.right, x.total, x.points, x.mark, x.note].map(q).join(',')))
+        .concat(r.missing.map(n => ['', n, '', 'did not join', '', '', '', '', ''].map(q).join(',')));
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv' }));
+      a.download = `live-${r.group}-${(r.date || 'practice').replace('.', '-')}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    };
+  });
 }
 async function lvCancelGame(gid) {
   await api('liveCancel');
@@ -895,6 +939,7 @@ function lvValid() {
   const seen = {}, out = [];
   lvSorted().forEach(([uid, p]) => {
     if (!p || LV.kicked[uid]) return;
+    if (p.guest && LV.tickets[uid] === undefined) { out.push({ uid, nick: p.nick, name: p.guest, guest: true }); return; }
     const name = LV.byTicket[LV.tickets[uid]];
     if (!name || seen[name]) return; seen[name] = 1; out.push({ uid, nick: p.nick, name });
   });
@@ -976,12 +1021,14 @@ async function lvSave() {
   const P = LV.P; LV.saving = true; lvRender();
   try {
     const all = (await LV.g.child('answers').once('value')).val() || {};
-    const results = lvValid().map(p => {
+    const players = lvValid(), sc = LV.sc || {};
+    const report = players.map(p => { const r = sc[p.uid] || {}; return Object.assign(p.guest ? { guest: p.name } : { ticket: LV.tickets[p.uid] }, { nick: p.nick, right: r.right || 0, total: P.questions.length, points: r.score || 0, rank: r.rank || 0 }); });
+    const results = players.filter(p => !p.guest).map(p => {
       const answers = {};
       P.questions.forEach((q, i) => { const a = (all[i] || {})[p.uid], m = LV.qmeta[i]; if (a && m && a.t <= m.startedAt + m.dur * 1000 + 1500) answers[q.id] = q.type === 'tf' ? (a.a === 0 ? 1 : 0) : a.a; });
       return { ticket: LV.tickets[p.uid], answers };
     });
-    LV.saved = await api('liveFinish', P.gid, results);
+    LV.saved = await api('liveFinish', P.gid, results, report);
   } catch (e) { LV.saveErr = e.message || String(e); }
   LV.saving = false; lvRender();
 }
@@ -1003,11 +1050,13 @@ function lvRender() {
     <span style="flex:1"></span><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
   let body = '';
   if (!st.phase || st.phase === 'lobby') {
-    body = `<p class="lv-h1">Open your page from the bot and press <span class="lv-key">Join live game</span></p>
-      <div class="lv-count"><b>${act.length}</b>players joined</div>
-      <div class="lv-chips">${act.map(p => `<button class="lv-chip" data-kick="${esc(p.uid)}" title="${esc(p.name)} · click to remove">${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
+    const guests = act.filter(p => p.guest).length;
+    body = `<div class="lv-lobby"><div class="lv-qrbox"><b>Scan to join</b><div class="lv-qr" id="lvqr"></div>
+        <small>Or open your page from <b style="display:inline;font-size:inherit">@web_yordamchi_bot</b> and press <b style="display:inline;font-size:inherit">Join live game</b>.<br>Not in the list? Scan and play as a guest (no mark in the gradebook).</small></div>
+      <div class="lv-right"><div class="lv-count"><b>${act.length}</b>players joined${guests ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}</div>
+      <div class="lv-chips">${act.map(p => `<button class="lv-chip ${p.guest ? 'g' : ''}" data-kick="${esc(p.uid)}" title="${esc(p.name)}${p.guest ? ' (guest)' : ''} · click to remove">${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvgo" ${act.length ? '' : 'disabled'}>Start ▶</button></div>
-      <div class="lv-center lv-dim small">${n} questions · ${P.secs} s each${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div>`;
+      <div class="lv-center lv-dim small">${n} questions · ${P.secs} s each${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div></div></div>`;
   } else if (st.phase === 'question') {
     const q = P.questions[st.q];
     body = `<div class="lv-prompt">${esc(q.prompt)}</div>
@@ -1030,9 +1079,12 @@ function lvRender() {
     const sv = LV.saved;
     body = `<p class="lv-h1">🏆 Winners</p><div class="lv-pod">${col(top[1], 170, '#9ca3af', 2)}${col(top[0], 240, '#d89e00', 1)}${col(top[2], 120, '#b45309', 3)}</div>
       <div class="lv-note">${LV.saving ? 'Saving marks to the gradebook…' : LV.saveErr ? `Marks were not saved: ${esc(LV.saveErr)} <button class="lv-btn" id="lvretry" style="margin-left:10px">Try again</button>`
-        : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(P.date) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}` : ''}</div>`;
+        : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(P.date) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}
+          <button class="lv-btn" id="lvrep" style="margin-left:12px;padding:8px 16px">📋 Report</button>` : ''}</div>`;
   }
   el.innerHTML = top + `<div class="lv-main">${body}</div>`;
+  const qrEl = $('#lvqr'); if (qrEl) lvQr(qrEl);
+  const rb = $('#lvrep'); if (rb) rb.onclick = () => showLiveReport(P.quiz_id);
   $('#lvx').onclick = lvClose;
   $('#lvfs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => {}); };
   $$('[data-kick]', el).forEach(b => b.onclick = () => { if (confirm('Remove "' + b.textContent + '"? The student can join again with another nickname.')) lvKick(b.dataset.kick); });
