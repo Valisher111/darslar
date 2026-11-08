@@ -614,7 +614,7 @@ async function pageStudents() {
     const linked = d.students.filter(s => by[s.name] && by[s.name].status === 'active').length;
     const tgPill = s => { const a = by[s.name]; return !a ? '' : a.status === 'active' ? '<span class="pill" title="Linked in Telegram">TG</span>' : '<span class="pill warn">waiting</span>'; };
     const pend = acc ? acc.pending : [];
-    const pendHtml = pend.length ? `<div class="card" style="border-color:var(--warn);margin-bottom:14px"><h2>Waiting for approval (${pend.length})</h2>${pend.map(p => `<div class="up"><span class="gbadge">${esc(p.group)}</span>
+    const pendHtml = pend.length ? `<div class="card" style="border-color:var(--warn);margin-bottom:14px"><div class="row" style="margin-bottom:8px"><h2 style="margin:0;flex:1">Waiting for approval (${pend.length})</h2>${pend.length > 1 ? `<button class="btn sm primary" id="apall">Approve all (${pend.length})</button>` : ''}</div>${pend.map(p => `<div class="up"><span class="gbadge">${esc(p.group)}</span>
         <div style="flex:1;min-width:0"><b>${esc(p.full_name)}</b><div class="small muted">${p.tg_username ? '@' + esc(p.tg_username) + ' · ' : ''}${esc(p.at)}</div></div>
         <button class="btn sm primary" data-ap="${esc(p.tg_id)}">Approve</button><button class="btn sm danger" data-rj="${esc(p.tg_id)}">Reject</button></div>`).join('')}</div>` : '';
     const botHtml = !acc ? '' : !acc.botSet ? `<div class="card small muted" style="margin-bottom:14px">Student accounts: connect the student bot in <a href="#/settings">Settings</a> first.</div>`
@@ -628,6 +628,13 @@ async function pageStudents() {
       b.disabled = true; try { await api(action, b.getAttribute(attr), S.group); toast(msg); pageStudents(); } catch (e) { b.disabled = false; fail(e); } });
     doAcc('data-ap', 'approve', 'Approved — the student got the link in Telegram');
     doAcc('data-rj', 'reject', 'Rejected');
+    const apall = $('#apall');
+    if (apall) apall.onclick = async () => {
+      if (!confirm('Approve all ' + pend.length + ' students? Each will get their personal link in Telegram.')) return;
+      apall.disabled = true; $$('[data-ap],[data-rj]').forEach(b => b.disabled = true); apall.textContent = 'Approving…';
+      try { const r = await api('approveAll', S.group); toast('Approved ' + r.approved + (r.failed ? ' · ' + r.failed + ' skipped (already handled)' : '') + ' — links sent in Telegram'); pageStudents(); }
+      catch (e) { apall.disabled = false; fail(e); pageStudents(); }
+    };
   } catch (e) { fail(e); }
 }
 async function showProfile(row) {
