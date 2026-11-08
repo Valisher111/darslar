@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Darslar</title>
+<meta name="theme-color" content="#0b7a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Darslar">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b7a5f'/%3E%3Cpath d='M18 16h14a16 16 0 0 1 0 32H18z' fill='none' stroke='white' stroke-width='6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f6f5; --panel:#ffffff; --ink:#14201c; --muted:#5d6d67; --line:#e2e8e5; --soft:#f7faf9;
+  --accent:#0b7a5f; --accent-2:#10a37f; --accent-ink:#ffffff; --accent-soft:#e3f4ee;
+  --side:#0d2b23; --side-ink:#cfe5dd; --side-muted:#86a89c; --side-on:#16483a;
+  --good:#16865a; --warn:#b26a00; --warn-soft:#fff3dd; --bad:#c43a3a; --bad-soft:#fdeceb;
+  --changed:#fff5d1; --ro:#f1f4f3;
+  --r:14px; --tap:44px; --shadow:0 1px 2px rgba(16,40,32,.06),0 4px 14px rgba(16,40,32,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e1513; --panel:#151f1c; --ink:#e4efeb; --muted:#93a8a0; --line:#24332e; --soft:#1a2622;
+    --accent:#34c79c; --accent-2:#5fd8b2; --accent-ink:#06231a; --accent-soft:#173a30;
+    --side:#0a1210; --side-ink:#cfe5dd; --side-muted:#7e978e; --side-on:#173a30;
+    --good:#4ccf94; --warn:#e6a940; --warn-soft:#3a2d14; --bad:#ff7b7b; --bad-soft:#3b1f1f;
+    --changed:#3b3416; --ro:#1b2622; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.hidden{display:none!important}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+aside{background:var(--side);color:var(--side-ink);padding:18px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:700;font-size:18px;color:#fff}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:var(--accent-2);display:grid;place-items:center;color:#06231a;font-weight:800}
+.brand small{display:block;font-weight:500;font-size:12px;color:var(--side-muted)}
+.nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--side-ink);text-decoration:none;min-height:var(--tap);cursor:pointer}
+.nav a:hover{background:rgba(255,255,255,.05)}
+.nav a.on{background:var(--side-on);color:#fff;font-weight:600}
+.nav svg{width:20px;height:20px;flex:none;opacity:.9}
+.side-foot{margin-top:auto;font-size:12px;color:var(--side-muted);padding:8px}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar h1{font-size:20px;margin:0;margin-right:auto}
+.menu-btn{display:none;border:0;background:none;width:var(--tap);height:var(--tap);border-radius:10px;cursor:pointer}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;max-width:100%}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer;white-space:nowrap;font-weight:500}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.content{padding:24px;max-width:1180px;width:100%;margin:0 auto;padding-bottom:110px}
+.overlay{display:none}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:fixed;left:0;top:0;bottom:0;width:270px;z-index:60;transform:translateX(-100%);transition:transform .2s}
+  body.drawer aside{transform:none}
+  body.drawer .overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:55}
+  .menu-btn{display:grid;place-items:center}
+  .topbar{padding:10px 16px}
+  .topbar .chips{order:3;width:100%}
+  .content{padding:16px 16px 110px}
+}
+
+/* ---------- components ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.card + .card{margin-top:14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+h2{font-size:17px;margin:0 0 12px}
+h3{font-size:15px;margin:0 0 8px}
+.section-title{display:flex;align-items:center;gap:10px;margin:26px 0 12px}
+.section-title h2{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 16px;min-height:var(--tap);cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{min-height:34px;padding:4px 12px;font-size:14px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.55;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:8px 16px;min-height:38px;cursor:pointer}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.pill.gray{background:var(--ro);color:var(--muted)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+label.f{display:block;margin-bottom:12px}
+label.f span{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input[type=text],input[type=password],select,textarea{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 12px;min-height:var(--tap)}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.loading{padding:50px;text-align:center;color:var(--muted)}
+.empty{padding:22px;text-align:center;color:var(--muted)}
+
+/* today */
+.hero{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.hero .date{font-size:26px;font-weight:700;letter-spacing:-.01em}
+.lesson-card{border-left:4px solid var(--accent)}
+.lesson-card .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.gbadge{font-weight:700;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:2px 9px;font-size:14px}
+.progress{height:8px;background:var(--ro);border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent-2);border-radius:99px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;margin:8px 0 12px}
+.kv b{color:var(--muted);font-weight:500}
+.up{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.up:last-child{border-bottom:0}
+.up .d{min-width:52px;font-weight:700}
+.gcard{cursor:pointer;transition:border-color .15s}
+.gcard:hover{border-color:var(--accent)}
+.gcard .big{font-size:30px;font-weight:700;line-height:1.1}
+.stat{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--soft)}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--muted)}
+
+/* grades */
+.dlist{list-style:none;margin:0;padding:0}
+.dlist li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.dlist li:last-child{border-bottom:0}
+.dlist .nm{flex:1;min-width:0}
+.dlist .no{color:var(--muted);min-width:26px}
+.mark{width:72px;text-align:center;min-height:var(--tap);border:1px solid var(--line);border-radius:10px;background:var(--panel);font-weight:600}
+.mark.changed{background:var(--changed)}
+.mark.nb{color:var(--bad)}
+.mark.bad{outline:2px solid var(--bad)}
+.quick{display:flex;gap:4px}
+.quick button{min-width:40px}
+.tablewrap{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+table.g{border-collapse:separate;border-spacing:0;font-size:13px}
+table.g th,table.g td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:7px 8px;text-align:center;white-space:nowrap}
+table.g thead th{position:sticky;top:0;background:var(--soft);z-index:2;font-weight:600}
+table.g .st{position:sticky;left:0;background:var(--panel);z-index:1;text-align:left;max-width:210px;overflow:hidden;text-overflow:ellipsis}
+table.g thead .st{z-index:3;background:var(--soft)}
+table.g td.ro{background:var(--ro);color:var(--muted)}
+table.g td.ed{cursor:pointer}
+table.g td.ed:hover{outline:2px solid var(--accent);outline-offset:-2px}
+table.g td.nbv{color:var(--bad);font-weight:700}
+table.g td.hl{background:var(--changed)}
+.lrow{display:flex;gap:14px;align-items:flex-start;cursor:pointer}
+.lrow .dt{min-width:58px;font-weight:700}
+.lrow .dt small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.lrow.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.slist{list-style:none;margin:0;padding:0}
+.slist li{display:flex;align-items:center;gap:10px;padding:11px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px}
+.slist li:hover{background:var(--accent-soft)}
+svg text{fill:var(--muted);font-size:10px;font-family:inherit}
+
+/* misc */
+.savebar{position:fixed;left:248px;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 24px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;z-index:30}
+@media (max-width:900px){.savebar{left:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;z-index:90;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+.toast.err{background:var(--bad);color:#fff}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--panel);width:100%;max-width:560px;border-radius:16px;padding:20px;max-height:90vh;overflow:auto}
+@media (max-width:600px){.modal-bg{align-items:flex-end;padding:0}.modal{border-radius:18px 18px 0 0}}
+
+/* auth */
+.auth{min-height:100vh;display:grid;place-items:center;padding:16px;background:linear-gradient(160deg,var(--side) 0%,#0b3a2e 55%,var(--bg) 55.1%)}
+.auth .card{width:100%;max-width:400px;padding:28px}
+.auth .logo{width:48px;height:48px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:22px;margin-bottom:14px}
+.check{display:flex;align-items:center;gap:8px;margin:4px 0 16px;font-size:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH ============ -->
+<div id="auth" class="auth hidden">
+  <div class="card">
+    <div class="logo">D</div>
+    <h2 id="auth-title" style="font-size:22px;margin-bottom:4px">Darslar</h2>
+    <p class="muted" id="auth-sub" style="margin-top:0">Teacher dashboard · V.A. Tangriyev</p>
+    <form id="auth-form" autocomplete="on">
+      <input type="text" name="username" value="teacher" autocomplete="username" class="hidden" readonly>
+      <label class="f"><span>Password</span><input type="password" id="pw1" autocomplete="current-password" required></label>
+      <label class="f hidden" id="pw2-wrap"><span>Repeat password</span><input type="password" id="pw2" autocomplete="new-password"></label>
+      <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in on this device</label>
+      <button class="btn primary" style="width:100%" id="auth-btn">Sign in</button>
+      <p class="small muted" id="auth-msg" style="margin-bottom:0"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app hidden">
+  <aside>
+    <div class="brand"><div class="logo">D</div><div>Darslar<small>2026–2027 · DTPI</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot" id="side-foot"></div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <h1 id="title">Today</h1>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="content" id="view"><div class="loading">Loading…</div></div>
+  </div>
+</div>
+<div class="savebar hidden" id="savebar">
+  <span id="savecount" class="muted"></span><span class="spacer"></span>
+  <button class="btn" id="discard">Discard</button>
+  <button class="btn primary" id="saveall">Save changes</button>
+</div>
+
+<script>
+/* ===================== config ===================== */
+const API = 'https://script.google.com/macros/s/AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH/exec';
+const ICONS = {
+  today: '<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M9 15l2 2 4-4"/>',
+  grades: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  lessons: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  students: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
+  deadlines: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+  quizzes: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
+};
+const PAGES = [
+  ['today', 'Today'], ['grades', 'Grades'], ['lessons', 'Lessons'], ['students', 'Students'],
+  ['deadlines', 'Deadlines & PW'], ['quizzes', 'Quizzes'], ['settings', 'Settings']
+];
+const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines'];
+
+/* ===================== helpers ===================== */
+const $ = (q, el) => (el || document).querySelector(q);
+const $$ = (q, el) => Array.from((el || document).querySelectorAll(q));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k) || sessionStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v, persist) { try { (persist ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch (e) {} }
+};
+let toastTimer;
+function toast(msg, err) {
+  $$('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = msg;
+  document.body.appendChild(t); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), err ? 6000 : 2600);
+}
+const fail = e => toast((e && e.message) || String(e), true);
+const view = () => $('#view');
+const loading = () => { view().innerHTML = '<div class="loading">Loading…</div>'; };
+function modal(html, init) {
+  closeModal();
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal" role="dialog">${html}</div>`;
+  bg.addEventListener('click', e => { if (e.target === bg || e.target.closest('[data-close]')) closeModal(); });
+  document.body.appendChild(bg); if (init) init(bg);
+}
+function closeModal() { $$('.modal-bg').forEach(m => m.remove()); }
+function ddKey(s) { const m = /^(\d{2})\.(\d{2})$/.exec(s || ''); if (!m) return 0; let mo = +m[2]; if (mo < 8) mo += 12; return mo * 100 + (+m[1]); }
+function longDate(ddmm) {
+  const now = new Date(); const [d, m] = ddmm.split('.').map(Number);
+  let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--;
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+function shortDay(ddmm) {
+  const now = new Date(); const [d, m] = ddmm.split('.').map(Number);
+  let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++;
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short' });
+}
+
+/* ===================== API ===================== */
+let KEY = store.get('dp_key');
+async function api(action, ...args) {
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, key: KEY, args }) });
+  if (!r.ok) throw new Error('Server error ' + r.status);
+  const j = await r.json();
+  if (!j.ok) {
+    if (j.error === 'SESSION_EXPIRED') { signOut(true); throw new Error('Please sign in again.'); }
+    throw new Error(j.error);
+  }
+  return j.data;
+}
+
+/* ===================== state ===================== */
+const S = {
+  page: 'today', groups: [], subjects: {}, group: store.get('dp_group'), today: '',
+  data: {}, pending: {}, view: 'day', day: {}, block: 1, profile: null
+};
+
+/* ===================== auth ===================== */
+let authMode = 'login', setupKey = null;
+async function startAuth() {
+  $('#app').classList.add('hidden'); $('#auth').classList.remove('hidden');
+  const m = /setup=([A-Za-z0-9]+)/.exec(location.hash);
+  if (m) { setupKey = m[1]; authMode = 'setup'; }
+  if (authMode === 'setup') {
+    $('#auth-title').textContent = 'Create your password';
+    $('#auth-sub').textContent = 'You will use it to open Darslar on any device.';
+    $('#pw2-wrap').classList.remove('hidden'); $('#pw1').autocomplete = 'new-password';
+    $('#auth-btn').textContent = 'Save password';
+  }
+  setTimeout(() => $('#pw1').focus(), 50);
+}
+$('#auth-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = $('#pw1').value, btn = $('#auth-btn'), msg = $('#auth-msg');
+  msg.textContent = ''; btn.disabled = true;
+  try {
+    let res;
+    if (authMode === 'setup') {
+      if (pw.length < 6) throw new Error('At least 6 characters, please.');
+      if (pw !== $('#pw2').value) throw new Error('The two passwords do not match.');
+      res = await api('setPassword', setupKey, pw);
+      history.replaceState(null, '', location.pathname);
+    } else {
+      res = await api('login', pw);
+    }
+    KEY = res.key; store.set('dp_key', KEY, $('#remember').checked);
+    $('#pw1').value = ''; $('#pw2').value = '';
+    authMode = 'login'; boot();
+  } catch (err) { msg.textContent = err.message; msg.style.color = 'var(--bad)'; }
+  finally { btn.disabled = false; }
+});
+function signOut(silent) {
+  KEY = null; store.del('dp_key'); S.data = {}; S.pending = {};
+  if (!silent) toast('Signed out');
+  startAuth();
+}
+
+/* ===================== shell ===================== */
+async function boot() {
+  if (!KEY) return startAuth();
+  $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
+  loading();
+  try {
+    const b = await api('boot');
+    S.groups = b.groups; S.subjects = b.subjects || {}; S.today = b.today;
+    if (S.groups.indexOf(S.group) < 0) S.group = S.groups.find(g => g !== 'TEST') || S.groups[0];
+    $('#side-foot').textContent = 'Version ' + b.version;
+    buildNav(); route();
+  } catch (e) { if (KEY) fail(e); }
+}
+function buildNav() {
+  $('#nav').innerHTML = PAGES.map(([id, label]) =>
+    `<a data-p="${id}" href="#/${id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</svg>${label}</a>`).join('');
+}
+function go(page, group) {
+  if (group) S.group = group;
+  location.hash = '#/' + page + (GROUP_PAGES.includes(page) && S.group ? '/' + S.group : '');
+}
+window.addEventListener('hashchange', () => { if (KEY) route(); });
+function route() {
+  if (Object.keys(S.pending).length && !confirm(Object.keys(S.pending).length + ' unsaved change(s) will be lost. Continue?')) return;
+  S.pending = {}; updateSavebar(); S.navId = (S.navId || 0) + 1;
+  const parts = location.hash.replace(/^#\/?/, '').split('/');
+  S.page = PAGES.some(p => p[0] === parts[0]) ? parts[0] : 'today';
+  if (parts[1] && S.groups.includes(parts[1])) S.group = parts[1];
+  store.set('dp_group', S.group, true);
+  document.body.classList.remove('drawer');
+  $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.p === S.page));
+  $('#title').textContent = PAGES.find(p => p[0] === S.page)[1];
+  renderChips();
+  ({ today: pageToday, grades: pageGrades, lessons: pageLessons, students: pageStudents,
+     deadlines: pageDeadlines, quizzes: pageQuizzes, settings: pageSettings })[S.page]();
+}
+function renderChips() {
+  const show = GROUP_PAGES.includes(S.page);
+  $('#chips').innerHTML = show ? S.groups.map(g =>
+    `<button class="chip ${g === S.group ? 'on' : ''}" data-g="${esc(g)}" title="${esc(S.subjects[g] || '')}">${esc(g)}</button>`).join('') : '';
+}
+$('#chips').addEventListener('click', e => { const b = e.target.closest('[data-g]'); if (b) go(S.page, b.dataset.g); });
+$('#menu-btn').onclick = () => document.body.classList.add('drawer');
+$('#overlay').onclick = () => document.body.classList.remove('drawer');
+
+function getGroup(force) {
+  if (S.data[S.group] && !force) return Promise.resolve(S.data[S.group]);
+  return api('group', S.group).then(d => (S.data[d.group] = d));
+}
+
+/* ===================== pending + save ===================== */
+const colOf = c => S.data[S.group].cols[c - 1];
+const editable = c => c.kind === 'day' || c.kind === 'manual' || c.kind === 'team';
+function validMark(col, v) {
+  v = String(v).trim(); if (v === '') return true;
+  if (col.kind === 'team') return v.length <= 30;
+  if (col.kind === 'day' && v.toLowerCase() === 'nb') return true;
+  const n = Number(v.replace(',', '.')); return isFinite(n) && n >= 0 && n <= col.max;
+}
+function setPending(row, col, value) {
+  const st = S.data[S.group].students.find(s => s.row === row);
+  const key = row + ':' + col; value = String(value).trim();
+  if (value === String(st.v[col - 1] || '')) delete S.pending[key]; else S.pending[key] = { row, col, value };
+  updateSavebar();
+}
+function pv(row, col) {
+  const p = S.pending[row + ':' + col]; if (p) return p.value;
+  return S.data[S.group].students.find(s => s.row === row).v[col - 1] || '';
+}
+function updateSavebar() {
+  const n = Object.keys(S.pending).length;
+  $('#savebar').classList.toggle('hidden', !n);
+  $('#savecount').textContent = n + ' unsaved change' + (n === 1 ? '' : 's');
+}
+$('#discard').onclick = () => { S.pending = {}; updateSavebar(); route(); };
+$('#saveall').onclick = async () => {
+  const entries = Object.values(S.pending);
+  const bad = entries.find(e => !validMark(colOf(e.col), e.value));
+  if (bad) return toast('Not allowed: "' + bad.value + '". Use 0–' + colOf(bad.col).max + ' or nb.', true);
+  $('#saveall').disabled = true;
+  try {
+    const rows = await api('save', S.group, entries);
+    const d = S.data[S.group];
+    Object.keys(rows).forEach(r => { const st = d.students.find(s => s.row === +r); if (st) st.v = rows[r]; });
+    S.pending = {}; updateSavebar(); toast('Saved ' + entries.length + ' change' + (entries.length === 1 ? '' : 's') + ' to the gradebook');
+    route();
+  } catch (e) { fail(e); } finally { $('#saveall').disabled = false; }
+};
+
+/* ===================== TODAY ===================== */
+async function pageToday() {
+  loading();
+  try {
+    const my = S.navId; const h = await api('home'); if (my !== S.navId) return;
+    const lessonCard = l => {
+      const pct = l.students ? Math.round(l.marked / l.students * 100) : 0;
+      return `<div class="card lesson-card">
+        <div class="top"><span class="gbadge">${esc(l.group)}</span><b>${esc(l.subject)}</b><span class="spacer"></span><span class="pill gray">Lesson ${l.n}</span></div>
+        <div class="kv"><b>Topic</b><span>${l.unit ? esc(l.unit) + ' · ' : ''}${esc(l.topic) || '<span class="muted">not set</span>'}</span>
+        <b>Homework</b><span>${esc(l.homework) || '<span class="muted">—</span>'}</span></div>
+        <div class="row small muted" style="margin-bottom:6px"><span>Marks entered</span><span class="spacer"></span><span>${l.marked}/${l.students}</span></div>
+        <div class="progress"><i style="width:${pct}%"></i></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" data-mark="${esc(l.group)}|${l.col}">Mark grades</button>
+          <button class="btn" data-lesson="${esc(l.group)}|${esc(l.date)}">Edit lesson</button>
+        </div></div>`;
+    };
+    const todayHtml = h.todayLessons.length
+      ? `<div class="grid g2">${h.todayLessons.map(lessonCard).join('')}</div>`
+      : `<div class="card empty">No lessons today. Enjoy the break.</div>`;
+    const upHtml = h.upcoming.length ? h.upcoming.map(u => `<div class="up">
+        <div class="d">${esc(u.date)}<div class="small muted" style="font-weight:500">${shortDay(u.date)}</div></div>
+        <span class="gbadge">${esc(u.group)}</span>
+        <div style="flex:1;min-width:0"><div>${esc(u.subject)}</div><div class="small muted">${u.topic ? esc((u.unit ? u.unit + ' · ' : '') + u.topic) : 'Topic not set'}</div></div>
+        <button class="btn sm" data-lesson="${esc(u.group)}|${esc(u.date)}">Plan</button></div>`).join('') : '<div class="empty">Nothing scheduled.</div>';
+    const dlHtml = h.deadlines.length ? h.deadlines.map(x => {
+      const p = x.days < 0 ? `<span class="pill gray">${-x.days} d ago</span>` : x.days === 0 ? '<span class="pill bad">today</span>' : x.days <= 3 ? `<span class="pill warn">in ${x.days} d</span>` : `<span class="pill">in ${x.days} d</span>`;
+      return `<div class="up"><span class="gbadge">${esc(x.group)}</span><div style="flex:1;min-width:0"><div>${esc(x.title)}</div><div class="small muted">${esc(x.due_date)} · ${esc(x.type)}</div></div>${p}</div>`;
+    }).join('') : '<div class="empty">No deadlines in the next 30 days.</div>';
+    const gHtml = h.groups.map(g => {
+      const pct = g.lessonsTotal ? Math.round(g.lessonsDone / g.lessonsTotal * 100) : 0;
+      return `<div class="card gcard" data-g="${esc(g.group)}">
+        <div class="row"><span class="gbadge">${esc(g.group)}</span><span class="small muted" style="flex:1">${esc(g.subject)}</span></div>
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin:14px 0 12px;align-items:end"><div><div class="big">${g.avg == null ? '—' : g.avg}</div><div class="small muted">average mark</div></div>
+          <div><b style="font-size:18px">${g.students}</b><div class="small muted">students</div></div>
+          <div><b style="font-size:18px;color:${g.nb ? 'var(--bad)' : 'inherit'}">${g.nb}</b><div class="small muted">absences</div></div></div>
+        <div class="row small muted" style="margin-bottom:6px"><span>Lessons ${g.lessonsDone}/${g.lessonsTotal}</span><span class="spacer"></span><span>last ${esc(g.lastLesson || '—')}</span></div>
+        <div class="progress"><i style="width:${pct}%"></i></div></div>`;
+    }).join('');
+    view().innerHTML = `
+      <div class="hero"><div><div class="muted small">Hello, Valisher</div><div class="date">${esc(longDate(h.today))}</div></div></div>
+      ${todayHtml}
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h2>Coming up</h2>${upHtml}</div>
+        <div class="card"><h2>Deadlines</h2>${dlHtml}</div>
+      </div>
+      <div class="section-title"><h2>Your groups</h2></div>
+      <div class="grid g3">${gHtml}</div>`;
+    $$('[data-mark]').forEach(b => b.onclick = () => { const [g, c] = b.dataset.mark.split('|'); S.day[g] = +c; S.view = 'day'; go('grades', g); });
+    $$('[data-lesson]').forEach(b => b.onclick = () => { const [g, d] = b.dataset.lesson.split('|'); S.group = g; openLessonByDate(g, d); });
+    $$('.gcard').forEach(c => c.onclick = () => go('grades', c.dataset.g));
+  } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
+}
+
+/* ===================== GRADES ===================== */
+async function pageGrades() {
+  loading();
+  try {
+    const my = S.navId; const d = await getGroup(); if (my !== S.navId) return;
+    const days = d.cols.filter(c => c.kind === 'day');
+    if (!S.day[S.group]) {
+      const past = days.filter(c => ddKey(c.h) <= ddKey(S.today));
+      S.day[S.group] = (days.find(c => c.h === S.today) || past[past.length - 1] || days[0] || {}).c;
+    }
+    view().innerHTML = `
+      <div class="row" style="margin-bottom:14px">
+        <div><div class="small muted">${esc(S.subjects[S.group] || '')}</div><b style="font-size:17px">Group ${esc(S.group)} · ${d.students.length} students</b></div>
+        <span class="spacer"></span>
+        <div class="seg"><button data-v="day" class="${S.view === 'day' ? 'on' : ''}">Day</button><button data-v="table" class="${S.view === 'table' ? 'on' : ''}">Table</button></div>
+        <button class="btn sm" id="reload" title="Reload from the gradebook">Refresh</button>
+      </div><div id="gv"></div>`;
+    $$('[data-v]').forEach(b => b.onclick = () => { S.view = b.dataset.v; pageGrades(); });
+    $('#reload').onclick = () => { if (!Object.keys(S.pending).length || confirm('Discard unsaved changes?')) { S.pending = {}; updateSavebar(); getGroup(true).then(pageGrades).catch(fail); } };
+    S.view === 'day' ? dayView(d, days) : tableView(d);
+  } catch (e) { fail(e); }
+}
+function dayView(d, days) {
+  const cn = S.day[S.group], col = d.cols[cn - 1];
+  const vals = d.students.map(s => String(pv(s.row, cn)).trim());
+  const nums = vals.filter(v => v && v.toLowerCase() !== 'nb').map(v => +v.replace(',', '.')).filter(isFinite);
+  const nbs = vals.filter(v => v.toLowerCase() === 'nb').length;
+  const avg = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : '—';
+  $('#gv').innerHTML = `
+    <div class="grid g2" style="margin-bottom:14px">
+      <div class="card"><label class="f" style="margin:0"><span>Lesson date</span><select id="daysel">${days.map((c, i) =>
+        `<option value="${c.c}" ${c.c === cn ? 'selected' : ''}>${esc(c.h)} ${shortDay(c.h)}${c.h === S.today ? ' · today' : ''} — lesson ${i + 1}, block ${c.block}</option>`).join('')}</select></label></div>
+      <div class="card"><div class="grid g4" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat"><b>${nums.length + nbs}/${d.students.length}</b><span>marked</span></div>
+        <div class="stat"><b>${avg}</b><span>average</span></div>
+        <div class="stat"><b style="color:${nbs ? 'var(--bad)' : 'inherit'}">${nbs}</b><span>absent (nb)</span></div></div></div>
+    </div>
+    <div class="card"><div class="row small muted" style="margin-bottom:6px"><span>Type a mark 0–10, or tap nb. Then press Save.</span><span class="spacer"></span>
+      <button class="btn sm" id="fillrest" title="Give every empty present student the same mark">Fill empty…</button></div>
+      <ul class="dlist">${d.students.map(s => {
+        const v = String(pv(s.row, cn)); const ch = S.pending[s.row + ':' + cn] ? ' changed' : ''; const nb = v.toLowerCase() === 'nb' ? ' nb' : '';
+        return `<li><span class="no">${esc(s.no)}</span><div class="nm">${esc(s.name)}</div>
+          <input class="mark${ch}${nb}" inputmode="decimal" data-row="${s.row}" value="${esc(v)}" aria-label="Mark for ${esc(s.name)}">
+          <div class="quick"><button class="btn sm" data-q="${s.row}|10">10</button><button class="btn sm danger" data-q="${s.row}|nb">nb</button></div></li>`;
+      }).join('')}</ul></div>`;
+  $('#daysel').onchange = e => { S.day[S.group] = +e.target.value; pageGrades(); };
+  const bind = inp => {
+    setPending(+inp.dataset.row, cn, inp.value);
+    inp.classList.toggle('changed', !!S.pending[inp.dataset.row + ':' + cn]);
+    inp.classList.toggle('nb', inp.value.trim().toLowerCase() === 'nb');
+    inp.classList.toggle('bad', !validMark(col, inp.value));
+  };
+  $$('#gv input.mark').forEach(inp => inp.oninput = () => bind(inp));
+  $$('#gv [data-q]').forEach(b => b.onclick = () => {
+    const [r, v] = b.dataset.q.split('|'); const inp = $(`#gv input.mark[data-row="${r}"]`);
+    inp.value = inp.value.trim().toLowerCase() === v ? '' : v; bind(inp);
+  });
+  $('#fillrest').onclick = () => {
+    const v = prompt('Mark for every student whose box is empty (0–10):', '8'); if (v == null) return;
+    if (!validMark(col, v)) return toast('Use 0–10.', true);
+    $$('#gv input.mark').forEach(inp => { if (!inp.value.trim()) { inp.value = v; bind(inp); } });
+  };
+}
+function tableView(d) {
+  const blocks = [[1, 'Block 1'], [2, 'Block 2'], [0, 'Final & independent work']];
+  const cols = d.cols.filter(c => c.block === S.block && c.kind !== 'id' && c.kind !== 'empty');
+  $('#gv').innerHTML = `
+    <div class="row" style="margin-bottom:12px"><div class="seg">${blocks.map(b => `<button data-b="${b[0]}" class="${S.block === b[0] ? 'on' : ''}">${b[1]}</button>`).join('')}</div>
+      <span class="small muted">Tap a white cell to edit. Grey cells are calculated by the gradebook.</span></div>
+    <div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(c.h)}</th>`).join('')}</tr></thead>
+    <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(s.name)}</td>${cols.map(c => {
+      const v = String(pv(s.row, c.c));
+      return `<td class="${editable(c) ? 'ed' : 'ro'} ${v.toLowerCase() === 'nb' ? 'nbv' : ''} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
+    }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  $$('#gv [data-b]').forEach(b => b.onclick = () => { S.block = +b.dataset.b; tableView(d); });
+  $$('#gv td.ed').forEach(td => td.onclick = () => cellEditor(d, +td.dataset.r, +td.dataset.c, () => tableView(d)));
+}
+function cellEditor(d, row, cn, after) {
+  const c = d.cols[cn - 1], st = d.students.find(s => s.row === row);
+  const hint = c.kind === 'team' ? 'Team name or number' : '0–' + c.max + (c.kind === 'day' ? ' or nb' : '');
+  modal(`<h3>${esc(st.name)}</h3><p class="muted small" style="margin-top:0">${esc(c.h)} · ${esc(c.section)}</p>
+    <label class="f"><span>${hint}</span><input type="text" id="cv" inputmode="${c.kind === 'team' ? 'text' : 'decimal'}" value="${esc(pv(row, cn))}"></label>
+    <div class="row">${c.kind === 'day' ? '<button class="btn danger" id="cnb">nb</button>' : ''}<button class="btn" id="cclr">Clear</button>
+    <span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="cok">OK</button></div>`, m => {
+    const inp = $('#cv', m); inp.focus(); inp.select();
+    const ok = () => { if (!validMark(c, inp.value)) return toast('Not allowed: ' + inp.value + ' (' + hint + ')', true); setPending(row, cn, inp.value); closeModal(); after(); };
+    $('#cok', m).onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+    $('#cclr', m).onclick = () => { inp.value = ''; ok(); };
+    if ($('#cnb', m)) $('#cnb', m).onclick = () => { inp.value = 'nb'; ok(); };
+  });
+}
+
+/* ===================== LESSONS ===================== */
+async function pageLessons() {
+  loading();
+  try {
+    const my = S.navId; const list = await api('lessons', S.group); if (my !== S.navId) return;
+    S.lessons = list;
+    const card = l => `<div class="card lrow ${l.date === S.today ? 'today' : ''}" data-d="${esc(l.date)}">
+      <div class="dt">${esc(l.date)}<small>${shortDay(l.date)} · #${l.n}</small></div>
+      <div style="flex:1;min-width:0">
+        <div>${l.unit ? '<span class="pill">' + esc(l.unit) + '</span> ' : ''}<b>${esc(l.topic) || '<span class="muted" style="font-weight:400">No topic yet — tap to add</span>'}</b></div>
+        ${l.done ? '<div class="small muted">Done: ' + esc(l.done) + '</div>' : ''}
+        ${l.homework ? '<div class="small">Homework: ' + esc(l.homework) + '</div>' : ''}
+        ${l.notes ? '<div class="small muted">Notes: ' + esc(l.notes) + '</div>' : ''}
+      </div><span class="pill gray">B${l.block}</span></div>`;
+    view().innerHTML = `<p class="muted" style="margin-top:0">${esc(S.subjects[S.group] || '')} · ${list.length} lessons. Dates come from the gradebook.</p>
+      <div class="grid" style="gap:10px">${list.map(card).join('') || '<div class="card empty">No lesson dates.</div>'}</div>`;
+    $$('.lrow').forEach(el => el.onclick = () => lessonEditor(list.find(l => l.date === el.dataset.d)));
+    const t = $('.lrow.today') || $$('.lrow').find(el => ddKey(el.dataset.d) >= ddKey(S.today));
+    if (t) t.scrollIntoView({ block: 'center' });
+  } catch (e) { fail(e); }
+}
+async function openLessonByDate(g, date) {
+  try { const list = await api('lessons', g); const l = list.find(x => x.date === date); if (l) lessonEditor(l, g); } catch (e) { fail(e); }
+}
+function lessonEditor(l, g) {
+  g = g || S.group;
+  const f = (k, label, area) => `<label class="f"><span>${label}</span>${area ? `<textarea id="l_${k}">${esc(l[k])}</textarea>` : `<input type="text" id="l_${k}" value="${esc(l[k])}">`}</label>`;
+  modal(`<h3>Group ${esc(g)} · ${esc(l.date)} (lesson ${l.n})</h3>
+    ${f('unit', 'Unit (e.g. Unit 12 or 5.2)')}${f('topic', 'Topic')}${f('done', 'What was done', 1)}${f('homework', 'Homework', 1)}${f('notes', 'Notes / problems', 1)}
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="lok">Save</button></div>`, m => {
+    $('#lok', m).onclick = async () => {
+      const o = { date: l.date }; ['unit', 'topic', 'done', 'homework', 'notes'].forEach(k => o[k] = $('#l_' + k, m).value.trim());
+      $('#lok', m).disabled = true;
+      try { await api('saveLesson', g, o); closeModal(); toast('Lesson saved'); route(); } catch (e) { $('#lok', m).disabled = false; fail(e); }
+    };
+  });
+}
+
+/* ===================== STUDENTS ===================== */
+async function pageStudents() {
+  loading();
+  try {
+    const my = S.navId; const d = await getGroup(); if (my !== S.navId) return;
+    const avgOf = s => { const n = d.cols.filter(c => c.kind === 'day').map(c => String(s.v[c.c - 1] || '').trim()).filter(v => v && v.toLowerCase() !== 'nb').map(v => +v.replace(',', '.')).filter(isFinite); return n.length ? (n.reduce((a, b) => a + b, 0) / n.length).toFixed(1) : '—'; };
+    const nbOf = s => d.cols.filter(c => c.kind === 'day' && String(s.v[c.c - 1] || '').trim().toLowerCase() === 'nb').length;
+    view().innerHTML = `<div class="card"><div class="row" style="margin-bottom:8px"><input type="text" id="q" placeholder="Search a student…" style="max-width:320px"><span class="spacer"></span><span class="small muted">avg · absences</span></div>
+      <ul class="slist">${d.students.map(s => `<li data-r="${s.row}" data-n="${esc(s.name.toLowerCase())}"><span class="muted" style="min-width:26px">${esc(s.no)}</span><span style="flex:1">${esc(s.name)}</span>
+        <b>${avgOf(s)}</b><span class="pill ${nbOf(s) ? 'bad' : 'gray'}">${nbOf(s)} nb</span></li>`).join('')}</ul></div>`;
+    $('#q').oninput = e => { const q = e.target.value.toLowerCase(); $$('.slist li').forEach(li => li.classList.toggle('hidden', !li.dataset.n.includes(q))); };
+    $$('.slist li').forEach(li => li.onclick = () => showProfile(+li.dataset.r));
+  } catch (e) { fail(e); }
+}
+async function showProfile(row) {
+  loading();
+  try {
+    const my = S.navId; const p = await api('profile', S.group, row); if (my !== S.navId) return;
+    const sm = p.summary, a = (k, i) => ((sm[k] || [])[i || 0]) || '—';
+    const stat = (v, l) => `<div class="stat"><b>${esc(v == null || v === '' ? '—' : v)}</b><span>${l}</span></div>`;
+    view().innerHTML = `<div class="row" style="margin-bottom:14px"><button class="btn sm" id="back">← All students</button></div>
+      <div class="card"><h2 style="margin-bottom:4px">${esc(p.name)}</h2><p class="muted small" style="margin-top:0">Group ${esc(S.group)} · ${esc(S.subjects[S.group] || '')}</p>
+      <div class="grid g4">${stat(p.avg, 'Average daily mark')}${stat(p.groupAvg, 'Group average')}${stat(p.attended + '/' + p.marked, 'Lessons attended')}${stat(p.nb, 'Absences (nb)')}
+        ${stat(a('Joriy (20)'), 'Joriy (20) · block 1')}${stat(a('1-reyting (20)'), '1-reyting (20)')}${stat(a('Joriy (20)', 1), 'Joriy (20) · block 2')}${stat(a('2-reyting (20)'), '2-reyting (20)')}
+        ${stat(a('MI (10)'), 'Independent work (10)')}${stat(a('Jami (100)'), 'Total (100)')}</div></div>
+      <div class="card"><h2>Daily marks</h2>${chart(p.series)}</div>
+      <div class="card"><h2>Lowest marks</h2>${p.series.filter(s => s.val != null).sort((x, y) => x.val - y.val).slice(0, 6).map(s => `<span class="pill gray" style="margin:2px">${esc(s.date)}: ${esc(s.raw)}</span>`).join('') || '<span class="muted">—</span>'}</div>
+      <div class="card muted small">Quiz mistakes will appear here when the quiz module is ready.</div>`;
+    $('#back').onclick = pageStudents;
+  } catch (e) { fail(e); }
+}
+function chart(series) {
+  const pts = series.filter(s => s.raw !== '');
+  if (!pts.length) return '<div class="muted">No marks yet.</div>';
+  const W = Math.max(340, pts.length * 30), H = 190, L = 28, B = 30, T = 12;
+  const x = i => L + 12 + i * ((W - L - 24) / Math.max(1, pts.length - 1)), y = v => T + (H - T - B) * (1 - v / 10);
+  let path = '', area = '', grid = '';
+  [0, 5, 10].forEach(v => grid += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`);
+  const real = pts.map((p, i) => [p, i]).filter(([p]) => p.val != null);
+  real.forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
+  if (real.length) area = path + `L${x(real[real.length - 1][1]).toFixed(1)} ${y(0)}L${x(real[0][1]).toFixed(1)} ${y(0)}Z`;
+  const dots = pts.map((p, i) => p.val == null
+    ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:13px">×<title>${p.date}: nb</title></text>`
+    : `<circle cx="${x(i)}" cy="${y(p.val)}" r="4" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"><title>${p.date}: ${p.raw}</title></circle>`).join('');
+  const labels = pts.map((p, i) => i % 2 === 0 ? `<text x="${x(i)}" y="${H - 9}" text-anchor="middle">${p.date}</text>` : '').join('');
+  return `<div style="overflow-x:auto"><svg width="${W}" height="${H}" role="img" aria-label="Daily marks">${grid}<path d="${area}" fill="var(--accent)" opacity=".08"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}${labels}</svg></div><div class="small muted">× = absent (nb)</div>`;
+}
+
+/* ===================== DEADLINES & PW ===================== */
+async function pageDeadlines() {
+  loading();
+  try {
+    const my = S.navId; const [r] = await Promise.all([api('deadlines', S.group), getGroup()]); if (my !== S.navId) return;
+    const now = new Date(); const base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dl = r.deadlines.map(x => {
+      const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(x.due_date); const days = m ? Math.round((new Date(+m[3], +m[2] - 1, +m[1]) - base) / 864e5) : null;
+      const p = days == null ? '' : days < 0 ? `<span class="pill gray">${-days} d ago</span>` : days === 0 ? '<span class="pill bad">today</span>' : days <= 3 ? `<span class="pill warn">in ${days} d</span>` : `<span class="pill">in ${days} d</span>`;
+      return `<div class="up"><span class="gbadge">${esc(x.group)}</span><div style="flex:1;min-width:0"><b>${esc(x.title)}</b> ${p}<div class="small muted">${esc(x.due_date)} · ${esc(x.type)}${x.notes ? ' · ' + esc(x.notes) : ''}</div></div>
+        <button class="btn sm" data-e="${esc(x.id)}">Edit</button><button class="btn sm danger" data-x="${esc(x.id)}">Delete</button></div>`;
+    }).join('');
+    const pw = r.pw;
+    const pwT = pw && pw.cols.length ? `<div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${pw.cols.map(c => `<th>${esc(c.h)}</th>`).join('')}</tr></thead>
+      <tbody>${pw.students.map(s => `<tr><td class="st">${esc(s.name)}</td>${pw.cols.map(c => `<td class="${editable(c) ? 'ed' : 'ro'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(pv(s.row, c.c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+      : '<div class="card empty">No project-work columns in this sheet.</div>';
+    view().innerHTML = `<div class="card"><div class="row" style="margin-bottom:6px"><h2 style="margin:0">Deadlines</h2><span class="spacer"></span><button class="btn primary sm" id="addd">+ Add deadline</button></div>
+      ${dl || '<div class="empty">No deadlines yet.</div>'}</div>
+      <div class="section-title"><h2>Project work · group ${esc(S.group)}</h2></div>${pwT}`;
+    $('#addd').onclick = () => deadlineEditor({ group: S.group, type: 'PW1' });
+    $$('[data-e]').forEach(b => b.onclick = () => deadlineEditor(r.deadlines.find(x => x.id === b.dataset.e)));
+    $$('[data-x]').forEach(b => b.onclick = async () => { if (!confirm('Delete this deadline?')) return; try { await api('deleteDeadline', b.dataset.x, S.group); toast('Deleted'); pageDeadlines(); } catch (e) { fail(e); } });
+    $$('td.ed').forEach(td => td.onclick = () => cellEditor(S.data[S.group], +td.dataset.r, +td.dataset.c, pageDeadlines));
+  } catch (e) { fail(e); }
+}
+function deadlineEditor(x) {
+  const types = ['PW1', 'PW2', 'ON', 'YN', 'MT', 'other'];
+  modal(`<h3>${x.id ? 'Edit' : 'New'} deadline</h3>
+    <label class="f"><span>Group</span><select id="d_g">${['all'].concat(S.groups).map(g => `<option ${g === x.group ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
+    <label class="f"><span>Title</span><input type="text" id="d_t" value="${esc(x.title || '')}"></label>
+    <label class="f"><span>Due date (dd.mm.yyyy)</span><input type="text" id="d_d" inputmode="numeric" placeholder="26.11.2026" value="${esc(x.due_date || '')}"></label>
+    <label class="f"><span>Type</span><select id="d_y">${types.map(t => `<option ${t === x.type ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    <label class="f"><span>Notes</span><textarea id="d_n">${esc(x.notes || '')}</textarea></label>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="dok">Save</button></div>`, m => {
+    $('#dok', m).onclick = async () => {
+      try {
+        await api('saveDeadline', { id: x.id || '', group: $('#d_g', m).value, title: $('#d_t', m).value.trim(), due_date: $('#d_d', m).value.trim(), type: $('#d_y', m).value, notes: $('#d_n', m).value.trim(), viewGroup: S.group });
+        closeModal(); toast('Saved'); pageDeadlines();
+      } catch (e) { fail(e); }
+    };
+  });
+}
+
+/* ===================== QUIZZES ===================== */
+function pageQuizzes() {
+  view().innerHTML = `<div class="card"><h2>Quizzes</h2><p class="muted">The in-class quiz module is the next stage: you start a quiz in the lesson, students answer on their phones, marks go into the gradebook automatically and each student sees their mistakes.</p>
+    <span class="pill gray">Coming soon</span></div>`;
+}
+
+/* ===================== SETTINGS ===================== */
+async function pageSettings() {
+  loading();
+  try {
+    const my = S.navId; const s = await api('settings'); if (my !== S.navId) return;
+    view().innerHTML = `<div class="grid g2">
+      <div class="card"><h2>Password</h2>
+        <label class="f"><span>Current password</span><input type="password" id="op" autocomplete="current-password"></label>
+        <label class="f"><span>New password (6+ characters)</span><input type="password" id="np" autocomplete="new-password"></label>
+        <button class="btn primary" id="cpw">Change password</button></div>
+      <div class="card"><h2>Sessions</h2><p class="muted">Sign out here, or sign out on every phone and computer at once (for example, if you lost your phone).</p>
+        <div class="row"><button class="btn" id="so">Sign out</button><button class="btn danger" id="soa">Sign out everywhere</button></div></div>
+      <div class="card"><h2>Minimum mark for quiz takers</h2><p class="muted">When on, a student who takes an in-class quiz gets at least 5.</p>
+        <div class="seg"><button data-m="off" class="${s.minAttendScore !== 'on' ? 'on' : ''}">Off</button><button data-m="on" class="${s.minAttendScore === 'on' ? 'on' : ''}">On</button></div></div>
+      <div class="card"><h2>Student bot</h2><p class="muted">Status: ${s.botTokenSet ? '<b style="color:var(--good)">connected</b>' : 'not connected yet'}. Paste the token from BotFather for the new student bot.</p>
+        <div class="row"><input type="text" id="bt" placeholder="123456:ABC…" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="bts">Save</button></div></div>
+    </div><p class="small muted" style="margin-top:16px">Groups: ${s.groups.map(esc).join(', ')} · Version ${esc(s.version)} · Data: Google Sheets “Baholash jurnali 2026-2027”</p>`;
+    $('#cpw').onclick = async () => { try { await api('changePassword', $('#op').value, $('#np').value); $('#op').value = $('#np').value = ''; toast('Password changed'); } catch (e) { fail(e); } };
+    $('#so').onclick = () => signOut();
+    $('#soa').onclick = async () => { if (!confirm('Sign out on all devices?')) return; try { await api('logoutAll'); signOut(); } catch (e) { fail(e); } };
+    $$('[data-m]').forEach(b => b.onclick = async () => { try { await api('setMinAttend', b.dataset.m === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
+    $('#bts').onclick = async () => { try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { fail(e); } };
+  } catch (e) { fail(e); }
+}
+
+/* ===================== start ===================== */
+window.addEventListener('beforeunload', e => { if (Object.keys(S.pending).length) { e.preventDefault(); e.returnValue = ''; } });
+KEY && !/setup=/.test(location.hash) ? boot() : startAuth();
+</script>
+</body>
+</html>
