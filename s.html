@@ -63,6 +63,21 @@ button,input,select{font:inherit;color:inherit}
 .lvs-conf{display:grid;gap:10px}
 .lvs-conf button{border:0;border-radius:12px;padding:14px 16px;font:inherit;font-size:19px;font-weight:800;color:#0e3b2e;background:#fff;cursor:pointer;text-align:left}
 .lvs-conf button small{display:block;font-weight:600;font-size:14px;color:#4b5563}
+.lvs-crew{position:relative;height:36px;background:rgba(0,0,0,.35);border-radius:18px;overflow:hidden;margin:8px 0 4px}
+.lvs-crew i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,rgba(38,137,12,.2),rgba(38,137,12,.7));transition:width .4s}
+.lvs-crew span{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:24px;line-height:1;transition:left .4s}
+.lvs-crew .me{z-index:2} .lvs-crew .bot{z-index:3;margin-left:-14px;filter:drop-shadow(0 0 4px #e21b3c)} .lvs-crew .door{right:2px;left:auto;transform:translateY(-50%)}
+.lvs-boost{display:block;width:100%;min-height:58px;border:0;border-radius:14px;background:linear-gradient(90deg,#f59e0b,#facc15);color:#1f2937;font:inherit;font-size:19px;font-weight:900;cursor:pointer;animation:lvsglow 1s ease-in-out infinite alternate;touch-action:manipulation}
+@keyframes lvsglow{from{box-shadow:0 0 0 rgba(250,204,21,.0)}to{box-shadow:0 0 22px rgba(250,204,21,.85)}}
+.lvs-zbar{height:10px;background:rgba(255,255,255,.15);border-radius:5px;overflow:hidden} .lvs-zbar i{display:block;height:100%;width:100%;background:#1368ce;transition:width .2s linear}
+.lvs-map{position:relative;aspect-ratio:10/6;width:100%;background-color:#16203a;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:10% 16.6667%;border-radius:12px;border:2px solid rgba(255,255,255,.2);overflow:hidden;touch-action:manipulation;cursor:pointer}
+.lvs-z{position:absolute;background:rgba(38,137,12,.45);border:2px solid #4ade80;border-radius:8px;display:flex;justify-content:space-between;align-items:flex-start;padding:1px 4px;font-weight:900;font-size:12px;box-sizing:border-box;pointer-events:none}
+.lvs-z.full{border-color:#facc15;background:rgba(216,158,0,.4)} .lvs-z.over{background:rgba(226,27,60,.55);border-color:#f87171}
+.lvs-me{position:absolute;transform:translate(-50%,-50%);font-size:clamp(20px,6vw,30px);line-height:1;filter:drop-shadow(0 0 5px #fff);z-index:3;pointer-events:none;transition:left .12s,top .12s}
+.lvs-tgt{position:absolute;width:14px;height:14px;border:3px solid #fde68a;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+.lvs-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:0 auto;width:100%}
+.lvs-pad button{height:62px;border:0;border-radius:14px;background:rgba(255,255,255,.2);color:#fff;font-size:26px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.lvs-pad button:active{background:rgba(255,255,255,.4)} .lvs-pad [data-d="0,-1"]{grid-column:2;grid-row:1} .lvs-pad [data-d="-1,0"]{grid-column:1;grid-row:2} .lvs-pad [data-d="0,1"]{grid-column:2;grid-row:2} .lvs-pad [data-d="1,0"]{grid-column:3;grid-row:2}
 .lvs-mbar{position:relative;height:44px;background:rgba(0,0,0,.3);border-radius:22px;overflow:hidden;margin-top:8px}
 .lvs-mbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6d28d9,#26890c)}
 .lvs-mbar span{position:absolute;top:50%;transform:translate(-50%,-50%) rotate(45deg);font-size:28px}
@@ -482,9 +497,11 @@ function slListen() {
   SL.g.child('teams/' + uid).on('value', x => { const v = x.val(); if (v !== SL.team) { SL.team = v; const t = $('#slteam'); if (t) t.innerHTML = slTeam(); } });
   SL.g.child('tboard').on('value', x => { SL.tb = x.val(); });
   SL.g.child('mission').on('value', x => { SL.mission = x.val(); });
-  SL.g.child('scores/' + uid).on('value', x => { SL.my = x.val() || {}; if (!SL.state || SL.state.phase !== 'race') slRender(); });
-  SL.g.child('prog/' + uid).on('value', x => { SL.prog = x.val() || {}; slRaceStatus(); });
-  SL.g.child('verdict/' + uid).on('value', x => { SL.verd = x.val() || {}; slRaceStatus(); });
+  SL.g.child('scores/' + uid).on('value', x => { SL.my = x.val() || {}; if (!SL.state || !SL_RR.includes(SL.state.phase)) slRender(); });
+  SL.g.child('prog/' + uid).on('value', x => { SL.prog = x.val() || {}; slRrStatus(); slBoost(); });
+  SL.g.child('verdict/' + uid).on('value', x => { SL.verd = x.val() || {}; slRrStatus(); });
+  SL.g.child('run').on('value', x => { SL.run = x.val(); slRrStatus(); });
+  SL.g.child('zc').on('value', x => { SL.zc = x.val(); slZoneDraw(); });
   SL.g.child('kicked/' + uid).on('value', x => {
     if (!x.val()) return;
     slOff(); slNewUser().then(() => slNick('Your teacher removed your nickname. Choose another one.')).catch(fail);
@@ -492,8 +509,8 @@ function slListen() {
 }
 function slOff() {
   if (!SL) return; const uid = SL.fb.uid;
-  ['state', 'meta', 'scores/' + uid, 'kicked/' + uid, 'prog/' + uid, 'verdict/' + uid, 'teams/' + uid, 'tboard', 'mission'].forEach(k => SL.g.child(k).off());
-  if (SL.revRef) SL.revRef.off(); clearInterval(SL.tick);
+  ['state', 'meta', 'scores/' + uid, 'kicked/' + uid, 'prog/' + uid, 'verdict/' + uid, 'teams/' + uid, 'tboard', 'mission', 'run', 'zc'].forEach(k => SL.g.child(k).off());
+  if (SL.revRef) SL.revRef.off(); clearInterval(SL.tick); clearInterval(SL.walkT); SL.walkT = null;
 }
 function leaveLive() {
   if (!KEY) { slOff(); SL = null; $('#live').innerHTML = slBox('<div class="lvs-big">Thanks for playing!</div><p class="lvs-dim" style="text-align:center">You can close this page.</p>'); return; }
@@ -548,22 +565,17 @@ async function slRender() {
   if (st === undefined) return;
   if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`); return; }
   if (st.phase === 'lobby') {
-    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: answer as fast as you can, the robot is coming!' : md.mode === 'coop' ? '🚀 Class Mission: work together — every right answer helps the whole group.'
+    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: answer questions with your crew and run from the robot. Then walk into the green safe zones together — everyone must be safe to reach the next level!' : md.mode === 'coop' ? '🚀 Class Mission: work together — every right answer helps the whole group.'
       : md.scoring === 'confidence' ? '😎 Confidence: after each answer, say how sure you are. Sure and right = more points, sure and wrong = minus points.' : md.scoring === 'accuracy' ? '🎯 Accuracy: only right answers count, take your time.' : '⚡ Right and fast answers get more points.';
     el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b><span style="font-size:44px">${esc(SL.av || '')}</span><br>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>
       <div class="lvs-card" style="font-size:16px">${how}${md.teams ? `<br>👥 You will play in a team (${md.teams} teams).` : ''}</div>${slReact()}`);
     slReactBind(); return;
   }
-  if (st.phase === 'race') {
-    if (!SL.rq) {
-      const [qs, mine] = await Promise.all([SL.g.child('questions').once('value'), SL.g.child('race/' + SL.fb.uid).once('value')]);
-      if (my !== SL.rt) return;
-      const list = qs.val() || [];
-      SL.rq = Array.isArray(list) ? list : Object.keys(list).sort((a, b) => a - b).map(k => list[k]);
-      SL.rorder = slSeedShuffle(SL.rq.map((q, i) => i), SL.fb.uid);
-      SL.rdone = {}; const m = mine.val() || {}; Object.keys(m).forEach(k => { if (m[k]) SL.rdone[k] = 1; });
-    }
-    slRaceShow(); return;
+  if (SL_RR.includes(st.phase)) {
+    clearInterval(SL.walkT); SL.walkT = null;
+    if (!(await slRrLoad(my))) return;
+    if (st.phase === 'race') slRaceShow(); else if (st.phase === 'zone') slZoneShow(); else slRrMsg();
+    return;
   }
   if (st.phase === 'question') {
     if (SL.qi !== st.q) {
@@ -616,47 +628,167 @@ async function slRender() {
     if (SL.fbSent == null) { SL.fbSent = false; SL.g.child('fb/' + SL.fb.uid).once('value').then(x => { if (x.val() && SL) { SL.fbSent = true; slRender(); } }).catch(() => {}); }
     const m = SL.mission, coop = slCoop();
     el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:6vh">${coop ? (m && m.fuel >= m.goal ? '🌕 Mission complete!' : '🚀 So close!') : 'Game over!'}</div>${slRank()}
+      ${SL.meta && SL.meta.mode === 'robot' ? `<div class="lvs-card">🤖 Your crew completed <b style="display:inline;font-size:inherit">${st.best || 0}</b> level${st.best === 1 ? '' : 's'}.</div>` : ''}
       ${SL.my && (SL.my.rank || coop) ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. ${SL.j.guest ? 'You played as a guest, so there is no mark in the gradebook.' : 'Your mark goes to the gradebook.'}</div>` : ''}
       <div id="slfb">${slFeedback()}</div>${slReact()}
       <button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`);
     slFeedbackBind(); slReactBind();
   }
 }
-/* ---- Robot Run on the phone: all questions at your own speed ---- */
+/* ---- Robot Run on the phone (like Kahoot): run (questions + boosts) → safe zones → next level ---- */
+const SL_RR = ['race', 'caught', 'zone', 'zres', 'lvlup'], RRC = 10, RRR = 6, RR_ZL = 'ABCD';
 function slSeedShuffle(arr, seed) {
-  let h = 2166136261; for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
-  const r = () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a;
+  const r = slRand(seed), a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a;
+}
+function slRand(seed) {
+  let h = 2166136261; const s = String(seed); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const slIn = (z, p) => !!p && p.x >= z.x && p.x < z.x + z.w && p.y >= z.y && p.y < z.y + z.h;
+const slClock = st => { const sec = Math.max(0, Math.ceil(((st.gEnd || 0) - SL.fb.now()) / 1000)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+async function slRrLoad(my) {
+  if (SL.rq) return true;
+  const uid = SL.fb.uid, [qs, mine, rep, bo, pos] = await Promise.all(['questions', 'race/' + uid, 'rep/' + uid, 'boost/' + uid, 'pos/' + uid].map(k => SL.g.child(k).once('value')));
+  if (my !== SL.rt) return false;
+  const list = qs.val() || [];
+  SL.rq = Array.isArray(list) ? list : Object.keys(list).sort((a, b) => a - b).map(k => list[k]);
+  SL.rorder = slSeedShuffle(SL.rq.map((q, i) => i), uid);
+  SL.rdone = {}; const m = mine.val() || {}; Object.keys(m).forEach(k => { if (m[k]) SL.rdone[k] = 1; });
+  const r = rep.val() || {}; SL.replog = {}; let mx = -1; Object.keys(r).forEach(k => { if (r[k]) { SL.replog[k] = r[k].q; mx = Math.max(mx, +k); } }); SL.repN = mx + 1;
+  const b = bo.val() || {}; SL.bN = Object.keys(b).reduce((a, k) => (b[k] ? Math.max(a, +k + 1) : a), 0);
+  const p = pos.val(); SL.pos = p ? { x: p.x, y: p.y } : null; SL.rqueue = []; SL.cur = null; SL.lastKey = null;
+  return true;
+}
+function slLastOk() {   // the latest ✓/✗ for every question
+  const v = SL.verd || {}, last = {};
+  Object.keys(v).forEach(k => { if (k[0] !== 'r') last[k] = v[k]; });
+  Object.keys(v).filter(k => k[0] === 'r').sort((a, b) => a.slice(1) - b.slice(1)).forEach(k => { const qi = SL.replog[k.slice(1)]; if (qi != null) last[qi] = v[k]; });
+  return last;
+}
+function slNextQ() {
+  if (SL.cur != null) return SL.cur;
+  let i = SL.rorder.find(x => !SL.rdone[x]);
+  if (i === undefined) {   // all questions done once: they come again, wrong ones first
+    if (!SL.rqueue.length) {
+      const last = slLastOk(), wrong = SL.rorder.filter(x => last[x] !== 1), right = SL.rorder.filter(x => last[x] === 1);
+      SL.rqueue = slSeedShuffle(wrong, SL.fb.uid + 'w' + SL.repN).concat(slSeedShuffle(right, SL.fb.uid + 'r' + SL.repN));
+      if (SL.rqueue.length > 1 && SL.rqueue[0] === SL.lastQ) SL.rqueue.push(SL.rqueue.shift());
+    }
+    i = SL.rqueue.shift();
+  }
+  return (SL.cur = i);
 }
 function slRaceShow() {
-  if (!SL || !SL.rq) return;
-  const el = $('#live'), st = SL.state, N = SL.rq.length, i = SL.rorder.find(x => !SL.rdone[x]);
+  if (!SL || !SL.rq || !SL.state || SL.state.phase !== 'race') return;
+  const el = $('#live'), st = SL.state, i = slNextQ(), q = SL.rq[i];
   clearInterval(SL.tick);
-  if (i === undefined) {
-    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:14vh">🏁 You finished!</div><div id="slrs"></div><p class="lvs-dim" style="text-align:center">Wait for the others. Look at the screen.</p>`);
-    slRaceStatus(); return;
-  }
-  const q = SL.rq[i];
-  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🤖 Robot Run · question ${Object.keys(SL.rdone).length + 1} of ${N}</span><span class="lvs-timer" id="slt">--:--</span></div>
-    <div id="slrs"></div><div class="lvs-q">${esc(q.prompt)}</div>
+  const first = !SL.rdone[i];
+  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🤖 Level ${st.lvl || 1} · ${first ? `question ${Object.keys(SL.rdone).length + 1} of ${SL.rq.length}` : '🔁 again'}</span><span id="slteam">${slTeam()}</span><span class="lvs-timer" id="slt">${slClock(st)}</span></div>
+    <div id="slrs"></div><div id="slboost"></div><div class="lvs-q">${esc(q.prompt)}</div>
     <div class="lvs-opts">${q.options.map((o, k) => `<button class="lvs-opt" data-k="${k}" style="background:${LCOL[k]}"><span class="sh">${LSH[k]}</span><span>${esc(o)}</span></button>`).join('')}</div>`);
   $$('[data-k]', el).forEach(b => b.onclick = () => slRaceAnswer(i, +b.dataset.k));
-  slRaceStatus();
-  const upd = () => { const t = $('#slt'); if (!t || !st) return; const sec = Math.max(0, Math.ceil((st.startedAt + st.dur * 1000 - SL.fb.now()) / 1000)); t.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
-  upd(); SL.tick = setInterval(upd, 500);
+  slRrStatus(); slBoost();
+  SL.tick = setInterval(() => { const t = $('#slt'); if (!t || !SL) return; t.textContent = slClock(SL.state); slRrStatus(); }, 500);
 }
 function slRaceAnswer(i, k) {
-  if (!SL || SL.rdone[i] || !SL.state || SL.state.phase !== 'race') return;
-  SL.rdone[i] = 1;
-  SL.g.child(`race/${SL.fb.uid}/${i}`).set({ a: k, t: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
-  slRaceShow();   // next question at once; the ✓/✗ arrives from the teacher's screen a moment later
+  if (!SL || !SL.state || SL.state.phase !== 'race' || SL.cur !== i) return;
+  const TS = firebase.database.ServerValue.TIMESTAMP;
+  if (!SL.rdone[i]) { SL.rdone[i] = 1; SL.lastKey = String(i); SL.g.child(`race/${SL.fb.uid}/${i}`).set({ a: k, t: TS }).catch(() => {}); }
+  else { const n = SL.repN++; SL.replog[n] = i; SL.lastKey = 'r' + n; SL.g.child(`rep/${SL.fb.uid}/${n}`).set({ q: i, a: k, t: TS }).catch(() => {}); }
+  SL.lastQ = i; SL.cur = null; slRaceShow();   // next question at once; ✓/✗ comes from the teacher's screen a moment later
 }
-function slRaceStatus() {
-  const b = $('#slrs'); if (!b || !SL) return;
-  const p = SL.prog || {}, v = SL.verd || {};
-  const marks = Object.keys(v).filter(k => v[k] != null).map(k => v[k] ? '<span style="color:#86efac">✓</span>' : '<span style="color:#fca5a5">✗</span>').join(' ');
-  b.innerHTML = `<div class="lvs-card" style="padding:10px 12px;font-size:16px;${p.caught ? 'background:rgba(226,27,60,.55)' : ''}">${slTeam() ? slTeam() + ' ' : ''}${p.caught ? '🤖 The robot caught you! Answer right to escape!' : p.rank ? `🏃 ${ord(p.rank)} place · ${p.right || 0} right` : '🏃 Run! Every right answer is one step.'}
-    ${marks ? `<div style="margin-top:6px;letter-spacing:2px;font-size:18px">${marks}</div>` : ''}</div>`;
+function slRrStatus() {
+  const b = $('#slrs'); if (!b || !SL || !SL.state || SL.state.phase !== 'race') return;
+  const st = SL.state, run = SL.run || {}, p = SL.prog || {}, v = SL.verd || {};
+  const same = run.k && Math.abs(run.k - st.startedAt) < 3000, have = same ? run.have || 0 : 0, target = st.target || run.target || 1;
+  const el = SL.fb.now() - st.startedAt, crew = Math.min(1, have / target), rob = Math.min(1, -0.25 + 1.25 * el / ((st.T || 30) * 1000)), near = el > 3000 && rob > crew - 0.12;
+  const X = f => Math.max(0, 10 + f * 78).toFixed(1) + '%';
+  const lk = SL.lastKey, lv = lk != null ? v[lk] : undefined;
+  b.innerHTML = `<div class="lvs-card" style="padding:10px 12px;font-size:16px${near ? ';background:rgba(226,27,60,.45)' : ''}">${lk == null ? '🏃 Run! Every right answer pushes the crew forward.' : lv == null ? '⏳ …' : lv ? '<b style="display:inline;font-size:inherit;color:#86efac">✓ Right!</b>' : '<b style="display:inline;font-size:inherit;color:#fca5a5">✗ Wrong</b> — it will come back'} · you: ${p.att || 0} right
+    <div class="lvs-crew"><i style="width:${X(crew)}"></i><span class="door">🛡️</span><span class="bot" style="left:${X(rob)}">🤖</span><span class="me" style="left:${X(crew)}">${esc(SL.av || '🏃')}</span></div>
+    <small class="lvs-dim">Crew: ${have} / ${target} right answers${near ? ' · ⚠️ the robot is close!' : ''}</small></div>`;
+}
+function slBoost() {
+  const b = $('#slboost'); if (!b || !SL) return;
+  const p = SL.prog || {}, pend = Math.max(0, (SL.bN || 0) - (p.bAll || 0)), ch = Math.max(0, (p.ch || 0) - pend);
+  const h = ch && SL.state && SL.state.phase === 'race' ? `<button class="lvs-boost" id="slbo">⚡ BOOST ×${ch} — tap to push the crew!</button>` : '';
+  if (b.dataset.h === h) return; b.dataset.h = h; b.innerHTML = h;
+  const bo = $('#slbo'); if (bo) bo.onclick = () => {
+    if (!SL.state || SL.state.phase !== 'race') return;
+    const n = SL.bN++; SL.g.child(`boost/${SL.fb.uid}/${n}`).set({ t: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+    try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {} slBoost();
+  };
+}
+function slZoneShow() {
+  const el = $('#live'), st = SL.state, zs = st.zones || [];
+  clearInterval(SL.tick); clearInterval(SL.walkT); SL.walkT = null; SL.walkTo = null;
+  if (!SL.pos) { const r = slRand(SL.fb.uid + st.startedAt); for (let t = 0; t < 60; t++) { SL.pos = { x: Math.floor(r() * RRC), y: Math.floor(r() * RRR) }; if (!zs.some(z => slIn(z, SL.pos))) break; } }
+  slPosSend();
+  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🛡️ Level ${st.lvl} · wave ${st.wave} of ${st.waves}</span><span>${'❤️'.repeat(Math.max(0, st.lives))}${'🖤'.repeat(Math.max(0, 3 - st.lives))}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
+    <div class="lvs-zbar"><i id="slzt"></i></div>
+    <div class="lvs-map" id="slmap"></div><div class="lvs-card" id="slzs" style="padding:8px 10px;font-size:16px"></div>
+    <div class="lvs-pad"><button data-d="0,-1" aria-label="Up">▲</button><button data-d="-1,0" aria-label="Left">◀</button><button data-d="0,1" aria-label="Down">▼</button><button data-d="1,0" aria-label="Right">▶</button></div>
+    <p class="lvs-dim small" style="text-align:center;margin:0">Tap the map or hold the arrows. Look at the big screen and talk to your crew!</p>`);
+  $$('[data-d]', el).forEach(b => {
+    const [dx, dy] = b.dataset.d.split(',').map(Number), stop = () => { clearInterval(b._t); b._t = null; };
+    b.onpointerdown = e => { e.preventDefault(); SL.walkTo = null; slMove(dx, dy); stop(); b._t = setInterval(() => slMove(dx, dy), 170); };
+    b.onpointerup = b.onpointerleave = b.onpointercancel = stop; b.oncontextmenu = e => e.preventDefault();
+  });
+  $('#slmap').onclick = e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    SL.walkTo = { x: Math.max(0, Math.min(RRC - 1, Math.floor((e.clientX - r.left) / r.width * RRC))), y: Math.max(0, Math.min(RRR - 1, Math.floor((e.clientY - r.top) / r.height * RRR))) };
+    if (!SL.walkT) SL.walkT = setInterval(slWalk, 140); slZoneDraw();
+  };
+  if (!window.__slKeys) { window.__slKeys = 1; document.addEventListener('keydown', e => { const d = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key]; if (d && SL && SL.state && SL.state.phase === 'zone') { e.preventDefault(); SL.walkTo = null; slMove(d[0], d[1]); } }); }
+  slZoneDraw();
+  const upd = () => { if (!SL || !SL.state) return; const s = SL.state, left = (s.startedAt + s.dur * 1000 - SL.fb.now()) / 1000, t = $('#slt'), z = $('#slzt'); if (t) t.textContent = Math.max(0, Math.ceil(left)); if (z) z.style.width = Math.max(0, Math.min(100, left / s.dur * 100)) + '%'; };
+  upd(); SL.tick = setInterval(upd, 200);
+}
+function slMove(dx, dy) {
+  if (!SL || !SL.state || SL.state.phase !== 'zone' || !SL.pos) return;
+  const x = Math.max(0, Math.min(RRC - 1, SL.pos.x + dx)), y = Math.max(0, Math.min(RRR - 1, SL.pos.y + dy));
+  if (x === SL.pos.x && y === SL.pos.y) return;
+  SL.pos = { x, y }; slPosSend(); slZoneDraw();
+}
+function slWalk() {
+  if (!SL) return; const w = SL.walkTo;
+  if (!w || !SL.pos || !SL.state || SL.state.phase !== 'zone') { clearInterval(SL.walkT); SL.walkT = null; return; }
+  const dx = Math.sign(w.x - SL.pos.x), dy = Math.sign(w.y - SL.pos.y);
+  if (!dx && !dy) { SL.walkTo = null; clearInterval(SL.walkT); SL.walkT = null; slZoneDraw(); return; }
+  if (dx) slMove(dx, 0); else slMove(0, dy);
+}
+function slPosSend() {
+  if (!SL || !SL.pos) return;
+  if (SL.posT) { SL.posDirty = true; return; }
+  SL.posDirty = false;
+  SL.g.child('pos/' + SL.fb.uid).set({ x: SL.pos.x, y: SL.pos.y, t: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+  SL.posT = setTimeout(() => { if (!SL) return; SL.posT = null; if (SL.posDirty) slPosSend(); }, 120);
+}
+function slZoneDraw() {
+  const m = $('#slmap'); if (!m || !SL || !SL.state) return;
+  const st = SL.state, zs = st.zones || [], zc = SL.zc && Math.abs((SL.zc.k || 0) - st.startedAt) < 3000 ? SL.zc : null, cnt = st.phase === 'zres' ? st.cnt : zc && zc.c;
+  const me = SL.pos, mk = me ? zs.findIndex(z => slIn(z, me)) : -1;
+  m.innerHTML = zs.map((z, k) => { const n = cnt ? cnt[k] || 0 : null; return `<div class="lvs-z ${n != null && n > z.cap ? 'over' : n === z.cap ? 'full' : ''}" style="left:${z.x / RRC * 100}%;top:${z.y / RRR * 100}%;width:${z.w / RRC * 100}%;height:${z.h / RRR * 100}%"><b>${RR_ZL[k]}</b><span>${n == null ? 'max ' : n + '/'}${z.cap}</span></div>`; }).join('')
+    + (SL.walkTo ? `<div class="lvs-tgt" style="left:${(SL.walkTo.x + 0.5) / RRC * 100}%;top:${(SL.walkTo.y + 0.5) / RRR * 100}%"></div>` : '')
+    + (me ? `<div class="lvs-me" style="left:${(me.x + 0.5) / RRC * 100}%;top:${(me.y + 0.5) / RRR * 100}%">${esc(SL.av || '🙂')}</div>` : '');
+  const s = $('#slzs'); if (!s) return;
+  const z = zs[mk], n = z && cnt ? cnt[mk] || 0 : 0, out = zc ? zc.out || 0 : null;
+  s.innerHTML = mk < 0 ? '🚶 You are outside. Walk into a green zone!' : n > z.cap ? `⚠️ Zone ${RR_ZL[mk]} is too full (${n}/${z.cap})! Someone must move.` : `✅ You are in zone ${RR_ZL[mk]}${cnt ? ` (${n}/${z.cap})` : ''}. Stay there!${out ? ` · ${out} still outside` : ''}`;
+  s.style.background = mk < 0 ? 'rgba(226,27,60,.4)' : n > z.cap ? 'rgba(216,158,0,.5)' : 'rgba(38,137,12,.45)';
+}
+function slRrMsg() {
+  const st = SL.state, el = $('#live'); clearInterval(SL.walkT); SL.walkT = null; SL.walkTo = null;
+  let h;
+  if (st.phase === 'caught') h = `<div class="lvs-big" style="margin-top:12vh">${st.why === 'lives' ? '💔 No lives left!' : '🤖 The robot caught the crew!'}</div><div class="lvs-card">Level ${st.lvl} starts again. Answer faster and use your ⚡ boosts!</div>`;
+  else if (st.phase === 'lvlup') h = `<div class="lvs-big" style="margin-top:12vh">🎉 Level ${st.lvl} complete!</div><div class="lvs-card">Great teamwork! Level ${st.lvl + 1} is harder.</div>`;
+  else {
+    const me = SL.pos, zs = st.zones || [], k = me ? zs.findIndex(z => slIn(z, me)) : -1, over = k >= 0 && (st.over || []).includes(k);
+    h = `<div class="lvs-big" style="margin-top:6vh">${st.ok ? '✅ Everyone is safe!' : '❌ Not everyone is safe'}</div>
+      <div class="lvs-card">${k < 0 ? 'You were outside the zones.' : over ? `Zone ${RR_ZL[k]} had too many players.` : `You were safe in zone ${RR_ZL[k]} 👍`}<br><span class="lvs-dim">${st.ok ? (st.wave < st.waves ? 'Next wave…' : 'Level complete!') : st.lives > 0 ? `${st.lives} ${st.lives === 1 ? 'life' : 'lives'} left — try again!` : 'No lives left — the level starts again.'}</span></div>
+      <div class="lvs-map" id="slmap"></div>`;
+  }
+  el.innerHTML = slBox(h + '<p class="lvs-dim" style="text-align:center">Look at the screen.</p>');
+  slZoneDraw();
 }
 async function slAnswer(k, c) {
   if (!SL || SL.sent || k == null || !SL.state || SL.state.phase !== 'question') return;
