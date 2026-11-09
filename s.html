@@ -169,7 +169,10 @@ const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return
 function toast(m, err) { $$('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), err ? 6000 : 2600); }
 const fail = e => toast((e && e.message) || String(e), true);
 const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
-function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').map(Number); let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--; return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+const MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function md(s) { s = String(s == null ? '' : s).trim(); const m = /^(\d{1,2})\.(\d{1,2})(?:\.\d{2,4})?$/.exec(s); return m && +m[2] >= 1 && +m[2] <= 12 ? MONS[+m[2] - 1] + ' ' + (+m[1]) : s; }
+function ddk(s) { const m = /^(\d{2})\.(\d{2})$/.exec(s || ''); if (!m) return 0; let mo = +m[2]; if (mo < 8) mo += 12; return mo * 100 + (+m[1]); }
+function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').map(Number); let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--; return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
 
 let KEY = null;
 const m = /k=([a-f0-9]{40})/.exec(location.hash);
@@ -229,7 +232,7 @@ function quizBox() {
     <button class="btn primary block" id="qgo">${q.state === 'working' ? 'Continue the quiz' : 'Start the quiz'}</button></div>`;
 }
 function tHome() {
-  const dl = H.deadlines.slice(0, 4).map(d => `<li><div style="flex:1;min-width:0"><b>${esc(d.title)}</b><div class="small muted">${esc(d.due_date)} · ${esc(d.type)}${d.notes ? ' · ' + esc(d.notes) : ''}</div></div>
+  const dl = H.deadlines.slice(0, 4).map(d => `<li><div style="flex:1;min-width:0"><b>${esc(d.title)}</b><div class="small muted">${esc(md(d.due_date))} · ${esc(d.type)}${d.notes ? ' · ' + esc(d.notes) : ''}</div></div>
     ${d.days < 0 ? '<span class="pill gray">passed</span>' : d.days === 0 ? '<span class="pill bad">today</span>' : d.days <= 3 ? `<span class="pill warn">in ${d.days} d</span>` : `<span class="pill">in ${d.days} d</span>`}</li>`).join('');
   const hw = H.lessons.filter(l => l.homework).slice(-1)[0];
   $('#view').innerHTML = `${quizBox()}
@@ -259,12 +262,12 @@ function tMarks() {
 }
 function tLessons() {
   const ls2 = H.lessons.slice().reverse();
-  $('#view').innerHTML = `<div class="card"><h2>Lessons & homework</h2>${ls2.length ? `<ul class="list">${ls2.map(l => `<li style="align-items:flex-start"><div style="min-width:74px"><b>${esc(l.date)}</b><div class="small muted">${esc(dayName(l.date).split(' ')[0])}</div></div>
+  $('#view').innerHTML = `<div class="card"><h2>Lessons & homework</h2>${ls2.length ? `<ul class="list">${ls2.map(l => `<li style="align-items:flex-start"><div style="min-width:74px"><b>${esc(md(l.date))}</b><div class="small muted">${esc(dayName(l.date).split(',')[0])}${l.date > '' && ddk(l.date) > ddk(H.today) ? ' · next' : ''}</div></div>
     <div style="flex:1;min-width:0">${l.unit ? `<span class="pill">${esc(l.unit)}</span> ` : ''}<b>${esc(l.topic)}</b>${l.homework ? `<div class="small" style="margin-top:4px"><span class="muted">Homework:</span> ${esc(l.homework)}</div>` : ''}</div></li>`).join('')}</ul>` : '<p class="muted" style="margin:0">Nothing yet.</p>'}</div>`;
 }
 function tQuizzes() {
   const r = H.results;
-  $('#view').innerHTML = `${quizBox()}<div class="card"><h2>My quiz results</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(x.date) + ' · ' : ''}${x.missed ? 'missed' : x.right + ' of ' + x.total + ' right'}${x.reviewable || x.missed ? ' · tap to see answers' : ' · answers after the quiz closes'}</div></div>
+  $('#view').innerHTML = `${quizBox()}<div class="card"><h2>My quiz results</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(md(x.date)) + ' · ' : ''}${x.missed ? 'missed' : x.right + ' of ' + x.total + ' right'}${x.reviewable || x.missed ? ' · tap to see answers' : ' · answers after the quiz closes'}</div></div>
     ${x.missed ? '<span class="pill gray">—</span>' : mk(x.score10)}</li>`).join('')}</ul>` : '<p class="muted" style="margin:0">No quizzes yet.</p>'}</div>`;
   if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
   $$('[data-rv]').forEach(li => li.onclick = () => review(li.dataset.rv));
