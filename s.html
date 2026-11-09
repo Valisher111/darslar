@@ -196,6 +196,8 @@ async function api(action, ...args) {
   return j.data;
 }
 function noAccess() {
+  try { Object.keys(localStorage).filter(k => k.startsWith('ds_home_')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  sigClose();
   $('#who').textContent = 'Personal link needed'; $('#sub').textContent = ''; $('#tabs').classList.add('hidden');
   $('#view').innerHTML = `<div class="card"><h2>Open your page from Telegram</h2><p class="muted">Open the student bot of your teacher and send <b>/link</b>. You will get your personal link. If you are new, send <b>/start</b> and choose your name.</p></div>`;
 }
@@ -208,12 +210,21 @@ function buildTabs() {
   $$('#tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; buildTabs(); render(); window.scrollTo(0, 0); });
   $('#tabs').classList.remove('hidden');
 }
+function showHome(h) {
+  H = h;
+  $('#hi').textContent = 'Group ' + H.group + ' · ' + H.subject; $('#who').textContent = H.name;
+  $('#sub').textContent = 'Today is ' + dayName(H.today);
+  buildTabs(); render();
+}
 async function load(quiet) {
+  // show the last saved page at once (without quiz/live: those always come fresh), then refresh
+  const ck = 'ds_home_' + String(KEY || '').slice(0, 12);
+  if (!H) { try { const c = JSON.parse(ls.get(ck) || 'null'); if (c && c.name) { c.quiz = null; c.live = null; showHome(c); $('#sub').textContent += ' · updating…'; } } catch (e) {} }
   try {
-    H = await api('stHome');
-    $('#hi').textContent = 'Group ' + H.group + ' · ' + H.subject; $('#who').textContent = H.name;
-    $('#sub').textContent = 'Today is ' + dayName(H.today);
-    buildTabs(); render();
+    const h = await api('stHome');
+    showHome(h);
+    try { ls.set(ck, JSON.stringify(h)); } catch (e) {}
+    sigOpen();
   } catch (e) { if (KEY && !quiet) fail(e); if (!H && KEY) $('#view').innerHTML = `<div class="card"><p>Could not load. Check the internet.</p><button class="btn primary" onclick="load()">Try again</button></div>`; }
 }
 function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return `<span class="mk ${v.toLowerCase() === 'nb' ? 'nb' : (isFinite(n) && n < 6 ? 'low' : '')}">${esc(v || '—')}</span>`; }
@@ -377,13 +388,28 @@ function backHome() { $('#quiz').classList.add('hidden'); $('#quiz').innerHTML =
 window.addEventListener('beforeunload', e => { if (Q && !submitting && !PREVIEW) { save(); e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && Q) save(); });
 
-function startPing() {
-  clearInterval(pingT);
-  pingT = setInterval(async () => {
-    if (document.hidden || Q || SL || !H) return;
-    try { const p = await api('stPing'); if ((p.open || null) !== (H.quiz ? H.quiz.quiz_id : null) || (p.live || null) !== (H.live ? H.live.gid : null)) load(true); } catch (e) {}
-  }, 15000);
+/* "Did a quiz or live game open?" — the teacher site bumps sig/<group> in Firebase, the page listens
+   (one light stream, no server calls). A slow check every 2 min stays as a fallback. */
+let SIG = null, sigLast, lastCheck = 0;
+function sigOpen() {
+  if (!H || SIG || document.hidden || PREVIEW || !window.EventSource) return;
+  try {
+    SIG = new EventSource(FB_CFG.databaseURL + '/sig/' + encodeURIComponent(H.group) + '.json');
+    const on = e => { let d = null; try { d = JSON.parse(e.data); } catch (x) { return; } const v = d ? d.data : null; if (sigLast !== undefined && v !== sigLast) checkNow(); sigLast = v; };
+    SIG.addEventListener('put', on); SIG.addEventListener('patch', on);
+  } catch (e) { SIG = null; }
 }
+function sigClose() { if (SIG) { try { SIG.close(); } catch (e) {} SIG = null; sigLast = undefined; } }
+async function checkNow() {
+  if (document.hidden || Q || SL || !H) return;
+  lastCheck = Date.now();
+  try { const p = await api('stPing'); if ((p.open || null) !== (H.quiz ? H.quiz.quiz_id : null) || (p.live || null) !== (H.live ? H.live.gid : null)) load(true); } catch (e) {}
+}
+function startPing() {
+  clearInterval(pingT); lastCheck = Date.now();
+  pingT = setInterval(() => { const ok = SIG && SIG.readyState === 1; if (Date.now() - lastCheck >= (ok ? 120000 : 30000)) checkNow(); }, 10000);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) sigClose(); else if (H && !Q && !SL && !PREVIEW) { sigOpen(); checkNow(); } });
 async function startPreview() {
   $('#hi').textContent = 'Teacher preview'; $('#who').textContent = 'Student view'; $('#sub').textContent = '';
   $('#main').classList.remove('hidden'); $('#quiz').classList.add('hidden');
