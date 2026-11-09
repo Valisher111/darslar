@@ -240,7 +240,8 @@ async function load(quiet) {
     sigOpen();
   } catch (e) { if (KEY && !quiet) fail(e); if (!H && KEY) $('#view').innerHTML = `<div class="card"><p>Could not load. Check the internet.</p><button class="btn primary" onclick="load()">Try again</button></div>`; }
 }
-function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return `<span class="mk ${v.toLowerCase() === 'nb' ? 'nb' : (isFinite(n) && n < 6 ? 'low' : '')}">${esc(v || '—')}</span>`; }
+const isAbs = v => { v = String(v == null ? '' : v).trim().toLowerCase(); return v === 'nb' || (v !== '' && Number(v.replace(',', '.')) === 0); };
+function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return isAbs(v) ? '<span class="mk nb">absent</span>' : `<span class="mk ${isFinite(n) && n < 6 ? 'low' : ''}">${esc(v || '—')}</span>`; }
 function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes })[tab](); $$('[data-join]').forEach(b => b.onclick = joinLive); }
 
 function liveCard() {
@@ -263,7 +264,7 @@ function tHome() {
     <div class="card"><div class="stats">
       <div class="stat"><b>${H.avg == null ? '—' : H.avg}</b><span>your average</span></div>
       <div class="stat"><b>${H.rank ? ord(H.rank) : '—'}</b><span>${H.rank ? 'of ' + H.ranked + ' in group' : 'place'}</span></div>
-      <div class="stat"><b>${H.attended}/${H.marked}</b><span>lessons${H.nb ? ' · ' + H.nb + ' nb' : ''}</span></div></div>
+      <div class="stat"><b>${H.attended}/${H.marked}</b><span>lessons${H.nb ? ' · ' + H.nb + ' absent' : ''}</span></div></div>
       <p class="small muted" style="margin:10px 0 0">Group average: <b>${H.groupAvg == null ? '—' : H.groupAvg}</b>. Other students' names and marks are not shown.</p></div>
     ${hw ? `<div class="card"><h2>Latest homework</h2><div class="small muted">${esc(dayName(hw.date))}${hw.unit ? ' · ' + esc(hw.unit) : ''}${hw.topic ? ' · ' + esc(hw.topic) : ''}</div><p style="margin:6px 0 0">${esc(hw.homework)}</p></div>` : ''}
     <div class="card"><h2>Deadlines</h2>${dl ? `<ul class="list">${dl}</ul>` : '<p class="muted" style="margin:0">No deadlines now.</p>'}</div>
@@ -276,9 +277,9 @@ function chart(series) {
   const x = i => L + 10 + i * ((W - L - 20) / Math.max(1, pts.length - 1)), y = v => T + (Ht - T - B) * (1 - v / 10);
   let path = '', grid = '';
   [0, 5, 10].forEach(v => grid += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 5}" y="${y(v) + 3}" text-anchor="end">${v}</text>`);
-  pts.map((p, i) => [p, i]).filter(([p]) => p.val != null).forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
-  const dots = pts.map((p, i) => p.val == null ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:12px">×</text>` : `<circle cx="${x(i)}" cy="${y(p.val)}" r="3.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>`).join('');
-  return `<div class="card"><h2>My marks</h2><div style="overflow-x:auto"><svg width="${W}" height="${Ht}" role="img" aria-label="Marks chart">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}</svg></div><div class="small muted">× = absent (nb)</div></div>`;
+  pts.map((p, i) => [p, i]).filter(([p]) => p.val != null && !isAbs(p.raw)).forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
+  const dots = pts.map((p, i) => p.val == null || isAbs(p.raw) ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:12px">×</text>` : `<circle cx="${x(i)}" cy="${y(p.val)}" r="3.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>`).join('');
+  return `<div class="card"><h2>My marks</h2><div style="overflow-x:auto"><svg width="${W}" height="${Ht}" role="img" aria-label="Marks chart">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}</svg></div><div class="small muted">× = absent</div></div>`;
 }
 function tMarks() {
   const rows = H.series.slice().reverse();
@@ -290,11 +291,78 @@ function tLessons() {
     <div style="flex:1;min-width:0">${l.unit ? `<span class="pill">${esc(l.unit)}</span> ` : ''}<b>${esc(l.topic)}</b>${l.homework ? `<div class="small" style="margin-top:4px"><span class="muted">Homework:</span> ${esc(l.homework)}</div>` : ''}</div></li>`).join('')}</ul>` : '<p class="muted" style="margin:0">Nothing yet.</p>'}</div>`;
 }
 function tQuizzes() {
-  const r = H.results;
-  $('#view').innerHTML = `${quizBox()}<div class="card"><h2>My quiz results</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(md(x.date)) + ' · ' : ''}${x.missed ? 'missed' : x.right + ' of ' + x.total + ' right'}${x.reviewable || x.missed ? ' · tap to see answers' : ' · answers after the quiz closes'}</div></div>
+  const r = H.results, wrong = r.filter(x => !x.missed && x.total).reduce((a, x) => a + (x.total - x.right), 0);
+  $('#view').innerHTML = `${quizBox()}${wrong ? `<div class="card"><h2>Practice my mistakes</h2><p class="small muted" style="margin:0 0 10px">Try again the questions you got wrong in class quizzes. No marks — just practice.</p>
+    <button class="btn primary block" id="pmgo0">🔁 Practise ${wrong} question${wrong === 1 ? '' : 's'}</button></div>` : ''}<div class="card"><h2>My quiz results</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(md(x.date)) + ' · ' : ''}${x.missed ? 'missed' : x.right + ' of ' + x.total + ' right'}${x.reviewable || x.missed ? ' · tap to see answers' : ' · answers after the quiz closes'}</div></div>
     ${x.missed ? '<span class="pill gray">—</span>' : mk(x.score10)}</li>`).join('')}</ul>` : '<p class="muted" style="margin:0">No quizzes yet.</p>'}</div>`;
   if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
   $$('[data-rv]').forEach(li => li.onclick = () => review(li.dataset.rv));
+  if ($('#pmgo0')) $('#pmgo0').onclick = () => practice(false);
+}
+
+/* ===================== practice my mistakes (nothing goes to the gradebook) ===================== */
+let PM = null;
+const pmKey = () => 'ds_pm_' + String(KEY || '').slice(0, 12);
+const pmDone = () => { try { return JSON.parse(ls.get(pmKey()) || '{}'); } catch (e) { return {}; } };
+async function practice(all) {
+  $('#view').innerHTML = '<div class="card loading">Loading…</div>';
+  try {
+    const list = await api('stPractice'), done = pmDone();
+    const todo = all ? list : list.filter(x => !done[x.key]);
+    PM = { list: todo, all: list.length, i: 0, a: undefined, res: null, right: 0, wrong: [] };
+    pmDraw();
+  } catch (e) { fail(e); tQuizzes(); }
+}
+function pmDraw() {
+  const v = $('#view'), back = '<button class="btn" id="pmback" style="margin-bottom:12px">← Back</button>';
+  const bind = () => { $('#pmback').onclick = () => { tab = 'quizzes'; buildTabs(); render(); }; };
+  if (!PM.list.length) {
+    v.innerHTML = back + `<div class="card"><h2>Nothing to practise 🎉</h2><p class="muted">You have already practised all your mistakes.</p>${PM.all ? '<button class="btn block" id="pmall">Practise all of them again</button>' : ''}</div>`;
+    bind(); if ($('#pmall')) $('#pmall').onclick = () => practice(true); return;
+  }
+  if (PM.i >= PM.list.length) {
+    v.innerHTML = back + `<div class="card"><h2>Well done!</h2><p>You got <b>${PM.right} of ${PM.list.length}</b> right this time.</p>
+      ${PM.wrong.length ? `<button class="btn primary block" id="pmagain">Try the ${PM.wrong.length} wrong one${PM.wrong.length === 1 ? '' : 's'} again</button>` : ''}</div>`;
+    bind(); if ($('#pmagain')) $('#pmagain').onclick = () => { PM = { list: PM.wrong, all: PM.all, i: 0, a: undefined, res: null, right: 0, wrong: [] }; pmDraw(); };
+    return;
+  }
+  const it = PM.list[PM.i], q = it.q, r = PM.res, L = 'ABCDEF';
+  v.innerHTML = back + `<div class="card"><div class="small muted">Question ${PM.i + 1} of ${PM.list.length} · ${esc(it.title)}</div>
+    <div class="qprog" style="margin:8px 0 12px;background:var(--line);border-radius:3px"><i style="width:${PM.i / PM.list.length * 100}%"></i></div>
+    <b style="font-size:17px">${esc(q.prompt)}</b><div class="body" id="pmb" style="margin-top:10px"></div>
+    ${r ? `<div class="rv ${r.score >= 1 ? 'ok' : ''}" style="margin-top:6px"><b>${r.score >= 1 ? '✓ Right!' : r.score > 0 ? '◐ Partly right' : '✗ Not yet'}</b>${r.score >= 1 ? '' : `<div class="small r">Right answer: ${esc(r.right)}</div>`}${r.explain ? `<div class="small muted">${esc(r.explain)}</div>` : ''}</div>` : ''}
+    <button class="btn primary block" id="pmnext" style="margin-top:12px">${r ? (PM.i + 1 < PM.list.length ? 'Next →' : 'Finish') : 'Check'}</button></div>`;
+  bind();
+  const box = $('#pmb'), a = PM.a, lock = !!r;
+  if (q.type === 'mc' || q.type === 'tf') {
+    box.innerHTML = q.options.map((o, k) => `<button class="opt ${a !== undefined && +a === o.i ? 'on' : ''}" data-i="${o.i}" ${lock ? 'disabled' : ''}><span class="k">${q.type === 'tf' ? (o.i ? 'T' : 'F') : L[k]}</span><span>${esc(o.t)}</span></button>`).join('');
+    $$('.opt', box).forEach(b => b.onclick = () => { PM.a = +b.dataset.i; pmDraw(); });
+  } else if (q.type === 'gap') {
+    box.innerHTML = `<input class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer" value="${esc(a || '')}" ${lock ? 'disabled' : ''}>`;
+    $('input', box).oninput = e => { PM.a = e.target.value; };
+  } else if (q.type === 'match') {
+    const cur = a || {};
+    box.innerHTML = q.left.map(l => `<div class="mrow"><div class="l">${esc(l.t)}</div><select data-l="${l.i}" ${lock ? 'disabled' : ''}><option value="">Choose…</option>${q.right.map(x => `<option value="${x.i}" ${cur[l.i] !== undefined && cur[l.i] !== '' && +cur[l.i] === x.i ? 'selected' : ''}>${esc(x.t)}</option>`).join('')}</select></div>`).join('');
+    $$('select', box).forEach(sel => sel.onchange = () => { const m2 = Object.assign({}, PM.a || {}); m2[sel.dataset.l] = sel.value === '' ? '' : +sel.value; PM.a = m2; });
+  } else if (q.type === 'order') {
+    const seq = Array.isArray(a) ? a : q.items.map(x => x.i), txt = i => (q.items.find(x => x.i === i) || {}).t;
+    box.innerHTML = `<div class="small muted" style="margin-bottom:8px">Use ↑ ↓ to move the items.</div>` + seq.map((i, k) => `<div class="ord"><span class="small muted" style="min-width:18px">${k + 1}</span><span class="tx">${esc(txt(i))}</span>
+      <button data-up="${k}" ${k === 0 || lock ? 'disabled' : ''} aria-label="Up">↑</button><button data-dn="${k}" ${k === seq.length - 1 || lock ? 'disabled' : ''} aria-label="Down">↓</button></div>`).join('');
+    const mv = (k, d) => { const s2 = seq.slice(); [s2[k], s2[k + d]] = [s2[k + d], s2[k]]; PM.a = s2; pmDraw(); };
+    $$('[data-up]', box).forEach(b => b.onclick = () => mv(+b.dataset.up, -1));
+    $$('[data-dn]', box).forEach(b => b.onclick = () => mv(+b.dataset.dn, 1));
+    if (!Array.isArray(a)) PM.a = seq;
+  }
+  $('#pmnext').onclick = async () => {
+    if (PM.res) { PM.i++; PM.a = undefined; PM.res = null; pmDraw(); window.scrollTo(0, 0); return; }
+    if (PM.a === undefined || PM.a === '') return toast('Choose or type an answer first.');
+    const b = $('#pmnext'); b.disabled = true;
+    try {
+      PM.res = await api('stPracticeCheck', it.key, PM.a);
+      if (PM.res.score >= 1) { PM.right++; const d = pmDone(); d[it.key] = 1; ls.set(pmKey(), JSON.stringify(d)); } else PM.wrong.push(it);
+      pmDraw();
+    } catch (e) { b.disabled = false; fail(e); }
+  };
 }
 async function review(id) {
   $('#view').innerHTML = '<div class="card loading">Loading…</div>';
@@ -607,7 +675,7 @@ async function slRender() {
   if (st === undefined) return;
   if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`); return; }
   if (st.phase === 'lobby') {
-    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: answer questions with your crew and run from the robot. Then walk into the green safe zones together — everyone must be safe to reach the next level!' : md.mode === 'coop' ? '🚀 Class Mission: work together — every right answer helps the whole group.'
+    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: answer questions with your crew and run from the robot.' + (md.zones ? ' Then walk into the green safe zones together — everyone must be safe to reach the next level!' : ' Enough right answers together → next level!') : md.mode === 'coop' ? '🚀 Class Mission: work together — every right answer helps the whole group.'
       : md.scoring === 'confidence' ? '😎 Confidence: after each answer, say how sure you are. Sure and right = more points, sure and wrong = minus points.' : md.scoring === 'accuracy' ? '🎯 Accuracy: only right answers count, take your time.' : '⚡ Right and fast answers get more points.';
     el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b><span style="font-size:44px">${esc(SL.av || '')}</span><br>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>
       <div class="lvs-card" style="font-size:16px">${how}${md.teams ? `<br>👥 You will play in a team (${md.teams} teams).` : ''}</div>${slReact()}`);
