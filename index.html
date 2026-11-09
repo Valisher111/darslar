@@ -150,6 +150,12 @@ table.g td.hl{background:var(--changed)}
 .lrow .dt{min-width:58px;font-weight:700}
 .lrow .dt small{display:block;font-weight:500;color:var(--muted);font-size:12px}
 .lrow.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.lrow.past{opacity:.92}
+.lrow .lt{line-height:1.35}
+.lrow .lf{margin:4px 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lrow .ls{flex:none;max-width:40%;text-align:right}
+.lrow .lq{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--accent-soft)}
+@media (max-width:640px){.lrow{flex-wrap:wrap}.lrow .ls{max-width:none;width:100%;text-align:left;order:3}}
 .slist{list-style:none;margin:0;padding:0}
 .slist li{display:flex;align-items:center;gap:10px;padding:11px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px}
 .slist li:hover{background:var(--accent-soft)}
@@ -386,11 +392,14 @@ function modal(html, init) {
   document.body.appendChild(bg); if (init) init(bg);
 }
 function closeModal() { $$('.modal-bg').forEach(m => m.remove()); }
+const MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** '04.11' or '26.11.2026' -> 'Nov 4' (anything else is returned as it is). */
+function md(s) { s = String(s == null ? '' : s).trim(); const m = /^(\d{1,2})\.(\d{1,2})(?:\.\d{2,4})?$/.exec(s); return m && +m[2] >= 1 && +m[2] <= 12 ? MONS[+m[2] - 1] + ' ' + (+m[1]) : s; }
 function ddKey(s) { const m = /^(\d{2})\.(\d{2})$/.exec(s || ''); if (!m) return 0; let mo = +m[2]; if (mo < 8) mo += 12; return mo * 100 + (+m[1]); }
 function longDate(ddmm) {
   const now = new Date(); const [d, m] = ddmm.split('.').map(Number);
   let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--;
-  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 function shortDay(ddmm) {
   const now = new Date(); const [d, m] = ddmm.split('.').map(Number);
@@ -556,6 +565,7 @@ async function pageToday() {
       return `<div class="card lesson-card">
         <div class="top"><span class="gbadge">${esc(l.group)}</span><b>${esc(l.subject)}</b><span class="spacer"></span><span class="pill gray">Lesson ${l.n}</span></div>
         <div class="kv"><b>Topic</b><span>${l.unit ? esc(l.unit) + ' · ' : ''}${esc(l.topic) || '<span class="muted">not set</span>'}</span>
+        ${l.focus ? `<b>Focus</b><span class="small muted">${esc(l.focus)}</span>` : ''}
         <b>Homework</b><span>${esc(l.homework) || '<span class="muted">—</span>'}</span></div>
         <div class="row small muted" style="margin-bottom:6px"><span>Marks entered</span><span class="spacer"></span><span>${l.marked}/${l.students}</span></div>
         <div class="progress"><i style="width:${pct}%"></i></div>
@@ -570,13 +580,13 @@ async function pageToday() {
       ? `<div class="grid g2">${h.todayLessons.map(lessonCard).join('')}</div>`
       : `<div class="card empty">No lessons today. Enjoy the break.</div>`;
     const upHtml = h.upcoming.length ? h.upcoming.map(u => `<div class="up">
-        <div class="d">${esc(u.date)}<div class="small muted" style="font-weight:500">${shortDay(u.date)}</div></div>
+        <div class="d">${esc(md(u.date))}<div class="small muted" style="font-weight:500">${shortDay(u.date)}</div></div>
         <span class="gbadge">${esc(u.group)}</span>
         <div style="flex:1;min-width:0"><div>${esc(u.subject)}</div><div class="small muted">${u.topic ? esc((u.unit ? u.unit + ' · ' : '') + u.topic) : 'Topic not set'}</div>${u.quiz ? `<div class="small">Quiz: ${esc(u.quiz.title)}</div>` : ''}</div>
         <button class="btn sm" data-lesson="${esc(u.group)}|${esc(u.date)}">Plan</button></div>`).join('') : '<div class="empty">Nothing scheduled.</div>';
     const dlHtml = h.deadlines.length ? h.deadlines.map(x => {
       const p = x.days < 0 ? `<span class="pill gray">${-x.days} d ago</span>` : x.days === 0 ? '<span class="pill bad">today</span>' : x.days <= 3 ? `<span class="pill warn">in ${x.days} d</span>` : `<span class="pill">in ${x.days} d</span>`;
-      return `<div class="up"><span class="gbadge">${esc(x.group)}</span><div style="flex:1;min-width:0"><div>${esc(x.title)}</div><div class="small muted">${esc(x.due_date)} · ${esc(x.type)}</div></div>${p}</div>`;
+      return `<div class="up"><span class="gbadge">${esc(x.group)}</span><div style="flex:1;min-width:0"><div>${esc(x.title)}</div><div class="small muted">${esc(md(x.due_date))} · ${esc(x.type)}</div></div>${p}</div>`;
     }).join('') : '<div class="empty">No deadlines in the next 30 days.</div>';
     const gHtml = h.groups.map(g => {
       const pct = g.lessonsTotal ? Math.round(g.lessonsDone / g.lessonsTotal * 100) : 0;
@@ -585,7 +595,7 @@ async function pageToday() {
         <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin:14px 0 12px;align-items:end"><div><div class="big">${g.avg == null ? '—' : g.avg}</div><div class="small muted">average mark</div></div>
           <div><b style="font-size:18px">${g.students}</b><div class="small muted">students</div></div>
           <div><b style="font-size:18px;color:${g.nb ? 'var(--bad)' : 'inherit'}">${g.nb}</b><div class="small muted">absences</div></div></div>
-        <div class="row small muted" style="margin-bottom:6px"><span>Lessons ${g.lessonsDone}/${g.lessonsTotal}</span><span class="spacer"></span><span>last ${esc(g.lastLesson || '—')}</span></div>
+        <div class="row small muted" style="margin-bottom:6px"><span>Lessons ${g.lessonsDone}/${g.lessonsTotal}</span><span class="spacer"></span><span>last ${esc(md(g.lastLesson) || '—')}</span></div>
         <div class="progress"><i style="width:${pct}%"></i></div></div>`;
     }).join('');
     view().innerHTML = `
@@ -636,7 +646,7 @@ function dayView(d, days) {
   $('#gv').innerHTML = `
     <div class="grid g2" style="margin-bottom:14px">
       <div class="card"><label class="f" style="margin:0"><span>Lesson date</span><select id="daysel">${days.map((c, i) =>
-        `<option value="${c.c}" ${c.c === cn ? 'selected' : ''}>${esc(c.h)} ${shortDay(c.h)}${c.h === S.today ? ' · today' : ''} — lesson ${i + 1}, block ${c.block}</option>`).join('')}</select></label></div>
+        `<option value="${c.c}" ${c.c === cn ? 'selected' : ''}>${shortDay(c.h)}, ${esc(md(c.h))}${c.h === S.today ? ' · today' : ''} — lesson ${i + 1}, block ${c.block}</option>`).join('')}</select></label></div>
       <div class="card"><div class="grid g4" style="grid-template-columns:repeat(3,1fr)">
         <div class="stat"><b>${nums.length + nbs}/${d.students.length}</b><span>marked</span></div>
         <div class="stat"><b>${avg}</b><span>average</span></div>
@@ -674,7 +684,7 @@ function tableView(d) {
   $('#gv').innerHTML = `
     <div class="row" style="margin-bottom:12px"><div class="seg">${blocks.map(b => `<button data-b="${b[0]}" class="${S.block === b[0] ? 'on' : ''}">${b[1]}</button>`).join('')}</div>
       <span class="small muted">Tap a white cell to edit. Grey cells are calculated by the gradebook.</span></div>
-    <div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(c.h)}</th>`).join('')}</tr></thead>
+    <div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(md(c.h))}</th>`).join('')}</tr></thead>
     <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(s.name)}</td>${cols.map(c => {
       const v = String(pv(s.row, c.c));
       return `<td class="${editable(c) ? 'ed' : 'ro'} ${v.toLowerCase() === 'nb' ? 'nbv' : ''} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
@@ -685,7 +695,7 @@ function tableView(d) {
 function cellEditor(d, row, cn, after) {
   const c = d.cols[cn - 1], st = d.students.find(s => s.row === row);
   const hint = c.kind === 'team' ? 'Team name or number' : '0–' + c.max + (c.kind === 'day' ? ' or nb' : '');
-  modal(`<h3>${esc(st.name)}</h3><p class="muted small" style="margin-top:0">${esc(c.h)} · ${esc(c.section)}</p>
+  modal(`<h3>${esc(st.name)}</h3><p class="muted small" style="margin-top:0">${esc(md(c.h))} · ${esc(c.section)}</p>
     <label class="f"><span>${hint}</span><input type="text" id="cv" inputmode="${c.kind === 'team' ? 'text' : 'decimal'}" value="${esc(pv(row, cn))}"></label>
     <div class="row">${c.kind === 'day' ? '<button class="btn danger" id="cnb">nb</button>' : ''}<button class="btn" id="cclr">Clear</button>
     <span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="cok">OK</button></div>`, m => {
@@ -703,32 +713,69 @@ async function pageLessons() {
   try {
     const my = S.navId; const list = await api('lessons', S.group); if (my !== S.navId) return;
     S.lessons = list;
-    const card = l => `<div class="card lrow ${l.date === S.today ? 'today' : ''}" data-d="${esc(l.date)}">
-      <div class="dt">${esc(l.date)}<small>${shortDay(l.date)} · #${l.n}</small></div>
-      <div style="flex:1;min-width:0">
-        <div>${l.unit ? '<span class="pill">' + esc(l.unit) + '</span> ' : ''}<b>${esc(l.topic) || '<span class="muted" style="font-weight:400">No topic yet — tap to add</span>'}</b></div>
-        ${l.done ? '<div class="small muted">Done: ' + esc(l.done) + '</div>' : ''}
-        ${l.homework ? '<div class="small">Homework: ' + esc(l.homework) + '</div>' : ''}
-        ${l.notes ? '<div class="small muted">Notes: ' + esc(l.notes) + '</div>' : ''}
-      </div><span class="pill gray">B${l.block}</span></div>`;
-    view().innerHTML = `<p class="muted" style="margin-top:0">${esc(S.subjects[S.group] || '')} · ${list.length} lessons. Dates come from the gradebook.</p>
-      <div class="grid" style="gap:10px">${list.map(card).join('') || '<div class="card empty">No lesson dates.</div>'}</div>`;
-    $$('.lrow').forEach(el => el.onclick = () => lessonEditor(list.find(l => l.date === el.dataset.d)));
-    const t = $('.lrow.today') || $$('.lrow').find(el => ddKey(el.dataset.d) >= ddKey(S.today));
-    if (t) t.scrollIntoView({ block: 'center' });
+    renderLessons(list);
   } catch (e) { fail(e); }
+}
+function renderLessons(list) {
+  const f = S.lessonFilter || 'all';
+  const real = list.filter(l => !l.nocol);
+  const done = real.filter(l => l.state === 'past' || l.state === 'today').length;
+  const next = list.find(l => l.state === 'today') || list.find(l => l.state === 'next');
+  const pct = real.length ? Math.round(done / real.length * 100) : 0;
+  const shown = list.filter(l => f === 'all' || (f === 'next' ? l.state !== 'past' : l.state === 'past'));
+  const status = l => {
+    if (l.nocol) return '<span class="pill warn" title="The gradebook header for this lesson is not a dd.mm date">no gradebook column</span>';
+    if (l.state === 'today') return '<span class="pill">Today</span>';
+    if (l.state === 'next') return '<span class="pill gray">Upcoming</span>';
+    if (!l.marked) return '<span class="pill warn">No marks</span>';
+    return `<span class="pill gray">Marks ${l.marked}/${l.students}${l.avg != null ? ' · avg ' + l.avg : ''}${l.nb ? ' · nb ' + l.nb : ''}</span>`;
+  };
+  const quizRow = l => !l.quiz ? '' : `<div class="lq"><span class="small muted">Quiz (checks last lesson):</span> <b class="small">${esc(l.quiz.title)}</b>${l.quiz.status === 'closed' ? ' <span class="pill gray">closed</span>' : ''}
+      ${l.state !== 'past' && l.quiz.status !== 'closed' ? `<span class="spacer"></span><button class="btn primary sm" data-live="${esc(l.quiz.quiz_id)}">▶ Live game</button><button class="btn sm" data-start="${esc(l.quiz.quiz_id)}">As test</button>` : ''}</div>`;
+  const card = l => `<div class="card lrow ${l.state}" data-d="${esc(l.date)}">
+      <div class="dt">${esc(md(l.date))}<small>${shortDay(l.date)} · #${l.n}</small></div>
+      <div style="flex:1;min-width:0">
+        <div class="lt">${l.unit ? '<span class="pill">' + esc(l.unit) + '</span> ' : ''}<b>${esc(l.topic) || '<span class="muted" style="font-weight:400">No topic yet — tap to add</span>'}</b></div>
+        ${l.focus ? '<div class="lf small muted">' + esc(l.focus) + '</div>' : ''}
+        ${l.done ? '<div class="small"><span class="muted">Done:</span> ' + esc(l.done) + '</div>' : ''}
+        ${l.homework ? '<div class="small"><span class="muted">Homework:</span> ' + esc(l.homework) + '</div>' : ''}
+        ${l.notes ? '<div class="small"><span class="muted">Notes:</span> ' + esc(l.notes) + '</div>' : ''}
+        ${quizRow(l)}
+      </div><div class="ls">${status(l)}</div></div>`;
+  const blocks = [];
+  shown.forEach(l => { const b = l.block || (blocks.length ? blocks[blocks.length - 1].b : 1); let x = blocks.find(z => z.b === b); if (!x) blocks.push(x = { b, items: [] }); x.items.push(l); });
+  const blockHtml = blocks.map(x => {
+    const all = list.filter(l => l.block === x.b);
+    return `<div class="section-title" style="margin:18px 0 8px"><h2 style="margin:0">Block ${x.b}</h2><span class="small muted">${all.length ? esc(md(all[0].date)) + ' – ' + esc(md(all[all.length - 1].date)) + ' · ' + all.length + (all.length === 1 ? ' lesson' : ' lessons') : ''}</span></div>
+      <div class="grid" style="gap:10px">${x.items.map(card).join('')}</div>`;
+  }).join('');
+  const chip = (k, t) => `<button class="btn sm ${f === k ? 'primary' : ''}" data-lf="${k}">${t}</button>`;
+  view().innerHTML = `<div class="card" style="margin-bottom:6px">
+      <div class="row" style="flex-wrap:wrap;gap:8px"><b style="flex:1;min-width:200px">${esc(S.subjects[S.group] || '')}</b>${chip('all', 'All')}${chip('next', 'Upcoming')}${chip('past', 'Past')}<button class="btn sm" id="ljump">Today</button></div>
+      <div class="row small muted" style="margin:12px 0 6px"><span>${done} of ${real.length} lessons taught</span><span class="spacer"></span><span>${pct}%</span></div>
+      <div class="progress"><i style="width:${pct}%"></i></div>
+      ${next ? `<div class="small" style="margin-top:12px"><span class="muted">${next.state === 'today' ? 'Today' : 'Next lesson'}:</span> <b>${shortDay(next.date)}, ${esc(md(next.date))}</b> · ${esc(next.unit ? next.unit + ' · ' : '')}${esc(next.topic || 'topic not set')}${next.quiz ? ' · quiz: ' + esc(next.quiz.title) : ''}</div>` : ''}
+    </div>
+    ${blockHtml || '<div class="card empty">No lessons here.</div>'}`;
+  $$('.lrow').forEach(el => el.onclick = e => { if (e.target.closest('button')) return; lessonEditor(list.find(l => l.date === el.dataset.d)); });
+  $$('[data-lf]').forEach(b => b.onclick = () => { S.lessonFilter = b.dataset.lf; renderLessons(list); });
+  $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
+  $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
+  const jump = () => { const t = $('.lrow.today') || $('.lrow.next'); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+  $('#ljump').onclick = () => { if (!$('.lrow.today') && !$('.lrow.next')) { S.lessonFilter = 'all'; renderLessons(list); } jump(); };
+  if (f !== 'past') { const t = $('.lrow.today') || $('.lrow.next'); if (t) t.scrollIntoView({ block: 'center' }); }
 }
 async function openLessonByDate(g, date) {
   try { const list = await api('lessons', g); const l = list.find(x => x.date === date); if (l) lessonEditor(l, g); } catch (e) { fail(e); }
 }
 function lessonEditor(l, g) {
   g = g || S.group;
-  const f = (k, label, area) => `<label class="f"><span>${label}</span>${area ? `<textarea id="l_${k}">${esc(l[k])}</textarea>` : `<input type="text" id="l_${k}" value="${esc(l[k])}">`}</label>`;
-  modal(`<h3>Group ${esc(g)} · ${esc(l.date)} (lesson ${l.n})</h3>
-    ${f('unit', 'Unit (e.g. Unit 12 or 5.2)')}${f('topic', 'Topic')}${f('done', 'What was done', 1)}${f('homework', 'Homework', 1)}${f('notes', 'Notes / problems', 1)}
+  const f = (k, label, area) => `<label class="f"><span>${label}</span>${area ? `<textarea id="l_${k}">${esc(l[k] || '')}</textarea>` : `<input type="text" id="l_${k}" value="${esc(l[k] || '')}">`}</label>`;
+  modal(`<h3>Group ${esc(g)} · ${shortDay(l.date)}, ${esc(md(l.date))} (lesson ${l.n})</h3>
+    ${f('unit', 'Unit (e.g. Unit 12 or 5.2)')}${f('topic', 'Topic')}${f('focus', 'Focus (language and skills)', 1)}${f('done', 'What was done', 1)}${f('homework', 'Homework', 1)}${f('notes', 'Notes / problems', 1)}
     <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="lok">Save</button></div>`, m => {
     $('#lok', m).onclick = async () => {
-      const o = { date: l.date }; ['unit', 'topic', 'done', 'homework', 'notes'].forEach(k => o[k] = $('#l_' + k, m).value.trim());
+      const o = { date: l.date }; ['unit', 'topic', 'focus', 'done', 'homework', 'notes'].forEach(k => o[k] = $('#l_' + k, m).value.trim());
       $('#lok', m).disabled = true;
       try { await api('saveLesson', g, o); closeModal(); toast('Lesson saved'); route(); } catch (e) { $('#lok', m).disabled = false; fail(e); }
     };
@@ -781,8 +828,8 @@ async function showProfile(row) {
         ${stat(a('Joriy (20)'), 'Joriy (20) · block 1')}${stat(a('1-reyting (20)'), '1-reyting (20)')}${stat(a('Joriy (20)', 1), 'Joriy (20) · block 2')}${stat(a('2-reyting (20)'), '2-reyting (20)')}
         ${stat(a('MI (10)'), 'Independent work (10)')}${stat(a('Jami (100)'), 'Total (100)')}</div></div>
       <div class="card"><h2>Daily marks</h2>${chart(p.series)}</div>
-      <div class="card"><h2>Lowest marks</h2>${p.series.filter(s => s.val != null).sort((x, y) => x.val - y.val).slice(0, 6).map(s => `<span class="pill gray" style="margin:2px">${esc(s.date)}: ${esc(s.raw)}</span>`).join('') || '<span class="muted">—</span>'}</div>
-      <div class="card"><h2>Quizzes</h2>${(p.quizzes || []).length ? p.quizzes.map(x => `<div class="up"><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${esc(x.date || '')}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
+      <div class="card"><h2>Lowest marks</h2>${p.series.filter(s => s.val != null).sort((x, y) => x.val - y.val).slice(0, 6).map(s => `<span class="pill gray" style="margin:2px">${esc(md(s.date))}: ${esc(s.raw)}</span>`).join('') || '<span class="muted">—</span>'}</div>
+      <div class="card"><h2>Quizzes</h2>${(p.quizzes || []).length ? p.quizzes.map(x => `<div class="up"><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${esc(md(x.date))}${x.note ? ' · ' + esc(x.note) : ''}</div></div>
         ${x.missed ? '<span class="pill gray">missed</span>' : `<span class="small muted">${x.right}/${x.total}</span> <b>${x.score10}</b>`}</div>`).join('') : '<div class="muted">No quiz results yet.</div>'}
         ${(p.weak || []).length ? `<h3 style="margin-top:14px">Recent mistakes</h3>${p.weak.map(w => `<div class="small" style="padding:5px 0;border-bottom:1px solid var(--line)">${esc(w.prompt)} <span style="color:var(--good)">✓ ${esc(w.right)}</span> <span class="muted">· ${esc(w.quiz)}</span></div>`).join('')}` : ''}</div>
       <div class="card"><div class="row"><div style="flex:1"><h2 style="margin:0">Telegram account</h2><div class="small muted">${p.account ? (p.account.status === 'active' ? 'Linked' : 'Waiting for approval') + (p.account.tg_username ? ' · @' + esc(p.account.tg_username) : '') + ' · ' + esc(p.account.linked_at) : 'Not linked. The student presses /start in the student bot.'}</div></div>
@@ -802,9 +849,9 @@ function chart(series) {
   real.forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
   if (real.length) area = path + `L${x(real[real.length - 1][1]).toFixed(1)} ${y(0)}L${x(real[0][1]).toFixed(1)} ${y(0)}Z`;
   const dots = pts.map((p, i) => p.val == null
-    ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:13px">×<title>${p.date}: nb</title></text>`
-    : `<circle cx="${x(i)}" cy="${y(p.val)}" r="4" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"><title>${p.date}: ${p.raw}</title></circle>`).join('');
-  const labels = pts.map((p, i) => i % 2 === 0 ? `<text x="${x(i)}" y="${H - 9}" text-anchor="middle">${p.date}</text>` : '').join('');
+    ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:13px">×<title>${md(p.date)}: nb</title></text>`
+    : `<circle cx="${x(i)}" cy="${y(p.val)}" r="4" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"><title>${md(p.date)}: ${p.raw}</title></circle>`).join('');
+  const labels = pts.map((p, i) => i % 2 === 0 ? `<text x="${x(i)}" y="${H - 9}" text-anchor="middle">${md(p.date)}</text>` : '').join('');
   return `<div style="overflow-x:auto"><svg width="${W}" height="${H}" role="img" aria-label="Daily marks">${grid}<path d="${area}" fill="var(--accent)" opacity=".08"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}${labels}</svg></div><div class="small muted">× = absent (nb)</div>`;
 }
 
@@ -817,11 +864,11 @@ async function pageDeadlines() {
     const dl = r.deadlines.map(x => {
       const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(x.due_date); const days = m ? Math.round((new Date(+m[3], +m[2] - 1, +m[1]) - base) / 864e5) : null;
       const p = days == null ? '' : days < 0 ? `<span class="pill gray">${-days} d ago</span>` : days === 0 ? '<span class="pill bad">today</span>' : days <= 3 ? `<span class="pill warn">in ${days} d</span>` : `<span class="pill">in ${days} d</span>`;
-      return `<div class="up"><span class="gbadge">${esc(x.group)}</span><div style="flex:1;min-width:0"><b>${esc(x.title)}</b> ${p}<div class="small muted">${esc(x.due_date)} · ${esc(x.type)}${x.notes ? ' · ' + esc(x.notes) : ''}</div></div>
+      return `<div class="up"><span class="gbadge">${esc(x.group)}</span><div style="flex:1;min-width:0"><b>${esc(x.title)}</b> ${p}<div class="small muted">${esc(md(x.due_date))} · ${esc(x.type)}${x.notes ? ' · ' + esc(x.notes) : ''}</div></div>
         <button class="btn sm" data-e="${esc(x.id)}">Edit</button><button class="btn sm danger" data-x="${esc(x.id)}">Delete</button></div>`;
     }).join('');
     const pw = r.pw;
-    const pwT = pw && pw.cols.length ? `<div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${pw.cols.map(c => `<th>${esc(c.h)}</th>`).join('')}</tr></thead>
+    const pwT = pw && pw.cols.length ? `<div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${pw.cols.map(c => `<th>${esc(md(c.h))}</th>`).join('')}</tr></thead>
       <tbody>${pw.students.map(s => `<tr><td class="st">${esc(s.name)}</td>${pw.cols.map(c => `<td class="${editable(c) ? 'ed' : 'ro'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(pv(s.row, c.c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
       : '<div class="card empty">No project-work columns in this sheet.</div>';
     view().innerHTML = `<div class="card"><div class="row" style="margin-bottom:6px"><h2 style="margin:0">Deadlines</h2><span class="spacer"></span><button class="btn primary sm" id="addd">+ Add deadline</button></div>
@@ -868,7 +915,7 @@ async function pageQuizzes() {
         <div style="flex:1;min-width:0"><b>Open now:</b> ${esc(open.title)}<div class="small muted">${open.done} answered so far</div></div>
         <button class="btn primary" data-res="${esc(open.quiz_id)}">Live results</button></div></div>` : '';
     const card = q => `<div class="card"><div class="row"><b style="flex:1;min-width:0">${esc(q.title)}</b><span class="pill ${QPILL[q.status]}">${esc(q.status)}</span></div>
-      <div class="small muted" style="margin:4px 0 10px">${q.unit ? esc(q.unit) + ' · ' : ''}${q.count} questions · ${q.duration_min} min${q.lesson_date ? ' · lesson ' + esc(q.lesson_date) : ''}${q.status === 'closed' || q.status === 'open' ? ' · ' + q.done + ' results' : ''}</div>
+      <div class="small muted" style="margin:4px 0 10px">${q.unit ? esc(q.unit) + ' · ' : ''}${q.count} questions · ${q.duration_min} min${q.lesson_date ? ' · lesson ' + esc(md(q.lesson_date)) : ''}${q.status === 'closed' || q.status === 'open' ? ' · ' + q.done + ' results' : ''}</div>
       <div class="row">${q.status === 'ready' || q.status === 'draft' ? `<button class="btn primary" data-live="${esc(q.quiz_id)}">▶ Live game</button><button class="btn" data-start="${esc(q.quiz_id)}">Start as test</button>` : ''}
         ${q.status === 'open' ? `<button class="btn primary" data-res="${esc(q.quiz_id)}">Live results</button>` : ''}
         ${q.status === 'closed' ? `<button class="btn" data-res="${esc(q.quiz_id)}">Results</button>` : ''}${q.live ? `<button class="btn" data-lrep="${esc(q.quiz_id)}">📋 Live report</button>` : ''}
@@ -941,7 +988,7 @@ function lvQr(el) {
 }
 function liveReportHtml(r) {
   const right = r.rows.length ? r.rows.reduce((a, x) => a + x.right, 0) / r.rows.length : 0;
-  return `<p class="small muted" style="margin-top:0">Group ${esc(r.group)}${r.date ? ' · lesson ' + esc(r.date) : ' · practice'} · ${r.rows.length} played${(g => g ? ` (${g} guest${g === 1 ? '' : 's'})` : '')(r.rows.filter(x => x.kind === 'guest').length)} · average ${right.toFixed(1)} of ${r.rows[0] ? r.rows[0].total : 0} right</p>
+  return `<p class="small muted" style="margin-top:0">Group ${esc(r.group)}${r.date ? ' · lesson ' + esc(md(r.date)) : ' · practice'} · ${r.rows.length} played${(g => g ? ` (${g} guest${g === 1 ? '' : 's'})` : '')(r.rows.filter(x => x.kind === 'guest').length)} · average ${right.toFixed(1)} of ${r.rows[0] ? r.rows[0].total : 0} right</p>
     <div style="overflow:auto"><table class="rep"><thead><tr><th>#</th><th>Name</th><th>Nickname</th><th></th><th class="n">Right</th><th class="n">Points</th><th class="n">Mark</th><th>Note</th></tr></thead><tbody>
     ${r.rows.map(x => `<tr><td>${x.rank || ''}</td><td>${esc(x.name)}</td><td>${esc(x.nick)}</td><td>${x.kind === 'guest' ? '<span class="pill warn">guest</span>' : ''}</td><td class="n"><b>${x.right}</b> / ${x.total}</td><td class="n">${(x.points || 0).toLocaleString('en-US')}</td><td class="n">${esc(x.mark || '—')}</td><td class="small muted">${esc(x.note || '')}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody played.</td></tr>'}
     </tbody></table></div>
@@ -999,12 +1046,12 @@ async function liveStartDialog(id) {
   try { [c, q] = await Promise.all([api('startCheck', id), api('quiz', id)]); } catch (e) { return fail(e); }
   const n = q.questions.filter(x => x.type === 'mc' || x.type === 'tf').length;
   const info = c => !c.date ? `<p class="small muted">No date chosen: the game is played for fun, no marks are written.</p>`
-    : !c.dateOk ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">There is no column ${esc(c.date)} in the gradebook.</p>`
-    : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(c.date)}. Their game marks will not replace it.</p>`
-    : `<p class="small muted">Marks (0–10, right answers only) go to the column <b>${esc(c.date)}</b>.</p>`;
+    : !c.dateOk ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">There is no column ${esc(md(c.date))} in the gradebook.</p>`
+    : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(md(c.date))}. Their game marks will not replace it.</p>`
+    : `<p class="small muted">Marks (0–10, right answers only) go to the column <b>${esc(md(c.date))}</b>.</p>`;
   modal(`<h3>▶ Live game · ${esc(q.title)}</h3>
     <p class="small muted" style="margin-top:0">Everyone sees the same question at the same time, on the projector and on their phones. Faster right answers get more points. ${n} of ${q.questions.length} questions are played live (multiple choice and true/false)${n < q.questions.length ? '; the others are skipped' : ''}.</p>
-    <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="ld"><option value="">— no marks —</option>${c.dates.map(d => `<option ${d === c.date ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+    <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="ld"><option value="">— no marks —</option>${c.dates.map(d => `<option value="${esc(d)}" ${d === c.date ? 'selected' : ''}>${esc(md(d))}</option>`).join('')}</select></label>
       <label class="f" style="width:160px"><span>Seconds per question</span><select id="lsec">${[10, 15, 20, 30, 45, 60].map(x => `<option ${x === 20 ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
     <div class="row"><label class="f" style="flex:1"><span>Game mode</span><select id="lmode"><option value="classic">Classic — one question at a time on the screen</option><option value="robot">🤖 Robot Run — levels, a robot chases the crew, safe zones</option><option value="coop">🚀 Class Mission — the whole group works together</option></select></label>
       <label class="f" style="width:190px" id="lminw" hidden><span>Game time</span><select id="lmin">${(() => { const rec = Math.min(20, Math.max(3, Math.round(n * 0.5))); return [...new Set([3, 5, 7, rec, 10, 12, 15, 20])].sort((a, b) => a - b).map(x => `<option value="${x}" ${x === rec ? 'selected' : ''}>${x} min${x === rec ? ' (recommended)' : ''}</option>`).join(''); })()}</select></label></div>
@@ -1571,7 +1618,7 @@ function lvRender() {
       <div class="lv-right"><div class="lv-count"><b>${act.length}</b>players joined${guests ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}</div>
       <div class="lv-chips">${act.map(p => `<button class="lv-chip ${p.guest ? 'g' : ''}" data-kick="${esc(p.uid)}" title="${esc(p.name)}${p.guest ? ' (guest)' : ''} · click to remove"><span class="av">${esc(lvAv(p.uid))}</span>${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvgo" ${act.length ? '' : 'disabled'}>Start ▶</button></div>
-      <div class="lv-center lv-dim small">${n} questions · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' min' : P.secs + ' s each'}${P.teams ? ` · ${P.teams} teams are made at random when you press Start` : ''}${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div></div></div>`;
+      <div class="lv-center lv-dim small">${n} questions · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' min' : P.secs + ' s each'}${P.teams ? ` · ${P.teams} teams are made at random when you press Start` : ''}${P.date ? ' · marks go to ' + esc(md(P.date)) : ' · no marks (practice)'}</div></div></div>`;
   } else if (st.phase === 'question') {
     const q = P.questions[st.q];
     body = `<div class="lv-prompt">${esc(q.prompt)}</div>
@@ -1616,7 +1663,7 @@ function lvRender() {
     if (P.mode === 'robot') body += rrEndHtml();
     body += `<div class="lv-note lv-fbk" id="lvfbk">${lvFbHtml()}</div>
       <div class="lv-note">${LV.saving ? 'Saving marks to the gradebook…' : LV.saveErr ? `Marks were not saved: ${esc(LV.saveErr)} <button class="lv-btn" id="lvretry" style="margin-left:10px">Try again</button>`
-        : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(P.date) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}
+        : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(md(P.date)) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}
           <button class="lv-btn" id="lvrep" style="margin-left:12px;padding:8px 16px">📋 Report</button>` : ''}</div>`;
   }
   el.innerHTML = top + `<div class="lv-main">${body}</div>`;
@@ -1683,12 +1730,12 @@ function copyDialog(id) {
 async function startDialog(id) {
   let c;
   try { c = await api('startCheck', id); } catch (e) { return fail(e); }
-  const info = c => !c.dateOk ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">There is no column ${esc(c.date || 'for today')} in the gradebook. Choose the lesson date, or marks will not be written.</p>`
-    : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(c.date)}. Their quiz marks will not replace it — you will see a warning and can choose.</p>`
-    : `<p class="small muted">Marks will go to the column <b>${esc(c.date)}</b> (all ${c.students} cells are empty).</p>`;
+  const info = c => !c.dateOk ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">There is no column ${esc(c.date ? md(c.date) : 'for today')} in the gradebook. Choose the lesson date, or marks will not be written.</p>`
+    : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(md(c.date))}. Their quiz marks will not replace it — you will see a warning and can choose.</p>`
+    : `<p class="small muted">Marks will go to the column <b>${esc(md(c.date))}</b> (all ${c.students} cells are empty).</p>`;
   modal(`<h3>Start quiz</h3>
     ${c.otherOpen.length ? `<p class="pill bad" style="display:block;padding:8px 10px;border-radius:10px">Another quiz is open (group ${esc(c.otherOpen.join(', '))}). Close it first.</p>` : ''}
-    <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="sd"><option value="">— choose —</option>${c.dates.map(d => `<option ${d === c.date ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+    <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="sd"><option value="">— choose —</option>${c.dates.map(d => `<option value="${esc(d)}" ${d === c.date ? 'selected' : ''}>${esc(md(d))}</option>`).join('')}</select></label>
       <label class="f" style="width:120px"><span>Minutes</span><input type="text" id="sm" inputmode="numeric" value="10"></label></div>
     <div id="sinfo">${info(c)}</div>
     <p class="small muted">The timer starts now for everyone. Each student has one attempt. Students see the quiz on their page; press “Notify students” after starting to send a Telegram message.</p>
@@ -1721,9 +1768,9 @@ async function quizLive(id, res) {
         <div class="stat"><b id="qleft">${isOpen ? '—' : 'closed'}</b><span>time left</span></div>
         <div class="stat"><b>${res.done}/${res.students}</b><span>finished</span></div>
         <div class="stat"><b>${res.avg == null ? '—' : res.avg}</b><span>average /10</span></div>
-        <div class="stat"><b>${esc(q.lesson_date || '—')}</b><span>${res.dateOk ? 'gradebook column' : '<span style="color:var(--bad)">no column</span>'}</span></div></div>
+        <div class="stat"><b>${esc(md(q.lesson_date) || '—')}</b><span>${res.dateOk ? 'gradebook column' : '<span style="color:var(--bad)">no column</span>'}</span></div></div>
       ${isOpen ? `<div class="row" style="margin-top:14px"><button class="btn" id="qnot">Notify students</button><button class="btn" id="qext">+2 min</button><span class="spacer"></span><button class="btn danger" id="qclose">Close now</button></div>` : ''}
-      ${!isOpen && nbCand.length && res.dateOk ? `<div class="row" style="margin-top:14px"><span class="small muted" style="flex:1">${nbCand.length} did not take it and have no mark on ${esc(q.lesson_date)}.</span><button class="btn danger" id="qnb">Mark them nb…</button></div>` : ''}</div>
+      ${!isOpen && nbCand.length && res.dateOk ? `<div class="row" style="margin-top:14px"><span class="small muted" style="flex:1">${nbCand.length} did not take it and have no mark on ${esc(md(q.lesson_date))}.</span><button class="btn danger" id="qnb">Mark them nb…</button></div>` : ''}</div>
     <div class="card"><h2>Students</h2><ul class="dlist">${res.rows.map(r => `<li><div class="nm">${esc(r.name)}${r.linked ? '' : ' <span class="small muted">(no account)</span>'}</div>
       <b style="min-width:36px;text-align:right">${r.score10 == null ? '' : r.score10}</b><div style="text-align:right">${st(r)}</div></li>`).join('')}</ul></div>
     <div class="card"><h2>Most missed</h2>${res.top.length ? res.top.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="row"><b style="flex:1;min-width:0">${x.n}. ${esc(x.prompt)}</b><span class="pill bad">${x.wrongPct}% wrong</span></div>
@@ -1735,7 +1782,7 @@ async function quizLive(id, res) {
   act('#qnot', async () => { const r = await api('notifyQuiz', id); toast(`Sent to ${r.sent} of ${r.of} linked students`); });
   act('#qext', async () => quizLive(id, await api('extendQuiz', id, 2)));
   act('#qclose', async () => { if (!confirm('Close the quiz now? Unfinished students are graded on what they saved.')) return; quizLive(id, await api('closeQuiz', id)); });
-  act('#qnb', async () => { if (!confirm('Put nb on ' + q.lesson_date + ' for:\n' + nbCand.map(r => r.name).join('\n'))) return; quizLive(id, await api('quizMarkNb', id, nbCand.map(r => r.row))); S.data = {}; toast('nb saved'); });
+  act('#qnb', async () => { if (!confirm('Put nb on ' + md(q.lesson_date) + ' for:\n' + nbCand.map(r => r.name).join('\n'))) return; quizLive(id, await api('quizMarkNb', id, nbCand.map(r => r.row))); S.data = {}; toast('nb saved'); });
   $$('[data-use]').forEach(b => b.onclick = async () => { if (!confirm('Replace the existing mark of ' + b.dataset.use + ' with the quiz mark?')) return; try { quizLive(id, await api('quizUseMark', id, b.dataset.use)); S.data = {}; toast('Saved'); } catch (e) { fail(e); } });
   if (isOpen) {
     const closes = Date.parse(q.closes_at); let n = 0;
