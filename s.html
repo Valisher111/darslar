@@ -51,6 +51,26 @@ button,input,select{font:inherit;color:inherit}
 .lvs-card{background:rgba(255,255,255,.1);border-radius:14px;padding:16px;text-align:center;font-size:18px}
 .lvs-card b{font-size:30px;display:block}
 .livecard{background:linear-gradient(135deg,#0e3b2e,#17694f)!important;color:#fff;border:0!important}
+#live .btn:not(.lvs-go){background:rgba(255,255,255,.14);color:#fff;border:0}
+.lvs-avs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.lvs-avs button{font-size:30px;line-height:1;padding:8px 0;border-radius:12px;border:2px solid transparent;background:rgba(255,255,255,.1);cursor:pointer}
+.lvs-avs button.on{border-color:#fff;background:rgba(255,255,255,.3)}
+.lvs-react{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.lvs-react button{font-size:28px;line-height:1;padding:8px 10px;border-radius:12px;border:0;background:rgba(255,255,255,.1);cursor:pointer;transition:transform .15s}
+.lvs-react button:active,.lvs-react button.sent{transform:scale(1.3)}
+.lvs-react button:disabled{opacity:.45}
+.lvs-team{display:inline-block;border-radius:99px;padding:3px 12px;font-weight:800;font-size:15px;color:#fff}
+.lvs-conf{display:grid;gap:10px}
+.lvs-conf button{border:0;border-radius:12px;padding:14px 16px;font:inherit;font-size:19px;font-weight:800;color:#0e3b2e;background:#fff;cursor:pointer;text-align:left}
+.lvs-conf button small{display:block;font-weight:600;font-size:14px;color:#4b5563}
+.lvs-mbar{position:relative;height:44px;background:rgba(0,0,0,.3);border-radius:22px;overflow:hidden;margin-top:8px}
+.lvs-mbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6d28d9,#26890c)}
+.lvs-mbar span{position:absolute;top:50%;transform:translate(-50%,-50%) rotate(45deg);font-size:28px}
+.lvs-fb{display:flex;flex-direction:column;gap:10px;text-align:left}
+.lvs-fb .row2{display:flex;gap:8px;justify-content:center}
+.lvs-fb button{font:inherit;font-size:26px;line-height:1;padding:8px 12px;border-radius:12px;border:2px solid transparent;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.lvs-fb button.on{border-color:#fde68a;background:rgba(253,230,138,.25)}
+.lvs-fb .txt{font-size:16px;padding:10px 16px}
 
 header{background:var(--head);color:#fff;padding:18px 16px 54px}
 header .in,.wrap{max-width:640px;margin:0 auto}
@@ -423,15 +443,21 @@ async function joinLive(playGid) {
   } catch (e) { SL = null; el.innerHTML = slBox(`<div class="lvs-big">Could not join</div><p class="lvs-dim" style="text-align:center">${esc(e.message || e)}</p><button class="btn block" onclick="joinLive(PLAY)">Try again</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Back</button>' : ''}`); }
 }
 async function slNewUser() { await SL.fb.auth.signOut(); await SL.fb.auth.signInAnonymously(); SL.fb.uid = SL.fb.auth.currentUser.uid; }
+const SL_AV = ['🦊', '🐼', '🐯', '🦁', '🐸', '🐵', '🐨', '🐰', '🐶', '🐱', '🐧', '🦉', '🐙', '🦄', '🐢', '🐬', '🦖', '🐝', '🦋', '🐳', '🐲', '🦜', '🐻', '🐹'];
+const SL_TEAMS = [['Red Foxes', '#e21b3c', '🦊'], ['Blue Sharks', '#1368ce', '🦈'], ['Gold Lions', '#c58a00', '🦁'], ['Green Frogs', '#26890c', '🐸'], ['Purple Owls', '#7c3aed', '🦉'], ['Orange Tigers', '#ea580c', '🐯']];
+const SL_REACT = ['👍', '😂', '😮', '🔥', '❤️', '👏', '🎉', '😢'];
 function slNick(msg) {
   const G = SL.j.guest;
+  let av = SL_AV.includes(ls.get('ds_av')) ? ls.get('ds_av') : SL_AV[Math.floor(Math.random() * SL_AV.length)];
   $('#live').innerHTML = slBox(`<div class="lvs-dim">${esc(SL.j.title)}</div>${msg ? `<p style="color:#fde68a;margin:0">${esc(msg)}</p>` : ''}
     ${G ? `<div class="lvs-card" style="text-align:left;font-size:15px">You are joining as a <b style="display:inline;font-size:inherit">guest</b>: you can play, but your result does not go to the gradebook. Students of this group: open your page from the bot to get a mark.</div>
     <h2 class="lvs-h">Your first and last name</h2><input id="lvname" maxlength="60" autocomplete="name" placeholder="e.g. Aziza Karimova" value="${esc(ls.get('ds_gname') || '')}">` : ''}
     <h2 class="lvs-h">Choose a nickname</h2>
     <input id="lvnick" maxlength="20" autocomplete="off" placeholder="e.g. Tiger" value="${esc(ls.get('ds_nick') || '')}">
     <p class="small lvs-dim" style="margin:0">Everyone sees it on the screen. Your teacher knows who you are, so choose a polite one.</p>
+    <h2 class="lvs-h">Choose your avatar</h2><div class="lvs-avs">${SL_AV.map(a => `<button type="button" data-av="${a}" class="${a === av ? 'on' : ''}">${a}</button>`).join('')}</div>
     <button class="btn block lvs-go" id="lvgo">Join</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Back</button>' : ''}`);
+  $$('[data-av]').forEach(b => b.onclick = () => { av = b.dataset.av; $$('[data-av]').forEach(x => x.classList.toggle('on', x === b)); });
   const go = async () => {
     const nick = $('#lvnick').value.trim().replace(/\s+/g, ' ').slice(0, 20);
     const gname = G ? $('#lvname').value.trim().replace(/\s+/g, ' ').slice(0, 60) : '';
@@ -439,8 +465,8 @@ function slNick(msg) {
     if (!nick) return toast('Type a nickname', true);
     $('#lvgo').disabled = true;
     try {
-      ls.set('ds_nick', nick); if (G) ls.set('ds_gname', gname);
-      const me = { nick, at: firebase.database.ServerValue.TIMESTAMP };
+      ls.set('ds_nick', nick); ls.set('ds_av', av); if (G) ls.set('ds_gname', gname);
+      const me = { nick, av, at: firebase.database.ServerValue.TIMESTAMP };
       if (G) me.guest = gname; else await SL.g.child('tickets/' + SL.fb.uid).set(SL.j.ticket);
       await SL.g.child('players/' + SL.fb.uid).set(me);
       slListen();
@@ -449,9 +475,13 @@ function slNick(msg) {
   $('#lvgo').onclick = go; $('#lvnick').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 function slListen() {
-  const uid = SL.fb.uid;
+  const uid = SL.fb.uid; SL.av = ls.get('ds_av') || '';
+  SL.g.child('players/' + uid + '/av').once('value').then(x => { if (x.val()) SL.av = x.val(); }).catch(() => {});
   SL.g.child('state').on('value', x => { SL.state = x.val(); slRender(); });
-  SL.g.child('meta/n').on('value', x => { SL.n = x.val() || 0; });
+  SL.g.child('meta').on('value', x => { const first = !SL.meta; SL.meta = x.val() || {}; SL.n = SL.meta.n || 0; if (first && SL.state && SL.state.phase === 'lobby') slRender(); });
+  SL.g.child('teams/' + uid).on('value', x => { const v = x.val(); if (v !== SL.team) { SL.team = v; const t = $('#slteam'); if (t) t.innerHTML = slTeam(); } });
+  SL.g.child('tboard').on('value', x => { SL.tb = x.val(); });
+  SL.g.child('mission').on('value', x => { SL.mission = x.val(); });
   SL.g.child('scores/' + uid).on('value', x => { SL.my = x.val() || {}; if (!SL.state || SL.state.phase !== 'race') slRender(); });
   SL.g.child('prog/' + uid).on('value', x => { SL.prog = x.val() || {}; slRaceStatus(); });
   SL.g.child('verdict/' + uid).on('value', x => { SL.verd = x.val() || {}; slRaceStatus(); });
@@ -462,20 +492,68 @@ function slListen() {
 }
 function slOff() {
   if (!SL) return; const uid = SL.fb.uid;
-  ['state', 'meta/n', 'scores/' + uid, 'kicked/' + uid, 'prog/' + uid, 'verdict/' + uid].forEach(k => SL.g.child(k).off());
+  ['state', 'meta', 'scores/' + uid, 'kicked/' + uid, 'prog/' + uid, 'verdict/' + uid, 'teams/' + uid, 'tboard', 'mission'].forEach(k => SL.g.child(k).off());
   if (SL.revRef) SL.revRef.off(); clearInterval(SL.tick);
 }
 function leaveLive() {
   if (!KEY) { slOff(); SL = null; $('#live').innerHTML = slBox('<div class="lvs-big">Thanks for playing!</div><p class="lvs-dim" style="text-align:center">You can close this page.</p>'); return; }
   slOff(); SL = null; $('#live').classList.add('hidden'); $('#live').innerHTML = ''; $('#main').classList.remove('hidden'); load(true); startPing(); }
-const slRank = () => SL.my && SL.my.rank ? `<div class="lvs-card"><span class="lvs-dim">${esc(SL.my.nick || '')}</span><b>${ord(SL.my.rank)} place</b>${(SL.my.score || 0).toLocaleString('en-US')} points</div>` : '';
+const slCoop = () => SL.meta && SL.meta.mode === 'coop';
+function slMission() {
+  const m = SL.mission; if (!m) return '';
+  const pct = Math.min(100, Math.round(m.fuel / Math.max(1, m.goal) * 100));
+  return `<div class="lvs-card" style="font-size:16px">🚀 Class Mission: <b style="display:inline;font-size:inherit">${m.fuel} / ${m.goal}</b> right answers ${m.fuel >= m.goal ? '✅' : ''}
+    <div class="lvs-mbar"><i style="width:${pct}%"></i><span style="left:calc(22px + (100% - 44px) * ${pct / 100})">🚀</span></div></div>`;
+}
+function slTeam() {
+  const t = SL_TEAMS[SL.team]; if (!t || !(SL.meta && SL.meta.teams)) return '';
+  const r = (SL.tb || []).find(x => x && x.k === SL.team);
+  return `<span class="lvs-team" style="background:${t[1]}">${t[2]} ${esc(t[0])}${r && r.rank ? ' · ' + ord(r.rank) : ''}</span>`;
+}
+const slRank = () => slCoop() ? slMission() : SL.my && SL.my.rank ? `<div class="lvs-card"><span class="lvs-dim">${esc(((SL.av || '') + ' ' + (SL.my.nick || '')).trim())}</span><b>${ord(SL.my.rank)} place</b>${(SL.my.score || 0).toLocaleString('en-US')} points${slTeam() ? '<div style="margin-top:8px">' + slTeam() + '</div>' : ''}</div>` : '';
+function slReact() {
+  return `<div class="lvs-react">${SL_REACT.map(e => `<button type="button" data-re="${e}">${e}</button>`).join('')}</div>`;
+}
+function slReactBind() {
+  $$('[data-re]').forEach(b => b.onclick = () => {
+    if (!SL || Date.now() - (SL.reAt || 0) < 1700) return;
+    SL.reAt = Date.now(); b.classList.add('sent'); $$('[data-re]').forEach(x => { x.disabled = true; });
+    setTimeout(() => { b.classList.remove('sent'); $$('[data-re]').forEach(x => { x.disabled = false; }); }, 1700);
+    SL.g.child('react/' + SL.fb.uid).set({ e: b.dataset.re, t: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+  });
+}
+function slFeedback() {
+  const f = SL.fbf || (SL.fbf = {});
+  if (SL.fbSent) return '<div class="lvs-card">Thanks for your feedback! 💚</div>';
+  return `<div class="lvs-card lvs-fb"><span>How did you like this game?</span>
+    <div class="row2">${[1, 2, 3, 4, 5].map(k => `<button type="button" data-fr="${k}" class="${f.r >= k ? 'on' : ''}">${f.r >= k ? '★' : '☆'}</button>`).join('')}</div>
+    <span>Did you learn something?</span><div class="row2"><button type="button" class="txt ${f.l === true ? 'on' : ''}" data-fl="1">👍 Yes</button><button type="button" class="txt ${f.l === false ? 'on' : ''}" data-fl="0">👎 No</button></div>
+    <span>How do you feel?</span><div class="row2">${['😃', '😐', '😞'].map((e, k) => `<button type="button" data-ff="${k}" class="${f.f === k ? 'on' : ''}">${e}</button>`).join('')}</div>
+    <button type="button" class="btn block lvs-go" id="slfbgo" ${f.r ? '' : 'disabled'}>Send</button></div>`;
+}
+function slFeedbackBind() {
+  const f = SL.fbf || (SL.fbf = {}), re = () => { const b = $('#slfb'); if (b) { b.innerHTML = slFeedback(); slFeedbackBind(); } };
+  $$('[data-fr]').forEach(b => b.onclick = () => { f.r = +b.dataset.fr; re(); });
+  $$('[data-fl]').forEach(b => b.onclick = () => { f.l = b.dataset.fl === '1'; re(); });
+  $$('[data-ff]').forEach(b => b.onclick = () => { f.f = +b.dataset.ff; re(); });
+  const go = $('#slfbgo'); if (go) go.onclick = async () => {
+    go.disabled = true; const v = { r: f.r }; if (f.l != null) v.l = f.l; if (f.f != null) v.f = f.f;
+    try { await SL.g.child('fb/' + SL.fb.uid).set(v); SL.fbSent = true; re(); } catch (e) { go.disabled = false; toast('Could not send. The game may be closed.', true); }
+  };
+}
 async function slRender() {
   if (!SL) return;
   const st = SL.state, el = $('#live'), my = ++SL.rt;
   clearInterval(SL.tick);
   if (st === undefined) return;
   if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`); return; }
-  if (st.phase === 'lobby') { el.innerHTML = slBox(`<div class="lvs-big">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>`); return; }
+  if (st.phase === 'lobby') {
+    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: answer as fast as you can, the robot is coming!' : md.mode === 'coop' ? '🚀 Class Mission: work together — every right answer helps the whole group.'
+      : md.scoring === 'confidence' ? '😎 Confidence: after each answer, say how sure you are. Sure and right = more points, sure and wrong = minus points.' : md.scoring === 'accuracy' ? '🎯 Accuracy: only right answers count, take your time.' : '⚡ Right and fast answers get more points.';
+    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b><span style="font-size:44px">${esc(SL.av || '')}</span><br>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>
+      <div class="lvs-card" style="font-size:16px">${how}${md.teams ? `<br>👥 You will play in a team (${md.teams} teams).` : ''}</div>${slReact()}`);
+    slReactBind(); return;
+  }
   if (st.phase === 'race') {
     if (!SL.rq) {
       const [qs, mine] = await Promise.all([SL.g.child('questions').once('value'), SL.g.child('race/' + SL.fb.uid).once('value')]);
@@ -489,18 +567,28 @@ async function slRender() {
   }
   if (st.phase === 'question') {
     if (SL.qi !== st.q) {
-      SL.qi = st.q; SL.qd = null; SL.sent = null; SL.late = false;
+      SL.qi = st.q; SL.qd = null; SL.sent = null; SL.late = false; SL.pick = null;
       const [qd, sent] = await Promise.all([SL.g.child('questions/' + st.q).once('value'), SL.g.child(`answers/${st.q}/${SL.fb.uid}`).once('value')]);
       if (my !== SL.rt) return;
       SL.qd = qd.val(); SL.sent = sent.val();
     }
     const q = SL.qd; if (!q) return;
-    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1} of ${q.total}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
+    const conf = SL.meta && SL.meta.scoring === 'confidence' && SL.meta.mode === 'classic', pk = SL.sent ? SL.sent.a : SL.pick;
+    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1} of ${q.total}</span><span id="slteam">${slTeam()}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
       <div class="lvs-q">${esc(q.prompt)}</div>
-      <div class="lvs-opts">${q.options.map((o, k) => `<button class="lvs-opt ${SL.sent ? (SL.sent.a === k ? 'pick' : 'dim') : ''}" data-k="${k}" style="background:${LCOL[k]}" ${SL.sent || SL.late ? 'disabled' : ''}><span class="sh">${LSH[k]}</span><span>${esc(o)}</span></button>`).join('')}</div>
-      ${SL.sent ? '<div class="lvs-card">Answer sent ✓<br><span class="lvs-dim">Wait for the others.</span></div>' : SL.late ? '<div class="lvs-card">Too late for this question.</div>' : ''}`);
-    $$('[data-k]', el).forEach(b => b.onclick = () => slAnswer(+b.dataset.k));
-    const upd = () => { const t = $('#slt'); if (!t) return; t.textContent = Math.max(0, Math.ceil((st.startedAt + st.dur * 1000 - SL.fb.now()) / 1000)); };
+      ${conf && SL.pick != null && !SL.sent && !SL.late ? `<div class="lvs-opts"><button class="lvs-opt pick" style="background:${LCOL[pk]}" disabled><span class="sh">${LSH[pk]}</span><span>${esc(q.options[pk])}</span></button></div>
+        <h2 class="lvs-h" style="text-align:center">How sure are you?</h2>
+        <div class="lvs-conf"><button data-c="1">🙂 Not sure ×1<small>right +500 · wrong 0</small></button><button data-c="2">😊 Sure ×2<small>right +1000 · wrong −500</small></button><button data-c="3">😎 Very sure ×3<small>right +1500 · wrong −1000</small></button></div>
+        <button class="btn block" id="slback">← Change my answer</button>`
+      : `<div class="lvs-opts">${q.options.map((o, k) => `<button class="lvs-opt ${SL.sent ? (SL.sent.a === k ? 'pick' : 'dim') : ''}" data-k="${k}" style="background:${LCOL[k]}" ${SL.sent || SL.late ? 'disabled' : ''}><span class="sh">${LSH[k]}</span><span>${esc(o)}</span></button>`).join('')}</div>
+      ${SL.sent ? `<div class="lvs-card">Answer sent ✓${SL.sent.c ? ` · ${['', '🙂 not sure', '😊 sure', '😎 very sure'][SL.sent.c]}` : ''}<br><span class="lvs-dim">Wait for the others.</span></div>` : SL.late ? '<div class="lvs-card">Too late for this question.</div>' : ''}`}`);
+    $$('[data-k]', el).forEach(b => b.onclick = () => { if (conf) { SL.pick = +b.dataset.k; slRender(); } else slAnswer(+b.dataset.k); });
+    $$('[data-c]', el).forEach(b => b.onclick = () => slAnswer(SL.pick, +b.dataset.c));
+    const bk = $('#slback'); if (bk) bk.onclick = () => { SL.pick = null; slRender(); };
+    const upd = () => {
+      const t = $('#slt'); if (!t) return; const left = (st.startedAt + st.dur * 1000 - SL.fb.now()) / 1000; t.textContent = Math.max(0, Math.ceil(left));
+      if (conf && SL.pick != null && !SL.sent && left < 1.2) slAnswer(SL.pick, 1);   // no time to choose: count it as "not sure"
+    };
     upd(); SL.tick = setInterval(upd, 250);
     return;
   }
@@ -517,15 +605,21 @@ async function slRender() {
     const mine = (SL.qi === st.q && SL.sent) || (SL.my && SL.my.answered);
     const ok = !!(SL.my && SL.my.lastOk);
     const right = q ? `${LSH[rv.correct]} ${esc(q.options[rv.correct])}` : '';
-    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1}${q ? ' of ' + q.total : ''}</span></div>
-      ${!mine ? `<div class="lvs-res na">No answer<small>Right answer: ${right}</small></div>` : ok ? `<div class="lvs-res ok">✓ Correct<small>+${(SL.my.last || 0).toLocaleString('en-US')} points</small></div>` : `<div class="lvs-res no">✗ Wrong<small>Right answer: ${right}</small></div>`}
-      ${slRank()}${st.phase === 'board' ? '<p class="lvs-dim" style="text-align:center">Look at the screen for the top 5.</p>' : ''}`);
+    const last = (SL.my && SL.my.last) || 0, coop = slCoop();
+    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1}${q ? ' of ' + q.total : ''}</span><span id="slteam">${slTeam()}</span></div>
+      ${!mine ? `<div class="lvs-res na">No answer<small>Right answer: ${right}</small></div>` : ok ? `<div class="lvs-res ok">✓ Correct<small>${coop ? '+1 fuel for the class rocket 🚀' : '+' + last.toLocaleString('en-US') + ' points'}</small></div>` : `<div class="lvs-res no">✗ Wrong<small>${last < 0 ? last.toLocaleString('en-US') + ' points · ' : ''}Right answer: ${right}</small></div>`}
+      ${slRank()}${st.phase === 'board' ? `<p class="lvs-dim" style="text-align:center">${coop ? 'Look at the screen: how far is our rocket?' : SL.meta && SL.meta.teams ? 'Look at the screen for the teams.' : 'Look at the screen for the top 5.'}</p>` : ''}${slReact()}`);
+    slReactBind();
     return;
   }
   if (st.phase === 'end') {
-    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">Game over!</div>${slRank()}
-      ${SL.my && SL.my.rank ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. ${SL.j.guest ? 'You played as a guest, so there is no mark in the gradebook.' : 'Your mark goes to the gradebook.'}</div>` : ''}
+    if (SL.fbSent == null) { SL.fbSent = false; SL.g.child('fb/' + SL.fb.uid).once('value').then(x => { if (x.val() && SL) { SL.fbSent = true; slRender(); } }).catch(() => {}); }
+    const m = SL.mission, coop = slCoop();
+    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:6vh">${coop ? (m && m.fuel >= m.goal ? '🌕 Mission complete!' : '🚀 So close!') : 'Game over!'}</div>${slRank()}
+      ${SL.my && (SL.my.rank || coop) ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. ${SL.j.guest ? 'You played as a guest, so there is no mark in the gradebook.' : 'Your mark goes to the gradebook.'}</div>` : ''}
+      <div id="slfb">${slFeedback()}</div>${slReact()}
       <button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`);
+    slFeedbackBind(); slReactBind();
   }
 }
 /* ---- Robot Run on the phone: all questions at your own speed ---- */
@@ -561,13 +655,14 @@ function slRaceStatus() {
   const b = $('#slrs'); if (!b || !SL) return;
   const p = SL.prog || {}, v = SL.verd || {};
   const marks = Object.keys(v).filter(k => v[k] != null).map(k => v[k] ? '<span style="color:#86efac">✓</span>' : '<span style="color:#fca5a5">✗</span>').join(' ');
-  b.innerHTML = `<div class="lvs-card" style="padding:10px 12px;font-size:16px;${p.caught ? 'background:rgba(226,27,60,.55)' : ''}">${p.caught ? '🤖 The robot caught you! Answer right to escape!' : p.rank ? `🏃 ${ord(p.rank)} place · ${p.right || 0} right` : '🏃 Run! Every right answer is one step.'}
+  b.innerHTML = `<div class="lvs-card" style="padding:10px 12px;font-size:16px;${p.caught ? 'background:rgba(226,27,60,.55)' : ''}">${slTeam() ? slTeam() + ' ' : ''}${p.caught ? '🤖 The robot caught you! Answer right to escape!' : p.rank ? `🏃 ${ord(p.rank)} place · ${p.right || 0} right` : '🏃 Run! Every right answer is one step.'}
     ${marks ? `<div style="margin-top:6px;letter-spacing:2px;font-size:18px">${marks}</div>` : ''}</div>`;
 }
-async function slAnswer(k) {
-  if (!SL || SL.sent || !SL.state || SL.state.phase !== 'question') return;
-  const qi = SL.state.q; SL.sent = { a: k }; slRender();
-  try { await SL.g.child(`answers/${qi}/${SL.fb.uid}`).set({ a: k, t: firebase.database.ServerValue.TIMESTAMP }); }
+async function slAnswer(k, c) {
+  if (!SL || SL.sent || k == null || !SL.state || SL.state.phase !== 'question') return;
+  const qi = SL.state.q, v = { a: k, t: firebase.database.ServerValue.TIMESTAMP }; if (c) v.c = c;
+  SL.sent = { a: k, c }; slRender();
+  try { await SL.g.child(`answers/${qi}/${SL.fb.uid}`).set(v); }
   catch (e) { if (SL && SL.qi === qi) { SL.sent = null; SL.late = true; slRender(); } }
 }
 
