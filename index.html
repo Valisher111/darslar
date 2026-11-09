@@ -220,6 +220,32 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 #lv .lv-robot{position:absolute;top:0;bottom:0;width:4px;background:rgba(226,27,60,.9);box-shadow:0 0 22px #e21b3c;transition:left .3s linear;pointer-events:none;z-index:2}
 #lv .lv-robot span{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:40px;filter:drop-shadow(0 0 6px #e21b3c)}
 #lv .lv-finish{position:absolute;top:0;bottom:0;right:156px;border-left:4px dotted rgba(255,255,255,.55);pointer-events:none}
+#lv .lv-chip .av{margin-right:8px}
+#lv .rl .rn .td,#lv .lv-tdot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#lv .lv-row .av{font-size:1.1em}
+#lv .lv-row.team{color:#fff;border-left:0}
+#lv .lv-row .meta{font-size:.6em;font-weight:600;opacity:.85}
+#lv .lv-tchips{display:flex;gap:8px;flex-wrap:wrap}
+#lv .lv-tchips span{border-radius:99px;padding:4px 12px;font-weight:800;font-size:15px}
+.lv-float{position:fixed;bottom:30px;font-size:48px;z-index:400;pointer-events:none;animation:lvfloat 3.2s ease-out forwards}
+@keyframes lvfloat{0%{transform:translateY(0) scale(.5);opacity:0}12%{opacity:1;transform:translateY(-30px) scale(1.15)}100%{transform:translateY(-62vh) scale(1);opacity:0}}
+#lv .lv-pod .bar{transform-origin:bottom;animation:lvgrow .9s cubic-bezier(.2,1.5,.4,1) both;animation-delay:calc(var(--d) - var(--el,0s))}
+#lv .lv-pod .nm,#lv .lv-pod .sub{animation:lvpop .5s both;animation-delay:calc(var(--d) + .75s - var(--el,0s))}
+#lv .lv-pod .av{font-size:clamp(34px,min(4.5vw,7vh),68px);line-height:1}
+#lv .lv-pod .col{gap:6px}
+@keyframes lvgrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes lvpop{from{opacity:0;transform:translateY(24px) scale(.7)}to{opacity:1;transform:none}}
+.lv-conf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:301}
+.lv-conf i{position:absolute;top:-24px;width:10px;height:16px;border-radius:2px;animation:lvconf 3.4s linear both;animation-delay:calc(var(--d) - var(--el,0s))}
+@keyframes lvconf{from{transform:translateY(0) rotate(0)}to{transform:translateY(112vh) rotate(800deg)}}
+#lv .lv-best{text-align:center;font-size:20px;animation:lvpop .5s both;animation-delay:calc(4.4s - var(--el,0s))}
+#lv .lv-mission{max-width:980px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+#lv .lv-mtrack{position:relative;height:70px;background:rgba(0,0,0,.28);border-radius:35px;overflow:hidden}
+#lv .lv-mfill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6d28d9,#1368ce,#26890c);transition:width 1.2s ease}
+#lv .lv-mrocket{position:absolute;top:50%;transform:translate(-50%,-50%) rotate(45deg);font-size:46px;transition:left 1.2s ease}
+#lv .lv-mgoal{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:42px}
+#lv .lv-mtxt{display:flex;justify-content:space-between;gap:12px;font-size:22px;font-weight:700;flex-wrap:wrap}
+#lv .lv-fbk{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 .rep{width:100%;border-collapse:collapse;font-size:14px}.rep th,.rep td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.rep th{font-size:12px;color:var(--muted);font-weight:600}.rep td.n{text-align:right;white-space:nowrap}
 .modal.wide{max-width:900px}
 @media (max-width:800px){#lv .lv-lobby{grid-template-columns:1fr}}
@@ -884,7 +910,35 @@ function liveReportHtml(r) {
     <div style="overflow:auto"><table class="rep"><thead><tr><th>#</th><th>Name</th><th>Nickname</th><th></th><th class="n">Right</th><th class="n">Points</th><th class="n">Mark</th><th>Note</th></tr></thead><tbody>
     ${r.rows.map(x => `<tr><td>${x.rank || ''}</td><td>${esc(x.name)}</td><td>${esc(x.nick)}</td><td>${x.kind === 'guest' ? '<span class="pill warn">guest</span>' : ''}</td><td class="n"><b>${x.right}</b> / ${x.total}</td><td class="n">${(x.points || 0).toLocaleString('en-US')}</td><td class="n">${esc(x.mark || '—')}</td><td class="small muted">${esc(x.note || '')}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nobody played.</td></tr>'}
     </tbody></table></div>
-    ${r.missing.length ? `<p class="small" style="margin-bottom:0"><b>Did not join (${r.missing.length}):</b> ${r.missing.map(esc).join(', ')}</p>` : ''}`;
+    ${r.missing.length ? `<p class="small" style="margin-bottom:0"><b>Did not join (${r.missing.length}):</b> ${r.missing.map(esc).join(', ')}</p>` : ''}
+    ${liveStatsHtml(r)}`;
+}
+/* Kahoot-style insights: difficult questions (<35% right), players who need help (<35% right), every question, teams, feedback */
+function liveStatsHtml(r) {
+  const s = r.stats, f = r.feedback, out = [], pc = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const help = r.rows.filter(x => x.total && x.right / x.total < 0.35);
+  if (s && s.qstats && s.qstats.length) {
+    const qs = s.qstats.map((q, i) => Object.assign({ i }, q, { p: pc(q.right, q.answered || q.players) }));
+    const hard = qs.filter(q => q.p < 35);
+    const modeName = { classic: 'Classic', robot: 'Robot Run', coop: 'Class Mission (co-op)' }[s.mode] || 'Classic';
+    const scName = { speed: 'speed + accuracy', accuracy: 'accuracy only', confidence: 'confidence' }[s.scoring] || '';
+    out.push(`<p class="small muted" style="margin:14px 0 6px">Mode: <b>${esc(modeName)}</b>${s.mode !== 'robot' && scName ? ' · points: ' + esc(scName) : ''}${s.mission ? ` · mission: ${s.mission.fuel} of ${s.mission.goal} ${s.mission.fuel >= s.mission.goal ? '✅ completed' : '— not reached'}` : ''}</p>`);
+    out.push(`<div class="row" style="gap:10px;margin:6px 0 10px"><span class="pill ${hard.length ? 'bad' : 'ok'}">Difficult questions: ${hard.length}</span><span class="pill ${help.length ? 'warn' : 'ok'}">Need help: ${help.length}</span></div>`);
+    if (hard.length) out.push(`<p class="small" style="margin:4px 0"><b>Difficult questions</b> (fewer than 35% right) — revise these in class: ${hard.map(q => `<br>Q${q.i + 1}. ${esc(q.prompt)} <span class="muted">— ${q.p}% right; right answer: ${esc((q.options || [])[q.correct] || '')}</span>`).join('')}</p>`);
+    out.push(`<div style="overflow:auto;margin-top:8px"><table class="rep"><thead><tr><th>#</th><th>Question</th><th class="n">Right</th><th>Most common wrong answer</th></tr></thead><tbody>${qs.map(q => {
+      let w = -1; (q.counts || []).forEach((c, k) => { if (k !== q.correct && c > 0 && (w < 0 || c > q.counts[w])) w = k; });
+      const col = q.p < 35 ? '#e21b3c' : q.p < 70 ? '#d89e00' : '#26890c';
+      return `<tr><td>${q.i + 1}</td><td>${esc(q.prompt)}</td><td class="n"><span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:#e5e7eb;vertical-align:middle;margin-right:6px"><span style="display:block;height:100%;width:${q.p}%;background:${col};border-radius:4px"></span></span><b>${q.p}%</b> <span class="muted">(${q.right}/${q.answered || 0})</span></td><td class="small">${w >= 0 ? esc(q.options[w]) + ` <span class="muted">(${q.counts[w]})</span>` : '<span class="muted">—</span>'}</td></tr>`;
+    }).join('')}</tbody></table></div>`);
+    if (s.teams && s.teams.length) out.push(`<p class="small" style="margin:10px 0 0"><b>Teams:</b> ${s.teams.map(t => `${t.rank}. ${esc(t.name)} — ${Number(t.score || 0).toLocaleString('en-US')} <span class="muted">(${(t.members || []).map(esc).join(', ')})</span>`).join(' · ')}</p>`);
+  }
+  if (help.length) out.push(`<p class="small" style="margin:10px 0 0"><b>Need help</b> (fewer than 35% right): ${help.map(x => esc(x.name) + ` <span class="muted">(${x.right}/${x.total})</span>`).join(', ')}</p>`);
+  if (f && f.length) {
+    const avg = f.reduce((a, x) => a + (x.r || 0), 0) / f.length, ln = f.filter(x => x.l != null), yes = ln.filter(x => x.l).length;
+    const fe = [0, 1, 2].map(k => f.filter(x => x.f === k).length);
+    out.push(`<p class="small" style="margin:10px 0 0"><b>Feedback (${f.length}):</b> ★ ${avg.toFixed(1)} of 5${ln.length ? ` · learned something: ${pc(yes, ln.length)}%` : ''} · 😃 ${fe[0]} 😐 ${fe[1]} 😞 ${fe[2]}</p>`);
+  }
+  return out.join('');
 }
 async function showLiveReport(id) {
   let r; try { r = await api('liveReport', id); } catch (e) { return fail(e); }
@@ -917,19 +971,31 @@ async function liveStartDialog(id) {
     <p class="small muted" style="margin-top:0">Everyone sees the same question at the same time, on the projector and on their phones. Faster right answers get more points. ${n} of ${q.questions.length} questions are played live (multiple choice and true/false)${n < q.questions.length ? '; the others are skipped' : ''}.</p>
     <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="ld"><option value="">— no marks —</option>${c.dates.map(d => `<option ${d === c.date ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
       <label class="f" style="width:160px"><span>Seconds per question</span><select id="lsec">${[10, 15, 20, 30, 45, 60].map(x => `<option ${x === 20 ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
-    <div class="row"><label class="f" style="flex:1"><span>Game mode</span><select id="lmode"><option value="classic">Classic — one question at a time on the screen</option><option value="robot">🤖 Robot Run — race on phones, a robot chases them</option></select></label>
+    <div class="row"><label class="f" style="flex:1"><span>Game mode</span><select id="lmode"><option value="classic">Classic — one question at a time on the screen</option><option value="robot">🤖 Robot Run — race on phones, a robot chases them</option><option value="coop">🚀 Class Mission — the whole group works together</option></select></label>
       <label class="f" style="width:160px" id="lminw" hidden><span>Race minutes</span><input type="text" id="lmin" inputmode="numeric" value="${Math.max(2, Math.ceil(n * 20 / 60))}"></label></div>
-    <p class="small muted" id="lmodeinfo" hidden>Robot Run: every student answers all questions on the phone at their own speed. Each right answer moves them one step forward; the robot runs at a steady speed and catches anyone who is too slow. The screen shows everyone's lane and speed.</p>
+    <div class="row"><label class="f" style="flex:1" id="lscw"><span>Points</span><select id="lsc"><option value="speed">Classic — right and fast = more points</option><option value="accuracy">Accuracy — only right answers count, no speed</option><option value="confidence">Confidence — students bet how sure they are</option></select></label>
+      <label class="f" style="width:160px" id="ltmw"><span>Teams</span><select id="ltm"><option value="0">No teams</option>${[2, 3, 4, 5, 6].map(x => `<option value="${x}">${x} teams</option>`).join('')}</select></label></div>
+    <p class="small muted" id="lmodeinfo"></p>
     <div id="linfo">${info(c)}</div>
     <p class="small muted">Open this on the projector. Students open their page from the bot and press <b>Join live game</b>.</p>
     <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="lgo" ${n ? '' : 'disabled'}>Open the game</button></div>`, m => {
-    $('#lmode', m).onchange = e => { const r = e.target.value === 'robot'; $('#lminw', m).hidden = !r; $('#lmodeinfo', m).hidden = !r; };
+    const minfo = () => {
+      const md = $('#lmode', m).value, sc = $('#lsc', m).value, tm = +$('#ltm', m).value;
+      $('#lminw', m).hidden = md !== 'robot'; $('#lscw', m).hidden = md !== 'classic'; $('#ltmw', m).hidden = md === 'coop';
+      $('#lmodeinfo', m).textContent = (md === 'robot' ? 'Robot Run: every student answers all questions on the phone at their own speed. Each right answer moves them one step forward; the robot runs at a steady speed and catches anyone who is too slow. The screen shows everyone\'s lane and speed.'
+        : md === 'coop' ? 'Class Mission: nobody competes. Every right answer gives fuel to the class rocket; the group must reach the Moon (70% right answers) together. No ranking on the screen — good for weak groups and revision.'
+        : sc === 'accuracy' ? 'Accuracy: 1000 points for every right answer, speed does not matter. Students can think calmly.'
+        : sc === 'confidence' ? 'Confidence: after choosing an answer, students say how sure they are. Not sure ×1 (wrong: 0), Sure ×2 (wrong: −500), Very sure ×3 (wrong: −1000).'
+        : 'Classic: right and fast answers get more points (500–1000).') + (md !== 'coop' && tm ? ` Teams: the players are split into ${tm} teams at random when you press Start; a team's score is the average of its players.` : '') + ' Marks (0–10) always come from right answers only.';
+    };
+    ['#lmode', '#lsc', '#ltm'].forEach(s => { $(s, m).onchange = minfo; }); minfo();
     $('#ld', m).onchange = async e => { try { const c2 = e.target.value ? await api('startCheck', id, e.target.value) : { date: '' }; $('#linfo', m).innerHTML = info(c2); } catch (er) { fail(er); } };
     $('#lgo', m).onclick = async () => {
       $('#lgo', m).disabled = true;
       try {
         const P = await api('liveOpen', id, $('#ld', m).value, $('#lsec', m).value);
         P.mode = $('#lmode', m).value; P.minutes = Math.min(60, Math.max(1, Number($('#lmin', m).value) || 5));
+        P.scoring = P.mode === 'classic' ? $('#lsc', m).value : 'accuracy'; P.teams = P.mode === 'coop' ? 0 : +$('#ltm', m).value || 0;
         closeModal(); openLiveHost(P);
       }
       catch (e) { $('#lgo', m).disabled = false; fail(e); }
@@ -992,8 +1058,13 @@ function lvmPlay(mode) {
   const song = LV_SONGS[mode], sp = 60 / song.bpm / 4; LVM.step = 0; LVM.next = c.currentTime + 0.08;
   LVM.timer = setInterval(() => { while (LVM.next < c.currentTime + 0.15) { song.play(LVM.next, LVM.step, sp); LVM.next += sp; LVM.step++; } }, 40);
 }
-function lvmSting(kind) {
-  if (!LVM.on) return; const c = lvmCtx(); if (!c) return; const t = c.currentTime + 0.03;
+function lvmSting(kind, delay) {
+  if (!LVM.on) return; const c = lvmCtx(); if (!c) return; const t = c.currentTime + 0.03 + (delay || 0);
+  if (kind === 'podium') {   // drum roll while 3rd and 2nd places rise, a ding for each, then the fanfare for the winner
+    for (let x = 0; x < 3.1; x += 0.055) lvmNoise(t + x, 0.05, 0.03 + x * 0.02);
+    lvmTone(t + 0.75, mtof(72), 0.5, 'triangle', 0.12); lvmTone(t + 1.95, mtof(76), 0.5, 'triangle', 0.14); lvmKick(t + 3.2, 0.6);
+    return lvmSting('end', 3.2);
+  }
   const seq = kind === 'end' ? [60, 64, 67, 72, 76, 79, 84] : [67, 72, 76, 79], gap = kind === 'end' ? 0.14 : 0.09;
   seq.forEach((n, i) => lvmTone(t + i * gap, mtof(n), kind === 'end' ? 0.7 : 0.35, 'square', 0.08));
   if (kind === 'end') [60, 64, 67, 72].forEach(n => lvmTone(t + seq.length * gap, mtof(n), 1.6, 'triangle', 0.08));
@@ -1001,7 +1072,7 @@ function lvmSting(kind) {
 function lvmTick(left) { if (!LVM.on || !LVM.ctx || LVM.ctx.state !== 'running') return; lvmTone(LVM.ctx.currentTime + 0.01, left <= 3 ? 1320 : 880, 0.09, 'square', 0.07); }
 function lvMusicFor(st) {
   const ph = st.phase || 'lobby';
-  if (ph === 'reveal' || ph === 'end') { lvmPlay(null); const k = ph + ':' + st.q + ':' + (ph === 'end' || LV.rev[st.q] ? 1 : 0); if (LV.sting !== k && (ph === 'end' || LV.rev[st.q])) { LV.sting = k; lvmSting(ph === 'end' ? 'end' : 'reveal'); } return; }
+  if (ph === 'reveal' || ph === 'end') { lvmPlay(null); const k = ph + ':' + st.q + ':' + (ph === 'end' || LV.rev[st.q] ? 1 : 0); if (LV.sting !== k && (ph === 'end' || LV.rev[st.q])) { LV.sting = k; lvmSting(ph === 'end' ? (LV.P.mode === 'coop' || (LV.endAt && Date.now() - LV.endAt > 4000) ? 'end' : 'podium') : 'reveal'); } return; }
   lvmPlay(ph === 'question' || ph === 'race' ? 'question' : 'lobby');
 }
 /* ---- autoplay: after the answer and the top 5 the game moves on by itself ---- */
@@ -1035,13 +1106,17 @@ async function openLiveHost(P) {
     const g = fb.db.ref('games/' + P.gid);
     const h = (await g.child('host').once('value')).val();
     if (h && h !== fb.uid) throw new Error('This game is controlled from another browser. Open it there, or close it on the Quizzes page and start again.');
-    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs, mode: P.mode || 'classic', minutes: P.minutes || 0 }, state: { phase: 'lobby' } }); }
-    else { const meta = (await g.child('meta').once('value')).val() || {}; P.mode = meta.mode || 'classic'; P.minutes = meta.minutes || 0; }
+    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs, mode: P.mode || 'classic', minutes: P.minutes || 0, scoring: P.scoring || 'speed', teams: P.teams || 0 }, state: { phase: 'lobby' } }); }
+    else { const meta = (await g.child('meta').once('value')).val() || {}; P.mode = meta.mode || 'classic'; P.minutes = meta.minutes || 0; P.scoring = meta.scoring || 'speed'; P.teams = meta.teams || 0; }
     lvmCtx();
-    LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
-      byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
+    LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', reactOn: lsGet('lv_react', 'on') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
+      teams: {}, fbk: {}, mission: null, byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
     const qm = (await g.child('questions').once('value')).val() || {}; Object.keys(qm).forEach(k => { if (qm[k]) LV.qmeta[k] = qm[k]; });
-    g.child('players').on('value', x => { LV.players = x.val() || {}; lvCheckPlayers(); lvRender(); });
+    LV.teams = (await g.child('teams').once('value')).val() || {}; LV.mission = (await g.child('mission').once('value')).val();
+    g.child('players').on('value', x => { LV.players = x.val() || {}; lvCheckPlayers(); lvTeamFix(); lvRender(); });
+    const onReact = x => { const v = x.val(); if (v && LV && LV.reactOn && v.t > LV.fb.now() - 6000 && LV_REACT.includes(v.e)) lvFloat(v.e); };
+    g.child('react').on('child_added', onReact); g.child('react').on('child_changed', onReact);
+    g.child('fb').on('value', x => { LV.fbk = x.val() || {}; if (LV.state.phase === 'end') { lvFbSend(); const n = $('#lvfbk'); if (n) n.innerHTML = lvFbHtml(); } });
     g.child('tickets').on('value', x => { LV.tickets = x.val() || {}; lvCheckPlayers(); lvRender(); });
     g.child('kicked').on('value', x => { LV.kicked = x.val() || {}; lvRender(); });
     g.child('state').on('value', x => { LV.state = x.val() || {}; lvOnState(); });
@@ -1049,8 +1124,69 @@ async function openLiveHost(P) {
 }
 function lvDetach() {
   if (!LV) return; clearInterval(LV.tick); clearInterval(LV.autoT); lvmPlay(null);
-  ['players', 'tickets', 'kicked', 'state'].forEach(k => LV.g.child(k).off()); if (LV.ansRef) LV.ansRef.off();
+  ['players', 'tickets', 'kicked', 'state', 'react', 'fb'].forEach(k => LV.g.child(k).off()); if (LV.ansRef) LV.ansRef.off(); if (LV.raceRef) LV.raceRef.off();
+  clearTimeout(LV.fbT); $$('.lv-float,.lv-conf').forEach(x => x.remove());
   LV = null;
+}
+/* ---- avatars, teams, reactions, feedback, class mission ---- */
+const LV_TEAMS = [['Red Foxes', '#e21b3c', '🦊'], ['Blue Sharks', '#1368ce', '🦈'], ['Gold Lions', '#c58a00', '🦁'], ['Green Frogs', '#26890c', '🐸'], ['Purple Owls', '#7c3aed', '🦉'], ['Orange Tigers', '#ea580c', '🐯']];
+const LV_REACT = ['👍', '😂', '😮', '🔥', '❤️', '👏', '🎉', '😢'];
+const lvAv = uid => { const p = LV.players[uid]; return (p && typeof p.av === 'string' && p.av) || '🙂'; };
+function lvFloat(e) {
+  if ($$('.lv-float').length > 40) return;
+  const d = document.createElement('div'); d.className = 'lv-float'; d.textContent = e;
+  d.style.left = (4 + Math.random() * 88) + 'vw'; d.style.animationDuration = (2.6 + Math.random() * 1.2) + 's';
+  document.body.appendChild(d); setTimeout(() => d.remove(), 4000);
+}
+function lvTeamFix() {   // after Start: anyone without a team (joined late) goes to the smallest team
+  const P = LV.P; if (!P.teams || !LV.state.phase || LV.state.phase === 'lobby' || LV.teamFixing) return;
+  const act = lvValid(), size = Array(P.teams).fill(0), upd = {};
+  act.forEach(p => { const k = LV.teams[p.uid]; if (k != null) size[k]++; });
+  act.forEach(p => { if (LV.teams[p.uid] == null) { const k = size.indexOf(Math.min(...size)); size[k]++; LV.teams[p.uid] = k; upd['teams/' + p.uid] = k; } });
+  if (Object.keys(upd).length) { LV.teamFixing = true; LV.g.update(upd).catch(() => {}).then(() => { LV && (LV.teamFixing = false); }); }
+}
+async function lvAssignTeams() {
+  const P = LV.P; if (!P.teams) return;
+  const act = lvValid().map(p => p.uid);
+  for (let i = act.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [act[i], act[j]] = [act[j], act[i]]; }
+  LV.teams = {}; act.forEach((u, i) => { LV.teams[u] = i % P.teams; });
+  await LV.g.child('teams').set(LV.teams);
+}
+function lvTeamBoard(sc) {
+  const P = LV.P; if (!P.teams) return null;
+  const act = lvValid(), out = LV_TEAMS.slice(0, P.teams).map((t, k) => ({ k, name: t[0], col: t[1], icon: t[2], score: 0, n: 0, members: [] }));
+  act.forEach(p => { const k = LV.teams[p.uid], t = out[k]; if (!t) return; t.n++; t.members.push(p.nick); t.score += ((sc || {})[p.uid] || {}).score || 0; });
+  out.forEach(t => { t.score = t.n ? Math.round(t.score / t.n) : 0; });
+  out.sort((a, b) => b.score - a.score || b.n - a.n).forEach((t, i) => { t.rank = i + 1; });
+  return out;
+}
+function lvMissionCalc(sc) {   // class mission: fuel = all right answers so far, goal = 70% of the possible right answers
+  const act = lvValid(), N = LV.P.questions.length;
+  const fuel = act.reduce((a, p) => a + (((sc || {})[p.uid] || {}).right || 0), 0);
+  return { fuel, goal: Math.max(1, Math.ceil(act.length * N * 0.7)), players: act.length };
+}
+function lvMissionHtml(m, big) {
+  if (!m) return '';
+  const pct = Math.min(100, Math.round(m.fuel / m.goal * 100)), done = m.fuel >= m.goal;
+  return `<div class="lv-mission"><div class="lv-mtxt"><span>🚀 Class Mission: reach the Moon together!</span><span>${m.fuel} / ${m.goal} right answers ${done ? '✅' : ''}</span></div>
+    <div class="lv-mtrack" style="${big ? 'height:96px' : ''}"><div class="lv-mfill" style="width:${pct}%"></div><span class="lv-mrocket" style="left:calc(36px + (100% - 110px) * ${pct / 100})">🚀</span><span class="lv-mgoal">🌕</span></div>
+    ${m.add != null ? `<div class="lv-center lv-dim">This question: +${m.add} fuel</div>` : ''}</div>`;
+}
+function lvFbHtml() {
+  const f = Object.values(LV.fbk || {}).filter(x => x && x.r);
+  if (!f.length) return '<span class="lv-dim">Feedback: waiting for students to rate the game on their phones…</span>';
+  const avg = f.reduce((a, x) => a + x.r, 0) / f.length, ln = f.filter(x => x.l != null), yes = ln.filter(x => x.l).length, fe = [0, 1, 2].map(k => f.filter(x => x.f === k).length);
+  return `<b>Feedback (${f.length})</b><span>★ ${avg.toFixed(1)} / 5</span>${ln.length ? `<span>Learned something: ${Math.round(yes / ln.length * 100)}%</span>` : ''}<span>😃 ${fe[0]} · 😐 ${fe[1]} · 😞 ${fe[2]}</span>`;
+}
+function lvFbSend() {   // the game is already saved on the server: send the feedback a few seconds after the last vote
+  clearTimeout(LV.fbT);
+  LV.fbT = setTimeout(async () => {
+    if (!LV || !LV.saved) return;
+    const who = {}; lvValid().forEach(p => { who[p.uid] = p; });
+    const rows = Object.keys(LV.fbk || {}).filter(u => who[u] && LV.fbk[u] && LV.fbk[u].r).map(u => ({ name: who[u].name, nick: who[u].nick, guest: !!who[u].guest, r: LV.fbk[u].r, l: LV.fbk[u].l, f: LV.fbk[u].f }));
+    const js = JSON.stringify(rows); if (!rows.length || js === LV.fbJs) return;
+    try { await api('liveFeedback', LV.P.quiz_id, rows); LV.fbJs = js; } catch (e) {}
+  }, 3000);
 }
 const lvSorted = () => Object.entries(LV.players).sort((a, b) => ((a[1] && a[1].at) || 0) - ((b[1] && b[1].at) || 0));
 function lvValid() {
@@ -1163,13 +1299,19 @@ function lvRaceDraw(rp, left) {
     box.dataset.key = key;
     const h = Math.max(20, Math.min(46, Math.floor(((($('#lvrbox') || {}).clientHeight || 500) - 16) / Math.max(1, order.length))));
     box.style.setProperty('--lh', h + 'px');
-    box.innerHTML = order.map(uid => `<div class="rl" data-u="${esc(uid)}"><span class="rn">${esc(LV.rc[uid].nick)}</span><div class="rt"><span class="rr">🏃</span></div><span class="rs"></span></div>`).join('') || '<p class="lv-dim" style="text-align:center">No players.</p>';
+    const td = uid => { const t = LV_TEAMS[LV.teams[uid]]; return LV.P.teams && t ? `<span class="td" style="background:${t[1]}"></span>` : ''; };
+    box.innerHTML = order.map(uid => `<div class="rl" data-u="${esc(uid)}"><span class="rn">${td(uid)}${esc(LV.rc[uid].nick)}</span><div class="rt"><span class="rr">${lvAv(uid)}</span></div><span class="rs"></span></div>`).join('') || '<p class="lv-dim" style="text-align:center">No players.</p>';
+  }
+  const tch = $('#lvtch');
+  if (tch && LV.P.teams) {
+    const tt = LV_TEAMS.slice(0, LV.P.teams).map((t, k) => { const ms = (LV.rlist || []).filter(r => LV.teams[r.uid] === k); return { t, avg: ms.length ? ms.reduce((a, r) => a + r.right, 0) / ms.length : 0 }; }).sort((a, b) => b.avg - a.avg);
+    tch.innerHTML = tt.map(x => `<span style="background:${x.t[1]}">${x.t[2]} ${esc(x.t[0])} · ${x.avg.toFixed(1)}</span>`).join('');
   }
   const pc = x => Math.min(1, Math.max(0, x / N));
   $$('.rl', box).forEach(row => {
     const r = by[row.dataset.u]; if (!r) return;
     row.classList.toggle('caught', r.caught); row.classList.toggle('done', r.done);
-    const rr = row.querySelector('.rr'); rr.style.left = (pc(r.right) * 100) + '%'; rr.textContent = r.done ? '✅' : r.caught ? '😵' : '🏃';
+    const rr = row.querySelector('.rr'); rr.style.left = (pc(r.right) * 100) + '%'; rr.textContent = r.done ? '✅' : r.caught ? '😵' : lvAv(row.dataset.u);
     row.querySelector('.rs').textContent = `#${r.rank} · ${r.right}/${N}${r.done ? ' · finished' : ` · ${r.spm.toFixed(1)}/min`}`;
   });
   const rob = $('#lvrob'); if (rob) rob.style.left = `calc(150px + (100% - 310px) * ${pc(rp)})`;
@@ -1184,7 +1326,9 @@ async function lvRaceEnd() {
   });
   Object.keys(sc).sort((a, b) => sc[b].score - sc[a].score).forEach((u, i) => { sc[u].rank = i + 1; });
   LV.sc = sc;
-  try { await LV.g.update({ scores: sc, 'state/phase': 'end' }); } catch (e) { LV.raceEnding = false; fail(e); }
+  const upd = { scores: sc, 'state/phase': 'end' }, tb = lvTeamBoard(sc);
+  if (tb) { LV.tb = tb; upd.tboard = tb.map(t => ({ k: t.k, score: t.score, rank: t.rank, n: t.n })); }
+  try { await LV.g.update(upd); } catch (e) { LV.raceEnding = false; fail(e); }
 }
 async function lvReveal(i) {
   if (LV.revealing === i) return; LV.revealing = i; clearInterval(LV.tick);
@@ -1197,10 +1341,13 @@ function lvScores(upto) {
     const q = LV.P.questions[i], m = LV.qmeta[i], ans = (LV.ans && LV.ans[i]) || {};
     if (!m) continue;
     players.forEach(p => {
-      const a = ans[p.uid], r = res[p.uid]; let pts = 0, ok = false;
-      if (a && a.a === q.correct && a.t <= m.startedAt + m.dur * 1000 + 1500) {
-        ok = true; const rt = Math.max(0, a.t - m.startedAt) / (m.dur * 1000); pts = Math.round(1000 * (1 - Math.min(1, rt) / 2));
-      }
+      const a = ans[p.uid], r = res[p.uid], sc = LV.P.scoring; let pts = 0, ok = false;
+      const inTime = a && a.t <= m.startedAt + m.dur * 1000 + 1500;
+      if (inTime && a.a === q.correct) {
+        ok = true; const rt = Math.max(0, a.t - m.startedAt) / (m.dur * 1000);
+        pts = sc === 'accuracy' ? 1000 : sc === 'confidence' ? 500 * (a.c || 1) : Math.round(1000 * (1 - Math.min(1, rt) / 2));
+      } else if (inTime && sc === 'confidence') pts = -500 * ((a.c || 1) - 1);   // a wrong answer you were sure about costs points
+      if (pts < 0) pts = -Math.min(-pts, r.score);
       r.score += pts; if (ok) r.right++;
       if (i === upto) { r.last = pts; r.lastOk = ok; r.answered = !!a; }
     });
@@ -1215,7 +1362,12 @@ function lvComputeReveal(i) {
     const q = LV.P.questions[i], counts = q.options.map(() => 0);
     Object.values(LV.ans[i] || {}).forEach(a => { if (a && counts[a.a] !== undefined) counts[a.a]++; });
     LV.rev[i] = { correct: q.correct, counts }; LV.sc = lvScores(i);
-    await LV.g.update({ ['reveal/' + i]: LV.rev[i], scores: LV.sc });
+    const upd = { ['reveal/' + i]: LV.rev[i], scores: LV.sc };
+    if (LV.P.mode === 'coop') {
+      LV.mission = lvMissionCalc(LV.sc); LV.mission.add = Object.values(LV.sc).filter(r => r.lastOk).length; LV.mission.q = i; upd.mission = LV.mission;
+    }
+    const tb = lvTeamBoard(LV.sc); if (tb) { LV.tb = tb; upd.tboard = tb.map(t => ({ k: t.k, score: t.score, rank: t.rank, n: t.n })); }
+    await LV.g.update(upd);
   })();
   LV.rp = { i, p }; return p;
 }
@@ -1234,7 +1386,17 @@ async function lvSave() {
       P.questions.forEach((q, i) => { const a = (all[i] || {})[p.uid], m = LV.qmeta[i]; if (a && (robot || (m && a.t <= m.startedAt + m.dur * 1000 + 1500))) answers[q.id] = q.type === 'tf' ? (a.a === 0 ? 1 : 0) : (q.perm ? q.perm[a.a] : a.a); });
       return { ticket: LV.tickets[p.uid], answers };
     });
-    LV.saved = await api('liveFinish', P.gid, results, report, { mapped: true });
+    const qstats = P.questions.map((q, i) => {
+      const m = LV.qmeta[i], counts = q.options.map(() => 0); let answered = 0, right = 0;
+      players.forEach(p => { const a = (all[i] || {})[p.uid]; if (!a || !(robot || (m && a.t <= m.startedAt + m.dur * 1000 + 1500))) return; answered++; if (counts[a.a] !== undefined) counts[a.a]++; if (a.a === q.correct) right++; });
+      return { id: q.id, prompt: String(q.prompt).slice(0, 90), options: q.options.map(o => String(o).slice(0, 30)), correct: q.correct, counts, answered, right, players: players.length };
+    });
+    const tb = lvTeamBoard(sc);
+    const opts = { mapped: true, mode: P.mode || 'classic', scoring: robot ? '' : (P.scoring || 'speed'), qstats,
+      teams: tb ? tb.map(t => ({ name: t.name, score: t.score, rank: t.rank, members: t.members })) : null,
+      mission: P.mode === 'coop' ? lvMissionCalc(sc) : null };
+    LV.saved = await api('liveFinish', P.gid, results, report, opts);
+    lvFbSend();
   } catch (e) { LV.saveErr = e.message || String(e); }
   LV.saving = false; lvRender();
 }
@@ -1252,8 +1414,8 @@ function lvRender() {
   if (!LV) return;
   const el = $('#lv'), st = LV.state || {}, P = LV.P, n = P.questions.length, act = lvValid();
   const top = `<div class="lv-top"><b style="font-size:20px">${esc(P.title)}</b><span class="lv-dim">Group ${esc(P.group)}</span>
-    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' && st.phase !== 'race' ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}${P.mode === 'robot' ? '<span class="lv-pill">🤖 Robot Run</span>' : ''}<span class="lv-pill">${act.length} players</span>
-    <span style="flex:1"></span><button class="lv-btn ghost" id="lvauto" title="After each answer and the top 5, go on by itself">Autoplay: ${LV.auto ? 'On' : 'Off'}</button>
+    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' && st.phase !== 'race' ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}${P.mode === 'robot' ? '<span class="lv-pill">🤖 Robot Run</span>' : P.mode === 'coop' ? '<span class="lv-pill">🚀 Class Mission</span>' : P.scoring === 'accuracy' ? '<span class="lv-pill">🎯 Accuracy</span>' : P.scoring === 'confidence' ? '<span class="lv-pill">😎 Confidence</span>' : ''}${P.teams ? `<span class="lv-pill">👥 ${P.teams} teams</span>` : ''}<span class="lv-pill">${act.length} players</span>
+    <span style="flex:1"></span><button class="lv-btn ghost" id="lvreact" title="Show the emoji that students send from their phones">Reactions: ${LV.reactOn ? 'On' : 'Off'}</button><button class="lv-btn ghost" id="lvauto" title="After each answer and the top 5, go on by itself">Autoplay: ${LV.auto ? 'On' : 'Off'}</button>
     <button class="lv-btn ghost" id="lvmus">${LVM.on ? '♪ Music: On' : '♪ Music: Off'}</button><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
   let body = '';
   if (!st.phase || st.phase === 'lobby') {
@@ -1261,33 +1423,52 @@ function lvRender() {
     body = `<div class="lv-lobby"><div class="lv-qrbox"><b>Scan to join</b><div class="lv-qr" id="lvqr"></div>
         <small>Or open your page from <b style="display:inline;font-size:inherit">@web_yordamchi_bot</b> and press <b style="display:inline;font-size:inherit">Join live game</b>.<br>Not in the list? Scan and play as a guest (no mark in the gradebook).</small></div>
       <div class="lv-right"><div class="lv-count"><b>${act.length}</b>players joined${guests ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}</div>
-      <div class="lv-chips">${act.map(p => `<button class="lv-chip ${p.guest ? 'g' : ''}" data-kick="${esc(p.uid)}" title="${esc(p.name)}${p.guest ? ' (guest)' : ''} · click to remove">${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
+      <div class="lv-chips">${act.map(p => `<button class="lv-chip ${p.guest ? 'g' : ''}" data-kick="${esc(p.uid)}" title="${esc(p.name)}${p.guest ? ' (guest)' : ''} · click to remove"><span class="av">${esc(lvAv(p.uid))}</span>${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">Waiting for players…</span>'}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvgo" ${act.length ? '' : 'disabled'}>Start ▶</button></div>
-      <div class="lv-center lv-dim small">${n} questions · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' min' : P.secs + ' s each'}${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div></div></div>`;
+      <div class="lv-center lv-dim small">${n} questions · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' min' : P.secs + ' s each'}${P.teams ? ` · ${P.teams} teams are made at random when you press Start` : ''}${P.date ? ' · marks go to ' + esc(P.date) : ' · no marks (practice)'}</div></div></div>`;
   } else if (st.phase === 'question') {
     const q = P.questions[st.q];
     body = `<div class="lv-prompt">${esc(q.prompt)}</div>
-      <div class="lv-mid"><div class="lv-timer" id="lvt">${st.dur}</div><div class="lv-expl lv-dim">Answer on your phone</div><div class="lv-ans"><b id="lva">${Object.keys(LV.cur || {}).length}</b>answers</div></div>
+      <div class="lv-mid"><div class="lv-timer" id="lvt">${st.dur}</div><div class="lv-expl lv-dim">${P.scoring === 'confidence' && P.mode === 'classic' ? 'Answer on your phone, then say how sure you are' : P.mode === 'coop' ? 'Answer on your phone — every right answer fuels the class rocket 🚀' : 'Answer on your phone'}</div><div class="lv-ans"><b id="lva">${Object.keys(LV.cur || {}).length}</b>answers</div></div>
       <div class="lv-opts">${q.options.map((o, k) => `<div class="lv-opt" style="background:${LCOL[k]}"><span class="lv-shape">${LSH[k]}</span><span>${esc(o)}</span></div>`).join('')}</div>
       <div class="lv-center"><button class="lv-btn ghost" id="lvskip">Stop the time</button></div>`;
   } else if (st.phase === 'reveal') {
     const q = P.questions[st.q], rv = LV.rev[st.q];
     body = !rv ? '<p class="lv-h1" style="margin:auto">Time is up!</p>' : `<div class="lv-prompt">${esc(q.prompt)}</div>
-      <div class="lv-mid"><div class="lv-expl">${q.explain ? esc(q.explain) : ''}</div></div>
+      <div class="lv-mid" style="flex-direction:column;justify-content:center"><div class="lv-expl">${q.explain ? esc(q.explain) : ''}</div>${P.mode === 'coop' && LV.mission && LV.mission.q === st.q ? lvMissionHtml(LV.mission) : ''}</div>
       <div class="lv-opts">${q.options.map((o, k) => `<div class="lv-opt ${k === rv.correct ? '' : 'dim'}" style="background:${LCOL[k]}"><span class="lv-shape">${k === rv.correct ? '✓' : LSH[k]}</span><span style="flex:1">${esc(o)}</span><b class="lv-cnt">${rv.counts[k] || 0}</b></div>`).join('')}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvnext">${st.q + 1 < n ? 'Next ▶' : 'Final results ▶'}</button></div>`;
   } else if (st.phase === 'board') {
-    const sc = LV.sc || {}, top5 = Object.values(sc).sort((a, b) => a.rank - b.rank).slice(0, 5);
-    body = `<p class="lv-h1">Top 5</p><div class="lv-board">${top5.map(r => `<div class="lv-row"><span class="n">${r.rank}</span><span>${esc(r.nick)}</span><span class="s">${r.score.toLocaleString('en-US')}</span></div>`).join('') || '<p class="lv-dim" style="text-align:center">No points yet.</p>'}</div>
-      <div class="lv-center"><button class="lv-btn big" id="lvnext">Next question ▶</button></div>`;
+    const sc = LV.sc || {}, ranked = Object.entries(sc).sort((a, b) => a[1].rank - b[1].rank), tb = P.teams ? lvTeamBoard(sc) : null;
+    const prow = ([uid, r]) => `<div class="lv-row"><span class="n">${r.rank}</span><span class="av">${esc(lvAv(uid))}</span><span>${esc(r.nick)}</span><span class="s">${r.score.toLocaleString('en-US')}</span></div>`;
+    body = P.mode === 'coop' ? `<p class="lv-h1">How far is our rocket?</p><div style="flex:1;display:flex;align-items:center">${lvMissionHtml(LV.mission, true)}</div>`
+      : tb ? `<p class="lv-h1">Teams</p><div class="lv-board">${tb.map(t => `<div class="lv-row team" style="background:${t.col}"><span class="n" style="color:#fff">${t.rank}</span><span class="av">${t.icon}</span><span>${esc(t.name)} <span class="meta">${t.n} player${t.n === 1 ? '' : 's'}</span></span><span class="s">${t.score.toLocaleString('en-US')}</span></div>`).join('')}</div>
+        <div class="lv-center lv-dim">Best players: ${ranked.slice(0, 3).map(([u, r]) => esc(lvAv(u) + ' ' + r.nick)).join(' · ') || '—'}</div>`
+      : `<p class="lv-h1">Top 5</p><div class="lv-board">${ranked.slice(0, 5).map(prow).join('') || '<p class="lv-dim" style="text-align:center">No points yet.</p>'}</div>`;
+    body += `<div class="lv-center"><button class="lv-btn big" id="lvnext">Next question ▶</button></div>`;
   } else if (st.phase === 'race') {
-    body = `<div class="lv-racehead"><span class="lv-pill big" id="lvrt">⏱ --:--</span><span class="lv-dim">Answer on your phone. Every right answer = one step forward. Don't let the robot catch you!</span><span style="flex:1"></span><button class="lv-btn ghost" id="lvrend">End race now</button></div>
+    body = `<div class="lv-racehead"><span class="lv-pill big" id="lvrt">⏱ --:--</span><span class="lv-dim">Answer on your phone. Every right answer = one step forward. Don't let the robot catch you!</span>${P.teams ? '<span class="lv-tchips" id="lvtch"></span>' : ''}<span style="flex:1"></span><button class="lv-btn ghost" id="lvrend">End race now</button></div>
       <div class="lv-racebox" id="lvrbox"><div id="lvrace"></div><div class="lv-finish"></div><div class="lv-robot" id="lvrob"><span>🤖</span></div></div>`;
   } else if (st.phase === 'end') {
-    const sc = LV.sc || {}, top = Object.values(sc).sort((a, b) => a.rank - b.rank);
-    const col = (r, h, c, place) => r ? `<div class="col"><div class="nm">${esc(r.nick)}</div><div class="lv-dim">${r.score.toLocaleString('en-US')}</div><div class="bar" style="height:${h}px;background:${c}">${place}</div></div>` : '<div class="col"></div>';
+    const sc = LV.sc || {}, ranked = Object.entries(sc).sort((a, b) => a[1].rank - b[1].rank), tb = P.teams ? lvTeamBoard(sc) : null;
+    if (!LV.endAt) LV.endAt = Date.now();
+    const el0 = Math.max(0, (Date.now() - LV.endAt) / 1000);
+    // the podium rises 3rd → 2nd → 1st (like Kahoot); re-renders continue the animation instead of restarting it
+    const top = tb ? tb.map(t => ({ av: t.icon, nick: t.name, score: t.score, sub: t.members.slice(0, 6).join(', ') + (t.members.length > 6 ? '…' : '') }))
+      : ranked.map(([u, r]) => ({ av: lvAv(u), nick: r.nick, score: r.score }));
+    const col = (r, h, c, place, d) => r ? `<div class="col" style="--d:${d}s"><div class="av nm">${esc(r.av)}</div><div class="nm">${esc(r.nick)}</div><div class="lv-dim sub">${r.score.toLocaleString('en-US')}${r.sub ? '<br><small>' + esc(r.sub) + '</small>' : ''}</div><div class="bar" style="height:min(${h}px, ${(h / 10).toFixed(1)}vh);background:${c}">${place}</div></div>` : '<div class="col"></div>';
     const sv = LV.saved;
-    body = `<p class="lv-h1">🏆 Winners</p><div class="lv-pod">${col(top[1], 170, '#9ca3af', 2)}${col(top[0], 240, '#d89e00', 1)}${col(top[2], 120, '#b45309', 3)}</div>
+    if (P.mode === 'coop') {
+      const m = LV.mission || lvMissionCalc(sc), ok = m.fuel >= m.goal;
+      body = `<p class="lv-h1">${ok ? '🌕 Mission complete! Well done, everyone!' : '🚀 So close! The rocket did not reach the Moon this time.'}</p>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px">${lvMissionHtml(Object.assign({}, m, { add: null }), true)}
+        <div class="lv-center lv-dim" style="font-size:22px">${m.players} players · ${Math.round(m.fuel / Math.max(1, m.players * n) * 100)}% right answers (goal: 70%)</div></div>`;
+    } else {
+      body = `<div class="lv-conf" style="--el:${el0}s">${el0 < 8 ? Array.from({ length: 70 }, (_, i) => `<i style="left:${(i * 37) % 100}vw;background:${['#e21b3c', '#1368ce', '#d89e00', '#26890c', '#7c3aed', '#fff'][i % 6]};--d:${(3.3 + (i % 14) * 0.12).toFixed(2)}s"></i>`).join('') : ''}</div>
+        <p class="lv-h1">${tb ? '🏆 Winning teams' : '🏆 Winners'}</p><div class="lv-pod" style="--el:${el0}s">${col(top[1], 170, '#9ca3af', 2, 1.6)}${col(top[0], 240, '#d89e00', 1, 2.9)}${col(top[2], 120, '#b45309', 3, 0.4)}</div>
+        ${tb ? `<div class="lv-best" style="--el:${el0}s">Best players: ${ranked.slice(0, 3).map(([u, r]) => esc(lvAv(u) + ' ' + r.nick)).join(' · ')}</div>` : ''}`;
+    }
+    body += `<div class="lv-note lv-fbk" id="lvfbk">${lvFbHtml()}</div>
       <div class="lv-note">${LV.saving ? 'Saving marks to the gradebook…' : LV.saveErr ? `Marks were not saved: ${esc(LV.saveErr)} <button class="lv-btn" id="lvretry" style="margin-left:10px">Try again</button>`
         : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(P.date) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}
           <button class="lv-btn" id="lvrep" style="margin-left:12px;padding:8px 16px">📋 Report</button>` : ''}</div>`;
@@ -1302,7 +1483,8 @@ function lvRender() {
   lvMusicFor(st); lvAuto(st);
   $('#lvfs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => {}); };
   $$('[data-kick]', el).forEach(b => b.onclick = () => { if (confirm('Remove "' + b.textContent + '"? The student can join again with another nickname.')) lvKick(b.dataset.kick); });
-  const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; (P.mode === 'robot' ? lvRaceStart() : lvAsk(0)).catch(e => { go.disabled = false; fail(e); }); };
+  $('#lvreact').onclick = () => { LV.reactOn = !LV.reactOn; lsSet('lv_react', LV.reactOn ? 'on' : 'off'); lvRender(); };
+  const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; lvAssignTeams().then(() => P.mode === 'robot' ? lvRaceStart() : lvAsk(0)).catch(e => { go.disabled = false; fail(e); }); };
   const re = $('#lvrend'); if (re) re.onclick = () => { if (confirm('End the race now and show the results?')) lvRaceEnd(); };
   if (st.phase === 'race') lvRaceTick(true);
   const sk = $('#lvskip'); if (sk) sk.onclick = () => lvReveal(st.q);
