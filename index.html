@@ -289,6 +289,30 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 #lv .lv-fbk{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 .rep{width:100%;border-collapse:collapse;font-size:14px}.rep th,.rep td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.rep th{font-size:12px;color:var(--muted);font-weight:600}.rep td.n{text-align:right;white-space:nowrap}
 .modal.wide{max-width:900px}
+.qe-list{display:grid;gap:12px}
+.qe{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--soft)}
+.qe.err{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-soft)}
+.qe-err{color:var(--bad);margin-top:6px}
+.qe-h{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.qe-h b{min-width:26px}
+.qe-h select{width:auto;min-height:36px;padding:4px 8px}
+.qe-ib{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;min-width:34px;min-height:34px;cursor:pointer;flex:none}
+.qe-ib:disabled{opacity:.35;cursor:default}
+.qe-ib.bad{color:var(--bad)}
+.qe-p{min-height:0;resize:vertical}
+.qe-lab{font-size:13px;color:var(--muted);margin:10px 0 2px}
+.qe-row{display:flex;gap:6px;align-items:center;margin-top:6px;border-radius:10px}
+.qe-row input[type=text]{min-height:38px;padding:6px 10px;flex:1;min-width:0}
+.qe-row input[type=radio]{width:20px;height:20px;flex:none;accent-color:var(--accent);margin:0 4px}
+.qe-row.ok input[type=text]{border-color:var(--accent);background:var(--accent-soft)}
+.qe-n{width:22px;text-align:center;color:var(--muted);flex:none}
+.qe-add{margin-top:8px}
+.qe-x{margin-top:10px;min-height:38px;padding:6px 10px;font-size:14px}
+.qe-tf button{min-width:90px}
+.qe-tf button.on{background:var(--accent);color:var(--accent-ink)}
+.qe-addbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0 6px}
+.qe-foot{position:sticky;bottom:-20px;background:var(--panel);padding:12px 0 4px;border-top:1px solid var(--line);margin-top:8px}
+@media (max-width:560px){.qe-h select{max-width:150px}.qe-addbar .btn{flex:1 1 45%}}
 @media (max-width:800px){#lv .lv-lobby{grid-template-columns:1fr}}
 @media (max-width:700px){#lv .lv-opts{grid-template-columns:1fr}#lv .lv-timer{width:90px;height:90px;font-size:40px}}
 .phone{margin:0 auto;width:min(390px,100%);height:min(760px,calc(90vh - 110px));border:10px solid #111;border-radius:34px;overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}
@@ -1741,21 +1765,164 @@ const QSAMPLE = `[
   {"type":"match","prompt":"Match the opposites.","pairs":[["wide","narrow"],["deep","shallow"]]},
   {"type":"order","prompt":"Make a question.","items":["How","long","have","you","known","her?"]}
 ]`;
+/* ---------- quiz editor: plain form, no JSON ---------- */
+const QE_TYPES = [['mc', 'Multiple choice'], ['tf', 'True / False'], ['gap', 'Gap fill'], ['match', 'Matching'], ['order', 'Ordering']];
+function qeBlank(type) {
+  const b = { type, prompt: '', explain: '' };
+  if (type === 'mc') { b.options = ['', '', '', '']; b.answer = 0; }
+  if (type === 'tf') b.answer = true;
+  if (type === 'gap') { b.answer = ''; b.accept = []; }
+  if (type === 'match') b.pairs = [['', ''], ['', ''], ['', ''], ['', '']];
+  if (type === 'order') b.items = ['', '', '', ''];
+  return b;
+}
+function qeConvert(o, type) {
+  const n = qeBlank(type); n.id = o.id; n.prompt = o.prompt || ''; n.explain = o.explain || '';
+  if (type === 'mc' && o.options) { n.options = o.options.slice(); n.answer = Math.min(+o.answer || 0, n.options.length - 1); }
+  return n;
+}
+function qeFromServer(x) {
+  const q = { id: x.id, type: x.type, prompt: x.prompt || '', explain: x.explain || '' };
+  if (x.type === 'mc') { q.options = (x.options || []).slice(); q.answer = +x.answer || 0; }
+  if (x.type === 'tf') q.answer = x.answer === true || String(x.answer).toLowerCase() === 'true';
+  if (x.type === 'gap') { const acc = [].concat(x.accept || []); q.answer = x.answer != null && x.answer !== '' ? String(x.answer) : (acc[0] || ''); q.accept = acc.filter(a => a !== q.answer); }
+  if (x.type === 'match') q.pairs = (x.pairs || []).map(p => [p[0] || '', p[1] || '']);
+  if (x.type === 'order') q.items = (x.items || []).slice();
+  return q;
+}
+function qeCheck(Q) {
+  if (!Q.length) return [-1, 'Add at least one question.'];
+  for (let i = 0; i < Q.length; i++) {
+    const q = Q[i], t = s => String(s || '').trim();
+    if (q.type !== 'match' && q.type !== 'order' && !t(q.prompt)) return [i, 'Write the question text.'];
+    if (q.type === 'mc') {
+      const o = q.options.map(t);
+      if (o.length < 2) return [i, 'Give at least 2 options.'];
+      if (o.some(x => !x)) return [i, 'An option is empty. Fill it in or remove it.'];
+      const l = o.map(x => x.toLowerCase()); if (l.some((x, j) => l.indexOf(x) !== j)) return [i, 'Two options are the same.'];
+      if (!(q.answer >= 0 && q.answer < o.length)) return [i, 'Mark the right option.'];
+    }
+    if (q.type === 'gap' && !t(q.answer)) return [i, 'Write the right answer.'];
+    if (q.type === 'match') {
+      if (q.pairs.length < 2) return [i, 'Give at least 2 pairs.'];
+      if (q.pairs.some(p => !t(p[0]) || !t(p[1]))) return [i, 'A pair is not complete.'];
+      const r = q.pairs.map(p => t(p[1]).toLowerCase()); if (r.some((x, j) => r.indexOf(x) !== j)) return [i, 'Two right-hand items are the same.'];
+    }
+    if (q.type === 'order') { if (q.items.length < 2) return [i, 'Give at least 2 parts.']; if (q.items.some(x => !t(x))) return [i, 'A part is empty.']; }
+  }
+  return null;
+}
+function qeOut(Q) {
+  const t = s => String(s || '').trim();
+  return Q.map(q => {
+    const o = { type: q.type, prompt: t(q.prompt), explain: t(q.explain) }; if (q.id) o.id = q.id;
+    if (q.type === 'mc') { o.options = q.options.map(t); o.answer = q.answer; }
+    if (q.type === 'tf') o.answer = !!q.answer;
+    if (q.type === 'gap') { o.answer = t(q.answer); o.accept = q.accept.map(t).filter(Boolean); }
+    if (q.type === 'match') o.pairs = q.pairs.map(p => [t(p[0]), t(p[1])]);
+    if (q.type === 'order') o.items = q.items.map(t);
+    return o;
+  });
+}
+function qeCard(q, i, n) {
+  const v = s => esc(s == null ? '' : s);
+  const head = `<div class="qe-h"><b>${i + 1}.</b><select data-k="type">${QE_TYPES.map(([k, l]) => `<option value="${k}" ${k === q.type ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <span class="spacer"></span>
+    <button class="qe-ib" data-act="up" title="Move up" ${i ? '' : 'disabled'}>↑</button><button class="qe-ib" data-act="down" title="Move down" ${i < n - 1 ? '' : 'disabled'}>↓</button>
+    <button class="qe-ib" data-act="dup" title="Duplicate">⧉</button><button class="qe-ib bad" data-act="del" title="Delete">✕</button></div>`;
+  const ph = { mc: 'Question, e.g. She ___ to work by bus.', tf: 'Statement, e.g. "Few" goes with countable nouns.', gap: 'Sentence with ___ for the gap', match: 'Instruction (optional), e.g. Match the words with their meanings.', order: 'Instruction (optional), e.g. Put the words in order.' }[q.type];
+  let body = `<textarea class="qe-p" data-k="prompt" rows="2" placeholder="${ph}">${v(q.prompt)}</textarea>`;
+  if (q.type === 'mc') {
+    body += `<div class="qe-lab">Options — tick the right one</div>` + q.options.map((o, j) => `<div class="qe-row ${q.answer === j ? 'ok' : ''}"><input type="radio" name="qa${i}" data-k="answer" data-j="${j}" ${q.answer === j ? 'checked' : ''} aria-label="Right answer">
+      <input type="text" data-k="opt" data-j="${j}" value="${v(o)}" placeholder="Option ${'ABCDEF'[j]}"><button class="qe-ib" data-act="optdel" data-j="${j}" ${q.options.length > 2 ? '' : 'disabled'} title="Remove">✕</button></div>`).join('') +
+      (q.options.length < 6 ? `<button class="btn sm qe-add" data-act="optadd">+ Option</button>` : '');
+  }
+  if (q.type === 'tf') body += `<div class="qe-lab">Right answer</div><div class="seg qe-tf"><button data-act="tf" data-v="1" class="${q.answer ? 'on' : ''}">True</button><button data-act="tf" data-v="0" class="${q.answer ? '' : 'on'}">False</button></div>`;
+  if (q.type === 'gap') body += `<div class="qe-lab">Right answer</div><input type="text" data-k="gapans" value="${v(q.answer)}" placeholder="e.g. since">
+    <div class="qe-lab">Also accept (optional, separate with commas)</div><input type="text" data-k="gapacc" value="${v(q.accept.join(', '))}" placeholder="e.g. sure, certain">
+    <div class="small muted" style="margin-top:4px">Capital letters, spaces at the ends and the type of apostrophe do not matter.</div>`;
+  if (q.type === 'match') body += `<div class="qe-lab">Pairs (left — right). Students see the right side mixed.</div>` + q.pairs.map((p, j) => `<div class="qe-row"><input type="text" data-k="pl" data-j="${j}" value="${v(p[0])}" placeholder="word"><span class="muted">—</span><input type="text" data-k="pr" data-j="${j}" value="${v(p[1])}" placeholder="meaning"><button class="qe-ib" data-act="pdel" data-j="${j}" ${q.pairs.length > 2 ? '' : 'disabled'} title="Remove">✕</button></div>`).join('') +
+    (q.pairs.length < 8 ? `<button class="btn sm qe-add" data-act="padd">+ Pair</button>` : '');
+  if (q.type === 'order') body += `<div class="qe-lab">Parts in the RIGHT order. Students see them mixed.</div>` + q.items.map((p, j) => `<div class="qe-row"><span class="qe-n">${j + 1}</span><input type="text" data-k="it" data-j="${j}" value="${v(p)}" placeholder="part ${j + 1}"><button class="qe-ib" data-act="iup" data-j="${j}" ${j ? '' : 'disabled'} title="Up">↑</button><button class="qe-ib" data-act="idel" data-j="${j}" ${q.items.length > 2 ? '' : 'disabled'} title="Remove">✕</button></div>`).join('') +
+    (q.items.length < 10 ? `<button class="btn sm qe-add" data-act="iadd">+ Part</button>` : '');
+  body += `<input type="text" class="qe-x" data-k="explain" value="${v(q.explain)}" placeholder="Rule / explanation shown after the quiz (optional)">`;
+  return `<div class="qe" data-i="${i}">${head}${body}<div class="qe-err small"></div></div>`;
+}
 function quizEditor(q) {
+  const Q = (q.questions || []).map(qeFromServer);
+  let dirty = false;
   modal(`<h3>${q.quiz_id ? 'Edit quiz' : 'New quiz'} · group ${esc(q.group)}</h3>
     <label class="f"><span>Title (e.g. Unit 12 - The Cycle of Life)</span><input type="text" id="q_t" value="${esc(q.title || '')}"></label>
     <div class="row"><label class="f" style="flex:1"><span>Unit</span><input type="text" id="q_u" value="${esc(q.unit || '')}"></label>
       <label class="f" style="width:120px"><span>Minutes</span><input type="text" id="q_m" inputmode="numeric" value="${esc(q.duration_min || 10)}"></label></div>
-    <label class="f"><span>Questions (JSON). Types: mc, tf, gap, match, order. Claude usually fills this for you.</span>
-      <textarea id="q_j" style="min-height:220px;font:12px/1.45 ui-monospace,Consolas,monospace" placeholder='${esc(QSAMPLE)}'>${q.questions && q.questions.length ? esc(JSON.stringify(q.questions, null, 1)) : ''}</textarea></label>
-    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="q_ok">Save</button></div>`, m => {
-    $('#q_ok', m).onclick = async () => {
-      $('#q_ok', m).disabled = true;
-      try {
-        await api('saveQuiz', { quiz_id: q.quiz_id || '', group: q.group, title: $('#q_t', m).value.trim(), unit: $('#q_u', m).value.trim(), duration_min: $('#q_m', m).value.trim(), questions: $('#q_j', m).value, status: 'ready' });
-        closeModal(); toast('Quiz saved'); pageQuizzes();
-      } catch (e) { $('#q_ok', m).disabled = false; fail(e); }
+    <div class="row" style="margin:4px 0 8px"><b>Questions</b><span class="small muted" id="q_sum"></span></div>
+    <div class="qe-list" id="q_list"></div>
+    <div class="qe-addbar"><span class="small muted">Add question:</span>${QE_TYPES.map(([k, l]) => `<button class="btn sm" data-new="${k}">+ ${l}</button>`).join('')}</div>
+    <div class="row qe-foot"><span class="small muted" id="q_msg"></span><span class="spacer"></span><button class="btn" id="q_cancel">Cancel</button><button class="btn primary" id="q_ok">Save</button></div>`, m => {
+    m.querySelector('.modal').classList.add('wide');
+    const list = $('#q_list', m);
+    const sum = () => { const c = {}; Q.forEach(x => c[x.type] = (c[x.type] || 0) + 1); $('#q_sum', m).textContent = Q.length ? `${Q.length} · ` + QE_TYPES.filter(([k]) => c[k]).map(([k, l]) => `${c[k]} ${l.toLowerCase()}`).join(', ') + (Q.some(x => x.type === 'mc' || x.type === 'tf') ? ` · Live game uses ${Q.filter(x => x.type === 'mc' || x.type === 'tf').length}` : '') : 'none yet'; };
+    const draw = focusIdx => {
+      list.innerHTML = Q.map((x, i) => qeCard(x, i, Q.length)).join('') || '<div class="card empty small">No questions yet. Use the buttons below.</div>';
+      sum();
+      if (focusIdx != null) { const c = list.querySelector(`.qe[data-i="${focusIdx}"]`); if (c) { c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const p = c.querySelector('.qe-p'); if (p) p.focus(); } }
     };
+    list.addEventListener('input', e => {
+      const el = e.target, card = el.closest('.qe'); if (!card) return;
+      const q = Q[+card.dataset.i], k = el.dataset.k, j = +el.dataset.j; dirty = true; card.classList.remove('err');
+      if (k === 'prompt' || k === 'explain') q[k] = el.value;
+      else if (k === 'opt') q.options[j] = el.value;
+      else if (k === 'gapans') q.answer = el.value;
+      else if (k === 'gapacc') q.accept = el.value.split(',').map(s => s.trim()).filter(Boolean);
+      else if (k === 'pl') q.pairs[j][0] = el.value;
+      else if (k === 'pr') q.pairs[j][1] = el.value;
+      else if (k === 'it') q.items[j] = el.value;
+    });
+    list.addEventListener('change', e => {
+      const el = e.target, card = el.closest('.qe'); if (!card) return;
+      const i = +card.dataset.i; dirty = true;
+      if (el.dataset.k === 'type') { Q[i] = qeConvert(Q[i], el.value); draw(); }
+      if (el.dataset.k === 'answer') { Q[i].answer = +el.dataset.j; card.querySelectorAll('.qe-row').forEach((r, j) => r.classList.toggle('ok', j === Q[i].answer)); }
+    });
+    list.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const card = b.closest('.qe'), i = +card.dataset.i, q = Q[i], j = +b.dataset.j; dirty = true;
+      switch (b.dataset.act) {
+        case 'up': [Q[i - 1], Q[i]] = [Q[i], Q[i - 1]]; return draw();
+        case 'down': [Q[i + 1], Q[i]] = [Q[i], Q[i + 1]]; return draw();
+        case 'dup': { const c = JSON.parse(JSON.stringify(q)); delete c.id; Q.splice(i + 1, 0, c); return draw(i + 1); }
+        case 'del': if (q.prompt.trim() && !confirm(`Delete question ${i + 1}?`)) return; Q.splice(i, 1); return draw();
+        case 'optadd': q.options.push(''); return draw();
+        case 'optdel': q.options.splice(j, 1); if (q.answer === j) q.answer = 0; else if (q.answer > j) q.answer--; return draw();
+        case 'tf': q.answer = b.dataset.v === '1'; return draw();
+        case 'padd': q.pairs.push(['', '']); return draw();
+        case 'pdel': q.pairs.splice(j, 1); return draw();
+        case 'iadd': q.items.push(''); return draw();
+        case 'iup': [q.items[j - 1], q.items[j]] = [q.items[j], q.items[j - 1]]; return draw();
+        case 'idel': q.items.splice(j, 1); return draw();
+      }
+    });
+    m.querySelectorAll('[data-new]').forEach(b => b.onclick = () => { Q.push(qeBlank(b.dataset.new)); dirty = true; draw(Q.length - 1); });
+    const leave = () => { if (!dirty || confirm('Close without saving? Your changes will be lost.')) closeModal(); };
+    $('#q_cancel', m).onclick = leave;
+    m.addEventListener('click', e => { if (e.target === m) { e.stopImmediatePropagation(); leave(); } }, true);
+    ['#q_t', '#q_u', '#q_m'].forEach(s => $(s, m).addEventListener('input', () => { dirty = true; }));
+    $('#q_ok', m).onclick = async () => {
+      const err = qeCheck(Q);
+      list.querySelectorAll('.qe').forEach(c => { c.classList.remove('err'); c.querySelector('.qe-err').textContent = ''; });
+      if (!$('#q_t', m).value.trim()) { $('#q_t', m).focus(); return fail('Write the quiz title.'); }
+      if (err) {
+        if (err[0] < 0) return fail(err[1]);
+        const c = list.querySelector(`.qe[data-i="${err[0]}"]`); c.classList.add('err'); c.querySelector('.qe-err').textContent = err[1];
+        c.scrollIntoView({ block: 'center', behavior: 'smooth' }); return fail(`Question ${err[0] + 1}: ${err[1]}`);
+      }
+      $('#q_ok', m).disabled = true; $('#q_msg', m).textContent = 'Saving…';
+      try {
+        await api('saveQuiz', { quiz_id: q.quiz_id || '', group: q.group, title: $('#q_t', m).value.trim(), unit: $('#q_u', m).value.trim(), duration_min: $('#q_m', m).value.trim(), questions: qeOut(Q), status: 'ready' });
+        closeModal(); toast('Quiz saved'); pageQuizzes();
+      } catch (e) { $('#q_ok', m).disabled = false; $('#q_msg', m).textContent = ''; fail(e); }
+    };
+    draw();
   });
 }
 function copyDialog(id) {
