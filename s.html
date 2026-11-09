@@ -163,6 +163,19 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH/exec';
+
+/* Requests go through the Cloudflare Worker (faster, retries when Google is busy).
+   If the Worker cannot be reached, the page talks to Apps Script directly. */
+const API_CF = 'https://darslar-api.vtangriyev.workers.dev';
+let viaCF = (() => { try { return sessionStorage.getItem('dp_nocf') !== '1'; } catch (e) { return true; } })();
+async function apiFetch(body) {
+  if (viaCF) {
+    try { const r = await fetch(API_CF, { method: 'POST', body }); if (r.ok) return r; }
+    catch (e) {}
+    viaCF = false; try { sessionStorage.setItem('dp_nocf', '1'); } catch (x) {}
+  }
+  return fetch(API, { method: 'POST', body });
+}
 const $ = (q, el) => (el || document).querySelector(q), $$ = (q, el) => Array.from((el || document).querySelectorAll(q));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -189,7 +202,7 @@ if (PREVIEW) {
 }
 
 async function api(action, ...args) {
-  const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, key: KEY, args }) });
+  const r = await apiFetch(JSON.stringify({ action, key: KEY, args }));
   if (!r.ok) throw new Error('Server error ' + r.status + '. Try again.');
   const j = await r.json();
   if (!j.ok) { if (j.error === 'LINK_INVALID') { noAccess(); throw new Error('This link no longer works.'); } throw new Error(j.error); }
@@ -347,7 +360,7 @@ function drawQ(q, L) {
     $$('[data-dn]', box).forEach(b => b.onclick = () => mv(+b.dataset.dn, 1));
   }
 }
-function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 2500 : 1200); }
+function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 5000 : 3000); }
 function progress() { const n = answered(); $('#qcount').textContent = n + ' of ' + Q.questions.length + ' answered'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
 async function save() {
   if (PREVIEW) { dirty = false; if ($('#qsave')) $('#qsave').textContent = 'Saved (preview)'; return; }
@@ -395,7 +408,7 @@ function sigOpen() {
   if (!H || SIG || document.hidden || PREVIEW || !window.EventSource) return;
   try {
     SIG = new EventSource(FB_CFG.databaseURL + '/sig/' + encodeURIComponent(H.group) + '.json');
-    const on = e => { let d = null; try { d = JSON.parse(e.data); } catch (x) { return; } const v = d ? d.data : null; if (sigLast !== undefined && v !== sigLast) checkNow(); sigLast = v; };
+    const on = e => { let d = null; try { d = JSON.parse(e.data); } catch (x) { return; } const v = d ? d.data : null; if (sigLast !== undefined && v !== sigLast) setTimeout(checkNow, Math.random() * 2500); sigLast = v; };
     SIG.addEventListener('put', on); SIG.addEventListener('patch', on);
   } catch (e) { SIG = null; }
 }
