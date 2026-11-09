@@ -417,7 +417,29 @@ async function api(action, ...args) {
     if (j.error === 'SESSION_EXPIRED') { signOut(true); throw new Error('Please sign in again.'); }
     throw new Error(j.error);
   }
+  if (SIG_ACTIONS.includes(action)) sigBump();
   return j.data;
+}
+/** Shows the last saved answer at once, then the fresh one (drawn again only if it changed). */
+async function apiSWR(action, args, draw) {
+  const k = 'dp_c_' + action + '_' + JSON.stringify(args);
+  let had = null;
+  try { had = localStorage.getItem(k); if (had) draw(JSON.parse(had), true); } catch (e) { had = null; }
+  try {
+    const fresh = await api(action, ...args), s = JSON.stringify(fresh);
+    try { localStorage.setItem(k, s); } catch (e) {}
+    if (s !== had) draw(fresh, false);
+  } catch (e) { if (!had) throw e; toast('Could not refresh: ' + (e.message || e)); }
+}
+/* Students' pages listen to sig/<group> in Firebase instead of asking the server every 15 s. */
+const SIG_ACTIONS = ['startQuiz', 'closeQuiz', 'extendQuiz', 'liveOpen', 'liveCancel', 'liveFinish'];
+let SIGFB = null;
+async function sigBump() {
+  try {
+    if (!SIGFB) SIGFB = await fbApp('host');
+    const u = {}; (S.groups || []).forEach(g => u[g] = firebase.database.ServerValue.TIMESTAMP);
+    await SIGFB.db.ref('sig').update(u);
+  } catch (e) { console.warn('sig', e); }
 }
 
 /* ===================== state ===================== */
@@ -462,6 +484,7 @@ $('#auth-form').addEventListener('submit', async e => {
 });
 function signOut(silent) {
   KEY = null; store.del('dp_key'); S.data = {}; S.pending = {};
+  try { Object.keys(localStorage).filter(k => k.startsWith('dp_c_')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
   if (!silent) toast('Signed out');
   startAuth();
 }
@@ -559,7 +582,8 @@ $('#saveall').onclick = async () => {
 async function pageToday() {
   loading();
   try {
-    const my = S.navId; const h = await api('home'); if (my !== S.navId) return;
+    const my = S.navId;
+    await apiSWR('home', [], h => { if (my !== S.navId) return;
     const lessonCard = l => {
       const pct = l.students ? Math.round(l.marked / l.students * 100) : 0;
       return `<div class="card lesson-card">
@@ -612,6 +636,7 @@ async function pageToday() {
     $$('.gcard').forEach(c => c.onclick = () => go('grades', c.dataset.g));
     $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
+    });
   } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
 }
 
@@ -711,9 +736,8 @@ function cellEditor(d, row, cn, after) {
 async function pageLessons() {
   loading();
   try {
-    const my = S.navId; const list = await api('lessons', S.group); if (my !== S.navId) return;
-    S.lessons = list;
-    renderLessons(list);
+    const my = S.navId, g = S.group;
+    await apiSWR('lessons', [g], list => { if (my !== S.navId) return; S.lessons = list; renderLessons(list); });
   } catch (e) { fail(e); }
 }
 function renderLessons(list) {
