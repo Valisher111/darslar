@@ -135,6 +135,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 .mark.bad{outline:2px solid var(--bad)}
 .quick{display:flex;gap:4px}
 .quick button{min-width:40px}
+.dlist li.attrow{padding:12px 8px;border-radius:10px;min-height:var(--tap)}
+.dlist li.attrow.abs{background:rgba(220,38,38,.08)}
+.dlist li.attrow.changed{outline:2px solid var(--changed)}
+.fin-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.fin-row .nm{flex:1;min-width:160px}
+.fin-row .seg button{padding:6px 10px;font-size:13px}
+.fin-img{max-width:100%;border:1px solid var(--line);border-radius:10px;display:block;margin:10px 0;background:#fff}
 .tablewrap{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
 table.g{border-collapse:separate;border-spacing:0;font-size:13px}
 table.g th,table.g td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:7px 8px;text-align:center;white-space:nowrap}
@@ -606,7 +613,7 @@ $('#discard').onclick = () => { S.pending = {}; updateSavebar(); route(); };
 $('#saveall').onclick = async () => {
   const entries = Object.values(S.pending);
   const bad = entries.find(e => !validMark(colOf(e.col), e.value));
-  if (bad) return toast('Not allowed: "' + bad.value + '". Use 0–' + colOf(bad.col).max + ' or nb.', true);
+  if (bad) return toast('Not allowed: "' + bad.value + '". Use 0–' + colOf(bad.col).max + ' (0 = absent).', true);
   $('#saveall').disabled = true;
   try {
     const rows = await api('save', S.group, entries);
@@ -637,6 +644,7 @@ async function pageToday() {
         <div class="row" style="margin-top:14px">
           <button class="btn primary" data-mark="${esc(l.group)}|${l.col}">Mark grades</button>
           <button class="btn" data-lesson="${esc(l.group)}|${esc(l.date)}">Edit lesson</button>
+          <button class="btn" data-finish="${esc(l.group)}|${esc(l.date)}">✓ Finish lesson</button>
         </div></div>`;
     };
     const todayHtml = h.todayLessons.length
@@ -675,6 +683,7 @@ async function pageToday() {
     $$('.gcard').forEach(c => c.onclick = () => go('grades', c.dataset.g));
     $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
+    $$('[data-finish]').forEach(b => b.onclick = () => { const [g, d] = b.dataset.finish.split('|'); finishDialog(g, d); });
     });
   } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
 }
@@ -701,46 +710,72 @@ async function pageGrades() {
     S.view === 'day' ? dayView(d, days) : tableView(d);
   } catch (e) { fail(e); }
 }
+/** 0 or the old "nb" = absent (since 10.11.2026 absences are written as 0). */
+const isAbs = v => { v = String(v == null ? '' : v).trim().toLowerCase(); return v === 'nb' || (v !== '' && Number(v.replace(',', '.')) === 0); };
 function dayView(d, days) {
-  const cn = S.day[S.group], col = d.cols[cn - 1];
+  const cn = S.day[S.group], col = d.cols[cn - 1], att = S.dmode === 'att';
   const vals = d.students.map(s => String(pv(s.row, cn)).trim());
-  const nums = vals.filter(v => v && v.toLowerCase() !== 'nb').map(v => +v.replace(',', '.')).filter(isFinite);
-  const nbs = vals.filter(v => v.toLowerCase() === 'nb').length;
+  const abs = vals.filter(isAbs).length;
+  const nums = vals.filter(v => v && !isAbs(v)).map(v => +v.replace(',', '.')).filter(isFinite);
   const avg = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : '—';
   $('#gv').innerHTML = `
     <div class="grid g2" style="margin-bottom:14px">
       <div class="card"><label class="f" style="margin:0"><span>Lesson date</span><select id="daysel">${days.map((c, i) =>
         `<option value="${c.c}" ${c.c === cn ? 'selected' : ''}>${shortDay(c.h)}, ${esc(md(c.h))}${c.h === S.today ? ' · today' : ''} — lesson ${i + 1}, block ${c.block}</option>`).join('')}</select></label></div>
       <div class="card"><div class="grid g4" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat"><b>${nums.length + nbs}/${d.students.length}</b><span>marked</span></div>
-        <div class="stat"><b>${avg}</b><span>average</span></div>
-        <div class="stat"><b style="color:${nbs ? 'var(--bad)' : 'inherit'}">${nbs}</b><span>absent (nb)</span></div></div></div>
+        <div class="stat"><b>${vals.filter(Boolean).length}/${d.students.length}</b><span>marked</span></div>
+        <div class="stat"><b>${avg}</b><span>average (present)</span></div>
+        <div class="stat"><b style="color:${abs ? 'var(--bad)' : 'inherit'}">${abs}</b><span>absent (0)</span></div></div></div>
     </div>
-    <div class="card"><div class="row small muted" style="margin-bottom:6px"><span>Type a mark 0–10, or tap nb. Then press Save.</span><span class="spacer"></span>
-      <button class="btn sm" id="fillrest" title="Give every empty present student the same mark">Fill empty…</button></div>
+    <div class="card"><div class="row" style="margin-bottom:10px;gap:8px">
+        <div class="seg"><button data-dm="marks" class="${att ? '' : 'on'}">Marks</button><button data-dm="att" class="${att ? 'on' : ''}">Attendance</button></div>
+        <span class="spacer"></span>
+        <button class="btn sm" id="fillavg" title="Every empty box gets the student's average of the earlier lessons">Fill empty with averages</button>
+        ${att ? '' : '<button class="btn sm" id="fillrest" title="Give every empty box the same mark">Fill empty…</button>'}
+        <button class="btn sm primary" id="finish">✓ Finish lesson</button></div>
+      <p class="small muted" style="margin:0 0 8px">${att ? 'Tap a student who is <b>not</b> in class: the box gets 0 (= absent). Tap again to undo. Then press Save.' : 'Type a mark 0–10. 0 means absent. Then press Save.'}</p>
       <ul class="dlist">${d.students.map(s => {
-        const v = String(pv(s.row, cn)); const ch = S.pending[s.row + ':' + cn] ? ' changed' : ''; const nb = v.toLowerCase() === 'nb' ? ' nb' : '';
+        const v = String(pv(s.row, cn)), ab = isAbs(v), ch = S.pending[s.row + ':' + cn] ? ' changed' : '';
+        if (att) return `<li class="attrow${ab ? ' abs' : ''}${ch}" data-att="${s.row}" style="cursor:pointer"><span class="no">${esc(s.no)}</span><div class="nm">${esc(s.name)}</div>
+          ${ab ? '<span class="pill bad">absent · 0</span>' : v ? `<span class="pill">${esc(v)}</span>` : '<span class="pill gray">here</span>'}</li>`;
         return `<li><span class="no">${esc(s.no)}</span><div class="nm">${esc(s.name)}</div>
-          <input class="mark${ch}${nb}" inputmode="decimal" data-row="${s.row}" value="${esc(v)}" aria-label="Mark for ${esc(s.name)}">
-          <div class="quick"><button class="btn sm" data-q="${s.row}|10">10</button><button class="btn sm danger" data-q="${s.row}|nb">nb</button></div></li>`;
+          <input class="mark${ch}${ab ? ' nb' : ''}" inputmode="decimal" data-row="${s.row}" value="${esc(v)}" aria-label="Mark for ${esc(s.name)}">
+          <div class="quick"><button class="btn sm" data-q="${s.row}|10">10</button><button class="btn sm danger" data-q="${s.row}|0" title="Absent">Absent</button></div></li>`;
       }).join('')}</ul></div>`;
   $('#daysel').onchange = e => { S.day[S.group] = +e.target.value; pageGrades(); };
+  $$('#gv [data-dm]').forEach(b => b.onclick = () => { S.dmode = b.dataset.dm; dayView(d, days); });
   const bind = inp => {
+    if (inp.value.trim().toLowerCase() === 'nb') inp.value = '0';
     setPending(+inp.dataset.row, cn, inp.value);
     inp.classList.toggle('changed', !!S.pending[inp.dataset.row + ':' + cn]);
-    inp.classList.toggle('nb', inp.value.trim().toLowerCase() === 'nb');
+    inp.classList.toggle('nb', isAbs(inp.value));
     inp.classList.toggle('bad', !validMark(col, inp.value));
   };
   $$('#gv input.mark').forEach(inp => inp.oninput = () => bind(inp));
   $$('#gv [data-q]').forEach(b => b.onclick = () => {
     const [r, v] = b.dataset.q.split('|'); const inp = $(`#gv input.mark[data-row="${r}"]`);
-    inp.value = inp.value.trim().toLowerCase() === v ? '' : v; bind(inp);
+    inp.value = inp.value.trim() === v ? '' : v; bind(inp);
   });
-  $('#fillrest').onclick = () => {
+  $$('#gv [data-att]').forEach(li => li.onclick = () => {
+    const row = +li.dataset.att, cur = String(pv(row, cn)).trim(), orig = String(d.students.find(x => x.row === row).v[cn - 1] || '').trim();
+    if (cur && !isAbs(cur)) return toast('This student already has a mark (' + cur + '). Change it in Marks.', true);
+    setPending(row, cn, isAbs(cur) ? (isAbs(orig) ? '' : orig) : '0'); dayView(d, days);
+  });
+  if ($('#fillrest')) $('#fillrest').onclick = () => {
     const v = prompt('Mark for every student whose box is empty (0–10):', '8'); if (v == null) return;
     if (!validMark(col, v)) return toast('Use 0–10.', true);
     $$('#gv input.mark').forEach(inp => { if (!inp.value.trim()) { inp.value = v; bind(inp); } });
   };
+  $('#fillavg').onclick = async () => {
+    const b = $('#fillavg'); b.disabled = true;
+    try {
+      const rows = await api('avgFill', S.group, col.h); let n = 0; const none = [];
+      rows.forEach(r => { if (String(pv(r.row, cn)).trim()) return; if (r.avg == null) { none.push(r.name); return; } setPending(r.row, cn, String(r.avg)); n++; });
+      dayView(d, days);
+      toast(n ? `${n} box${n === 1 ? '' : 'es'} filled with averages — check and press Save` + (none.length ? ` (${none.length} have no earlier marks)` : '') : 'No empty boxes to fill' + (none.length ? ` (${none.length} have no earlier marks)` : ''));
+    } catch (e) { fail(e); } finally { b.disabled = false; }
+  };
+  $('#finish').onclick = () => finishDialog(S.group, col.h);
 }
 function tableView(d) {
   const blocks = [[1, 'Block 1'], [2, 'Block 2'], [0, 'Final & independent work']];
@@ -751,24 +786,115 @@ function tableView(d) {
     <div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(md(c.h))}</th>`).join('')}</tr></thead>
     <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(s.name)}</td>${cols.map(c => {
       const v = String(pv(s.row, c.c));
-      return `<td class="${editable(c) ? 'ed' : 'ro'} ${v.toLowerCase() === 'nb' ? 'nbv' : ''} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
+      return `<td class="${editable(c) ? 'ed' : 'ro'} ${c.kind === 'day' && isAbs(v) ? 'nbv' : ''} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table></div>`;
   $$('#gv [data-b]').forEach(b => b.onclick = () => { S.block = +b.dataset.b; tableView(d); });
   $$('#gv td.ed').forEach(td => td.onclick = () => cellEditor(d, +td.dataset.r, +td.dataset.c, () => tableView(d)));
 }
 function cellEditor(d, row, cn, after) {
   const c = d.cols[cn - 1], st = d.students.find(s => s.row === row);
-  const hint = c.kind === 'team' ? 'Team name or number' : '0–' + c.max + (c.kind === 'day' ? ' or nb' : '');
+  const hint = c.kind === 'team' ? 'Team name or number' : '0–' + c.max + (c.kind === 'day' ? ' (0 = absent)' : '');
   modal(`<h3>${esc(st.name)}</h3><p class="muted small" style="margin-top:0">${esc(md(c.h))} · ${esc(c.section)}</p>
     <label class="f"><span>${hint}</span><input type="text" id="cv" inputmode="${c.kind === 'team' ? 'text' : 'decimal'}" value="${esc(pv(row, cn))}"></label>
-    <div class="row">${c.kind === 'day' ? '<button class="btn danger" id="cnb">nb</button>' : ''}<button class="btn" id="cclr">Clear</button>
+    <div class="row">${c.kind === 'day' ? '<button class="btn danger" id="cnb">Absent (0)</button>' : ''}<button class="btn" id="cclr">Clear</button>
     <span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="cok">OK</button></div>`, m => {
     const inp = $('#cv', m); inp.focus(); inp.select();
-    const ok = () => { if (!validMark(c, inp.value)) return toast('Not allowed: ' + inp.value + ' (' + hint + ')', true); setPending(row, cn, inp.value); closeModal(); after(); };
+    const ok = () => { if (c.kind === 'day' && inp.value.trim().toLowerCase() === 'nb') inp.value = '0'; if (!validMark(c, inp.value)) return toast('Not allowed: ' + inp.value + ' (' + hint + ')', true); setPending(row, cn, inp.value); closeModal(); after(); };
     $('#cok', m).onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
     $('#cclr', m).onclick = () => { inp.value = ''; ok(); };
-    if ($('#cnb', m)) $('#cnb', m).onclick = () => { inp.value = 'nb'; ok(); };
+    if ($('#cnb', m)) $('#cnb', m).onclick = () => { inp.value = '0'; ok(); };
   });
+}
+
+/* ===================== FINISH LESSON ===================== */
+/* Empty boxes → 0 (absent) or the student's average; lesson summary; marks picture → group chat (only after "Send"). */
+async function finishDialog(g, date) {
+  if (Object.keys(S.pending).length) return toast('Save or discard your changes first.', true);
+  let c; try { c = await api('finishCheck', g, date); } catch (e) { return fail(e); }
+  const def = r => c.quiz.length ? 'abs' : (r.avg != null ? 'avg' : 'abs');   // after a quiz: who did not play = absent
+  const ch = {}; c.empty.forEach(r => { ch[r.row] = def(r); });
+  const draw = m => {
+    $('#finlist', m).innerHTML = c.empty.length ? c.empty.map(r => `<div class="fin-row"><div class="nm">${esc(r.name)}</div><div class="seg">
+      <button data-r="${r.row}" data-v="abs" class="${ch[r.row] === 'abs' ? 'on' : ''}">Absent (0)</button>
+      <button data-r="${r.row}" data-v="avg" class="${ch[r.row] === 'avg' ? 'on' : ''}" ${r.avg == null ? 'disabled title="No earlier marks"' : ''}>Average ${r.avg == null ? '—' : r.avg}</button>
+      <button data-r="${r.row}" data-v="skip" class="${ch[r.row] === 'skip' ? 'on' : ''}">Leave empty</button></div></div>`).join('')
+      : '<p class="muted" style="margin:6px 0">Everyone has a mark on this date. ✔</p>';
+    $$('[data-r]', m).forEach(b => b.onclick = () => { ch[b.dataset.r] = b.dataset.v; draw(m); });
+  };
+  modal(`<h3>✓ Finish lesson · ${esc(g)} · ${esc(md(date))}</h3>
+    <p class="small muted" style="margin-top:0">${c.students - c.empty.length} of ${c.students} students have a mark.${c.quiz.length ? ' Quiz: ' + c.quiz.map(esc).join(', ') + ' (' + c.quizPlayed + ' played).' : ''}
+      ${c.empty.length ? 'Choose what goes into the empty boxes:' : ''}</p>
+    ${c.empty.length > 1 ? `<div class="row" style="gap:6px;margin-bottom:4px"><button class="btn sm" id="fall0">All absent (0)</button><button class="btn sm" id="fallavg">All averages</button></div>` : ''}
+    <div id="finlist"></div>
+    <label class="f" style="margin-top:12px"><span>Short note for the lesson log (optional)</span><input type="text" id="fnote" maxlength="120" placeholder="e.g. Live game, Unit 17 checked"></label>
+    <p class="small muted">After saving you will see the marks picture. It goes to the group chat only when you press <b>Send to group</b>.</p>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="fgo">Save marks</button></div>`, m => {
+    m.classList.add('top'); draw(m);
+    if ($('#fall0', m)) $('#fall0', m).onclick = () => { c.empty.forEach(r => { ch[r.row] = 'abs'; }); draw(m); };
+    if ($('#fallavg', m)) $('#fallavg', m).onclick = () => { c.empty.forEach(r => { ch[r.row] = r.avg != null ? 'avg' : 'abs'; }); draw(m); };
+    $('#fgo', m).onclick = async () => {
+      const entries = c.empty.filter(r => ch[r.row] !== 'skip').map(r => ({ row: r.row, value: ch[r.row] === 'avg' && r.avg != null ? r.avg : 0 }));
+      $('#fgo', m).disabled = true;
+      try {
+        const res = await api('finishLesson', g, date, entries, $('#fnote', m).value.trim());
+        S.data[g] = res.group; finishResult(g, date, res, c);
+        if (S.page === 'grades' && S.group === g) pageGrades();
+      } catch (e) { $('#fgo', m).disabled = false; fail(e); }
+    };
+  });
+}
+function finishResult(g, date, res, c) {
+  const png = marksPng(res.group, date);
+  const cap = `${date} baholari jurnalga kiritildi. Savollar bo'lsa, shu guruhga yozing.`;
+  modal(`<h3>Marks saved · ${esc(g)} · ${esc(md(date))}</h3>
+    <p class="small" style="margin:0">${res.written} box${res.written === 1 ? '' : 'es'} filled · marked ${res.marked}/${res.students} · absent ${res.absent}${res.avg != null ? ' · average ' + res.avg : ''}</p>
+    <img class="fin-img" src="${png}" alt="Marks picture">
+    <label class="f"><span>Caption</span><input type="text" id="fcap" value="${esc(cap)}" maxlength="300"></label>
+    ${c.botSet ? '' : '<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">The group bot is not connected yet: Settings → Group bot (AI Xizmatkor). You can download the picture now.</p>'}
+    <div class="row"><a class="btn" href="${png}" download="baholar-${esc(g)}-${esc(date)}.png">Download</a><span class="spacer"></span><button class="btn" data-close>Close</button>
+      <button class="btn primary" id="fsend" ${c.botSet && c.chat ? '' : 'disabled'}>Send to group ${esc(g)}</button></div>`, m => {
+    m.classList.add('top'); m.querySelector('.modal').classList.add('wide');
+    $('#fsend', m).onclick = async () => {
+      if (!confirm('Send the marks picture to the Telegram group ' + g + '?')) return;
+      $('#fsend', m).disabled = true;
+      try { await api('sendGroupPhoto', g, png, $('#fcap', m).value); toast('Sent to group ' + g); closeModal(); }
+      catch (e) { $('#fsend', m).disabled = false; fail(e); }
+    };
+  });
+}
+/** The marks picture (same look as claude/baholar-screenshot.py): the block of this date, dates with marks, Joriy columns; the new date is orange. */
+function marksPng(d, date) {
+  const dc = d.cols.find(c => c.kind === 'day' && c.h === date), blk = dc ? dc.block : 1;
+  const has = c => d.students.some(s => String(s.v[c.c - 1] || '').trim() !== '');
+  const cols = d.cols.filter(c => c.block === blk && ((c.kind === 'day' && (has(c) || c.h === date)) || /^Joriy/.test(c.h)));
+  const head = ['№', 'F.I.Sh.'].concat(cols.map(c => c.h));
+  const kind = cols.map(c => c.h === date ? 'hl' : /^Joriy/.test(c.h) ? 'tot' : '');
+  const rows = d.students.map(s => [String(s.no), s.name].concat(cols.map(c => String(s.v[c.c - 1] || ''))));
+  const title = `${d.group}-guruh: kunlik baholar (${date} yangilandi)`;
+  const cv = document.createElement('canvas'), x = cv.getContext('2d'), SC = 2, P = 7, RH = 27, M = 18, TH = 34;
+  const F = '14px Arial, Helvetica, sans-serif', FB = 'bold 14px Arial, Helvetica, sans-serif';
+  const w = head.map((h, i) => { x.font = FB; let m = x.measureText(h).width; rows.forEach(r => { x.font = (kind[i - 2] ? FB : F); m = Math.max(m, x.measureText(r[i]).width); }); return Math.ceil(m + P * 2); });
+  x.font = 'bold 20px Arial, Helvetica, sans-serif';
+  const W = Math.max(w.reduce((a, b) => a + b, 0), x.measureText(title).width) + M * 2, H = M + TH + RH * (rows.length + 1) + M;
+  cv.width = W * SC; cv.height = H * SC; x.scale(SC, SC);
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  x.font = 'bold 20px Arial, Helvetica, sans-serif'; x.fillStyle = '#1f3864'; x.textBaseline = 'middle'; x.fillText(title, M, M + 12);
+  const cell = (cx, cy, cw, bg, txt, font, color, left) => {
+    x.fillStyle = bg; x.fillRect(cx, cy, cw, RH); x.strokeStyle = '#b7c3d0'; x.lineWidth = 1; x.strokeRect(cx + 0.5, cy + 0.5, cw, RH);
+    x.font = font; x.fillStyle = color; x.textAlign = left ? 'left' : 'center'; x.fillText(txt, left ? cx + P : cx + cw / 2, cy + RH / 2 + 1);
+  };
+  let y = M + TH, cx = M;
+  head.forEach((h, i) => { const k = kind[i - 2]; cell(cx, y, w[i], k === 'hl' ? '#c55a11' : k === 'tot' ? '#385723' : '#1f3864', h, FB, '#fff'); cx += w[i]; });
+  rows.forEach((r, ri) => {
+    y += RH; cx = M;
+    r.forEach((v, i) => {
+      const k = kind[i - 2], ab = i >= 2 && !k && isAbs(v) || (k === 'hl' && isAbs(v));
+      const bg = k === 'hl' ? '#fde9d9' : k === 'tot' ? '#e2efda' : (ri % 2 ? '#f2f6fb' : '#fff');
+      cell(cx, y, w[i], bg, v, k || ab ? FB : F, ab ? '#c00000' : '#111', i === 1); cx += w[i];
+    });
+  });
+  x.textAlign = 'left';
+  return cv.toDataURL('image/png');
 }
 
 /* ===================== LESSONS ===================== */
@@ -851,7 +977,7 @@ async function pageStudents() {
   try {
     const my = S.navId; const [d, acc] = await Promise.all([getGroup(), api('accounts', S.group).catch(() => null)]); if (my !== S.navId) return;
     const avgOf = s => { const n = d.cols.filter(c => c.kind === 'day').map(c => String(s.v[c.c - 1] || '').trim()).filter(v => v && v.toLowerCase() !== 'nb').map(v => +v.replace(',', '.')).filter(isFinite); return n.length ? (n.reduce((a, b) => a + b, 0) / n.length).toFixed(1) : '—'; };
-    const nbOf = s => d.cols.filter(c => c.kind === 'day' && String(s.v[c.c - 1] || '').trim().toLowerCase() === 'nb').length;
+    const nbOf = s => d.cols.filter(c => c.kind === 'day' && isAbs(s.v[c.c - 1])).length;
     const by = (acc && acc.byName) || {};
     const linked = d.students.filter(s => by[s.name] && by[s.name].status === 'active').length;
     const tgPill = s => { const a = by[s.name]; return !a ? '' : a.status === 'active' ? '<span class="pill" title="Linked in Telegram">TG</span>' : '<span class="pill warn">waiting</span>'; };
@@ -863,7 +989,7 @@ async function pageStudents() {
       : `<div class="small muted" style="margin:0 0 10px">Telegram: <b>${linked}/${d.students.length}</b> linked · students press /start in <a href="https://t.me/${esc(acc.botUsername)}" target="_blank" rel="noopener">@${esc(acc.botUsername)}</a></div>`;
     view().innerHTML = `${pendHtml}${botHtml}<div class="card"><div class="row" style="margin-bottom:8px"><input type="text" id="q" placeholder="Search a student…" style="max-width:320px"><span class="spacer"></span><span class="small muted">avg · absences</span></div>
       <ul class="slist">${d.students.map(s => `<li data-r="${s.row}" data-n="${esc(s.name.toLowerCase())}"><span class="muted" style="min-width:26px">${esc(s.no)}</span><span style="flex:1">${esc(s.name)} ${tgPill(s)}</span>
-        <b>${avgOf(s)}</b><span class="pill ${nbOf(s) ? 'bad' : 'gray'}">${nbOf(s)} nb</span></li>`).join('')}</ul></div>`;
+        <b>${avgOf(s)}</b><span class="pill ${nbOf(s) ? 'bad' : 'gray'}">${nbOf(s)} absent</span></li>`).join('')}</ul></div>`;
     $('#q').oninput = e => { const q = e.target.value.toLowerCase(); $$('.slist li').forEach(li => li.classList.toggle('hidden', !li.dataset.n.includes(q))); };
     $$('.slist li').forEach(li => li.onclick = () => showProfile(+li.dataset.r));
     const doAcc = (attr, action, msg) => $$('[' + attr + ']').forEach(b => b.onclick = async () => {
@@ -908,14 +1034,14 @@ function chart(series) {
   const x = i => L + 12 + i * ((W - L - 24) / Math.max(1, pts.length - 1)), y = v => T + (H - T - B) * (1 - v / 10);
   let path = '', area = '', grid = '';
   [0, 5, 10].forEach(v => grid += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`);
-  const real = pts.map((p, i) => [p, i]).filter(([p]) => p.val != null);
+  const real = pts.map((p, i) => [p, i]).filter(([p]) => p.val != null && !isAbs(p.raw));
   real.forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
   if (real.length) area = path + `L${x(real[real.length - 1][1]).toFixed(1)} ${y(0)}L${x(real[0][1]).toFixed(1)} ${y(0)}Z`;
-  const dots = pts.map((p, i) => p.val == null
-    ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:13px">×<title>${md(p.date)}: nb</title></text>`
+  const dots = pts.map((p, i) => p.val == null || isAbs(p.raw)
+    ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:13px">×<title>${md(p.date)}: absent</title></text>`
     : `<circle cx="${x(i)}" cy="${y(p.val)}" r="4" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"><title>${md(p.date)}: ${p.raw}</title></circle>`).join('');
   const labels = pts.map((p, i) => i % 2 === 0 ? `<text x="${x(i)}" y="${H - 9}" text-anchor="middle">${md(p.date)}</text>` : '').join('');
-  return `<div style="overflow-x:auto"><svg width="${W}" height="${H}" role="img" aria-label="Daily marks">${grid}<path d="${area}" fill="var(--accent)" opacity=".08"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}${labels}</svg></div><div class="small muted">× = absent (nb)</div>`;
+  return `<div style="overflow-x:auto"><svg width="${W}" height="${H}" role="img" aria-label="Daily marks">${grid}<path d="${area}" fill="var(--accent)" opacity=".08"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}${labels}</svg></div><div class="small muted">× = absent (0)</div>`;
 }
 
 /* ===================== DEADLINES & PW ===================== */
@@ -1066,7 +1192,7 @@ function liveStatsHtml(r) {
     const qs = s.qstats.map((q, i) => Object.assign({ i }, q, { p: pc(q.right, q.answered || q.players) }));
     const hard = qs.filter(q => q.p < 35);
     const modeName = { classic: 'Classic', robot: 'Robot Run', coop: 'Class Mission (co-op)' }[s.mode] || 'Classic';
-    const scName = { speed: 'speed + accuracy', accuracy: 'accuracy only', confidence: 'confidence' }[s.scoring] || '';
+    const scName = { speed: 'speed + accuracy', accuracy: 'accuracy only', confidence: 'confidence (old)' }[s.scoring] || '';
     out.push(`<p class="small muted" style="margin:14px 0 6px">Mode: <b>${esc(modeName)}</b>${s.mode !== 'robot' && scName ? ' · points: ' + esc(scName) : ''}${s.mission ? ` · mission: ${s.mission.fuel} of ${s.mission.goal} ${s.mission.fuel >= s.mission.goal ? '✅ completed' : '— not reached'}` : ''}</p>`);
     out.push(`<div class="row" style="gap:10px;margin:6px 0 10px"><span class="pill ${hard.length ? 'bad' : 'ok'}">Difficult questions: ${hard.length}</span><span class="pill ${help.length ? 'warn' : 'ok'}">Need help: ${help.length}</span></div>`);
     if (hard.length) out.push(`<p class="small" style="margin:4px 0"><b>Difficult questions</b> (fewer than 35% right) — revise these in class: ${hard.map(q => `<br>Q${q.i + 1}. ${esc(q.prompt)} <span class="muted">— ${q.p}% right; right answer: ${esc((q.options || [])[q.correct] || '')}</span>`).join('')}</p>`);
@@ -1113,27 +1239,31 @@ async function liveStartDialog(id) {
     : c.filled ? `<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">${c.filled} of ${c.students} students already have a mark on ${esc(md(c.date))}. Their game marks will not replace it.</p>`
     : `<p class="small muted">Marks (0–10, right answers only) go to the column <b>${esc(md(c.date))}</b>.</p>`;
   modal(`<h3>▶ Live game · ${esc(q.title)}</h3>
-    <p class="small muted" style="margin-top:0">Everyone sees the same question at the same time, on the projector and on their phones. Faster right answers get more points. ${n} of ${q.questions.length} questions are played live (multiple choice and true/false)${n < q.questions.length ? '; the others are skipped' : ''}.</p>
+    <p class="small muted" style="margin-top:0">Everyone sees the same question at the same time, on the projector and on their phones. ${n} of ${q.questions.length} questions are played live (multiple choice and true/false)${n < q.questions.length ? '; the others are skipped' : ''}.</p>
     <div class="row"><label class="f" style="flex:1"><span>Lesson date (gradebook column)</span><select id="ld"><option value="">— no marks —</option>${c.dates.map(d => `<option value="${esc(d)}" ${d === c.date ? 'selected' : ''}>${esc(md(d))}</option>`).join('')}</select></label>
       <label class="f" style="width:160px"><span>Seconds per question</span><select id="lsec">${[10, 15, 20, 30, 45, 60].map(x => `<option ${x === 20 ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
-    <div class="row"><label class="f" style="flex:1"><span>Game mode</span><select id="lmode"><option value="classic">Classic — one question at a time on the screen</option><option value="robot">🤖 Robot Run — levels, a robot chases the crew, safe zones</option><option value="coop">🚀 Class Mission — the whole group works together</option></select></label>
+    <details id="lmore" style="margin:2px 0 10px"><summary class="small" style="cursor:pointer;font-weight:600">More options <span class="muted" id="lsum">(Classic · accuracy · no teams)</span></summary>
+    <div class="row" style="margin-top:8px"><label class="f" style="flex:1"><span>Game mode</span><select id="lmode"><option value="classic">Classic — one question at a time on the screen</option><option value="robot">🤖 Robot Run — levels, a robot chases the crew</option><option value="coop">🚀 Class Mission — the whole group works together</option></select></label>
       <label class="f" style="width:190px" id="lminw" hidden><span>Game time</span><select id="lmin">${(() => { const rec = Math.min(20, Math.max(3, Math.round(n * 0.5))); return [...new Set([3, 5, 7, rec, 10, 12, 15, 20])].sort((a, b) => a - b).map(x => `<option value="${x}" ${x === rec ? 'selected' : ''}>${x} min${x === rec ? ' (recommended)' : ''}</option>`).join(''); })()}</select></label></div>
-    <div class="row"><label class="f" style="flex:1" id="lscw"><span>Points</span><select id="lsc"><option value="speed">Classic — right and fast = more points</option><option value="accuracy">Accuracy — only right answers count, no speed</option><option value="confidence">Confidence — students bet how sure they are</option></select></label>
+    <div class="row"><label class="f" style="flex:1" id="lscw"><span>Points</span><select id="lsc"><option value="accuracy">Accuracy — only right answers count</option><option value="speed">Speed — right and fast = more points</option></select></label>
       <label class="f" style="width:160px" id="ltmw"><span>Teams</span><select id="ltm"><option value="0">No teams</option>${[2, 3, 4, 5, 6].map(x => `<option value="${x}">${x} teams</option>`).join('')}</select></label></div>
+    <label class="row small" id="lzw" hidden style="gap:8px;margin-bottom:6px"><input type="checkbox" id="lzones"> Safe-zone mini-game between levels (students walk on the phone; harder on mobile internet)</label>
+    </details>
     <p class="small muted" id="lmodeinfo"></p>
     <div id="linfo">${info(c)}</div>
     <p class="small muted">Open this on the projector. Students open their page from the bot and press <b>Join live game</b>.</p>
     <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="lgo" ${n ? '' : 'disabled'}>Open the game</button></div>`, m => {
     const minfo = () => {
-      const md = $('#lmode', m).value, sc = $('#lsc', m).value, tm = +$('#ltm', m).value;
-      $('#lminw', m).hidden = md !== 'robot'; $('#lscw', m).hidden = md !== 'classic'; $('#ltmw', m).hidden = md !== 'classic';
-      $('#lmodeinfo', m).textContent = (md === 'robot' ? 'Robot Run (like Kahoot): the game goes level by level until the time is over. 1) Run: everyone answers on the phone at their own speed; together the crew needs enough right answers before the robot catches it — if it does, the run starts again. Every 3 right answers give a ⚡ boost. 2) Safe zones: everyone walks into the green zones on the screen (each zone has a limit). Everyone safe → next wave and next level; if not, the crew loses a life, and with no lives the level starts again. Questions repeat (wrong ones first); the mark comes from the first answer to each question.'
+      const md = $('#lmode', m).value, sc = $('#lsc', m).value, tm = +$('#ltm', m).value, zn = $('#lzones', m).checked;
+      const show = (sel, on) => { $(sel, m).hidden = !on; $(sel, m).style.display = on ? '' : 'none'; };
+      show('#lminw', md === 'robot'); show('#lscw', md === 'classic'); show('#ltmw', md === 'classic'); show('#lzw', md === 'robot');
+      $('#lsum', m).textContent = '(' + (md === 'robot' ? 'Robot Run' + (zn ? ' + safe zones' : '') : md === 'coop' ? 'Class Mission' : 'Classic · ' + (sc === 'speed' ? 'speed' : 'accuracy') + ' · ' + (tm ? tm + ' teams' : 'no teams')) + ')';
+      $('#lmodeinfo', m).textContent = (md === 'robot' ? 'Robot Run (like Kahoot): the game goes level by level until the time is over. Everyone answers on the phone at their own speed; together the crew needs enough right answers before the robot catches it — if it does, the run starts again. Every 3 right answers give a ⚡ boost.' + (zn ? ' Between levels everyone walks into the green safe zones on the screen (each zone has a limit); everyone safe → next level, if not the crew loses a life.' : ' Enough right answers → next level.') + ' Questions repeat (wrong ones first); the mark comes from the first answer to each question.'
         : md === 'coop' ? 'Class Mission: nobody competes. Every right answer gives fuel to the class rocket; the group must reach the Moon (70% right answers) together. No ranking on the screen — good for weak groups and revision.'
         : sc === 'accuracy' ? 'Accuracy: 1000 points for every right answer, speed does not matter. Students can think calmly.'
-        : sc === 'confidence' ? 'Confidence: after choosing an answer, students say how sure they are. Not sure ×1 (wrong: 0), Sure ×2 (wrong: −500), Very sure ×3 (wrong: −1000).'
         : 'Classic: right and fast answers get more points (500–1000).') + (md === 'classic' && tm ? ` Teams: the players are split into ${tm} teams at random when you press Start; a team's score is the average of its players.` : '') + ' Marks (0–10) always come from right answers only.';
     };
-    ['#lmode', '#lsc', '#ltm'].forEach(s => { $(s, m).onchange = minfo; }); minfo();
+    ['#lmode', '#lsc', '#ltm', '#lzones'].forEach(s => { $(s, m).onchange = minfo; }); minfo();
     $('#ld', m).onchange = async e => { try { const c2 = e.target.value ? await api('startCheck', id, e.target.value) : { date: '' }; $('#linfo', m).innerHTML = info(c2); } catch (er) { fail(er); } };
     $('#lgo', m).onclick = async () => {
       $('#lgo', m).disabled = true;
@@ -1141,6 +1271,7 @@ async function liveStartDialog(id) {
         const P = await api('liveOpen', id, $('#ld', m).value, $('#lsec', m).value);
         P.mode = $('#lmode', m).value; P.minutes = Math.min(60, Math.max(1, Number($('#lmin', m).value) || 8));
         P.scoring = P.mode === 'classic' ? $('#lsc', m).value : 'accuracy'; P.teams = P.mode === 'classic' ? +$('#ltm', m).value || 0 : 0;
+        P.zones = P.mode === 'robot' && $('#lzones', m).checked ? 1 : 0;
         closeModal(); openLiveHost(P);
       }
       catch (e) { $('#lgo', m).disabled = false; fail(e); }
@@ -1341,10 +1472,10 @@ async function openLiveHost(P) {
     const g = fb.db.ref('games/' + P.gid);
     const h = (await g.child('host').once('value')).val();
     if (h && h !== fb.uid) throw new Error('This game is controlled from another browser. Open it there, or close it on the Quizzes page and start again.');
-    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs, mode: P.mode || 'classic', minutes: P.minutes || 0, scoring: P.scoring || 'speed', teams: P.teams || 0 }, state: { phase: 'lobby' } }); }
-    else { const meta = (await g.child('meta').once('value')).val() || {}; P.mode = meta.mode || 'classic'; P.minutes = meta.minutes || 0; P.scoring = meta.scoring || 'speed'; P.teams = meta.teams || 0; }
+    if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs, mode: P.mode || 'classic', minutes: P.minutes || 0, scoring: P.scoring || 'accuracy', teams: P.teams || 0, zones: P.zones || 0 }, state: { phase: 'lobby' } }); }
+    else { const meta = (await g.child('meta').once('value')).val() || {}; P.mode = meta.mode || 'classic'; P.minutes = meta.minutes || 0; P.scoring = meta.scoring === 'speed' ? 'speed' : 'accuracy'; P.teams = meta.teams || 0; P.zones = meta.zones || 0; }
     lvmCtx();
-    LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', reactOn: lsGet('lv_react', 'on') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
+    LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', reactOn: lsGet('lv_react2', 'off') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
       teams: {}, fbk: {}, mission: null, byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
     const qm = (await g.child('questions').once('value')).val() || {}; Object.keys(qm).forEach(k => { if (qm[k]) LV.qmeta[k] = qm[k]; });
     LV.teams = (await g.child('teams').once('value')).val() || {}; LV.mission = (await g.child('mission').once('value')).val();
@@ -1593,7 +1724,7 @@ function rrTick() {
   const key = st.phase + ':' + st.startedAt, el = now - st.startedAt, go = f => { if (LV.rrKey === key) return; LV.rrKey = key; f(); };
   if (st.phase === 'race') {
     const crew = Math.min(1, (LV.rrHave || 0) / Math.max(1, st.target)), rob = rrRobot(st, now);
-    if (crew >= 1) go(() => rrWave(1, RR.lives));
+    if (crew >= 1) go(() => LV.P.zones ? rrWave(1, RR.lives) : rrSet({ phase: 'lvlup', dur: RR.pause, best: Math.max(st.best || 0, st.lvl) }));
     else if (el > 2500 && rob >= crew) go(() => rrSet({ phase: 'caught', why: 'robot', dur: RR.pause }));
   } else if (st.phase === 'zone') {
     rrZc();
@@ -1689,8 +1820,8 @@ function lvScores(upto) {
       const inTime = a && a.t <= m.startedAt + m.dur * 1000 + 1500;
       if (inTime && a.a === q.correct) {
         ok = true; const rt = Math.max(0, a.t - m.startedAt) / (m.dur * 1000);
-        pts = sc === 'accuracy' ? 1000 : sc === 'confidence' ? 500 * (a.c || 1) : Math.round(1000 * (1 - Math.min(1, rt) / 2));
-      } else if (inTime && sc === 'confidence') pts = -500 * ((a.c || 1) - 1);   // a wrong answer you were sure about costs points
+        pts = sc === 'speed' ? Math.round(1000 * (1 - Math.min(1, rt) / 2)) : 1000;
+      }
       if (pts < 0) pts = -Math.min(-pts, r.score);
       r.score += pts; if (ok) r.right++;
       if (i === upto) { r.last = pts; r.lastOk = ok; r.answered = !!a; }
@@ -1758,7 +1889,7 @@ function lvRender() {
   if (!LV) return;
   const el = $('#lv'), st = LV.state || {}, P = LV.P, n = P.questions.length, act = lvValid();
   const top = `<div class="lv-top"><b style="font-size:20px">${esc(P.title)}</b><span class="lv-dim">Group ${esc(P.group)}</span>
-    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' && !RR_PH.includes(st.phase) ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}${P.mode === 'robot' ? '<span class="lv-pill">🤖 Robot Run</span>' : P.mode === 'coop' ? '<span class="lv-pill">🚀 Class Mission</span>' : P.scoring === 'accuracy' ? '<span class="lv-pill">🎯 Accuracy</span>' : P.scoring === 'confidence' ? '<span class="lv-pill">😎 Confidence</span>' : ''}${P.teams ? `<span class="lv-pill">👥 ${P.teams} teams</span>` : ''}<span class="lv-pill">${act.length} players</span>
+    ${st.phase && st.phase !== 'lobby' && st.phase !== 'end' && !RR_PH.includes(st.phase) ? `<span class="lv-pill">Question ${st.q + 1} / ${n}</span>` : ''}${P.mode === 'robot' ? '<span class="lv-pill">🤖 Robot Run</span>' : P.mode === 'coop' ? '<span class="lv-pill">🚀 Class Mission</span>' : P.scoring === 'speed' ? '<span class="lv-pill">⚡ Speed</span>' : ''}${P.teams ? `<span class="lv-pill">👥 ${P.teams} teams</span>` : ''}<span class="lv-pill">${act.length} players</span>
     <span style="flex:1"></span><button class="lv-btn ghost" id="lvreact" title="Show the emoji that students send from their phones">Reactions: ${LV.reactOn ? 'On' : 'Off'}</button><button class="lv-btn ghost" id="lvauto" title="After each answer and the top 5, go on by itself">Autoplay: ${LV.auto ? 'On' : 'Off'}</button>
     <button class="lv-btn ghost" id="lvmus" title="Music and volume">♪ ${esc((LV_THEMES.find(x => x[0] === LVM.theme) || LV_THEMES[0])[1])} ▾</button><button class="lv-btn ghost" id="lvfs">Full screen</button><button class="lv-btn ghost" id="lvx">${st.phase === 'end' ? 'Close' : 'End game'}</button></div>`;
   let body = '';
@@ -1773,7 +1904,7 @@ function lvRender() {
   } else if (st.phase === 'question') {
     const q = P.questions[st.q];
     body = `<div class="lv-prompt">${esc(q.prompt)}</div>
-      <div class="lv-mid"><div class="lv-timer" id="lvt">${st.dur}</div><div class="lv-expl lv-dim">${P.scoring === 'confidence' && P.mode === 'classic' ? 'Answer on your phone, then say how sure you are' : P.mode === 'coop' ? 'Answer on your phone — every right answer fuels the class rocket 🚀' : 'Answer on your phone'}</div><div class="lv-ans"><b id="lva">${Object.keys(LV.cur || {}).length}</b>answers</div></div>
+      <div class="lv-mid"><div class="lv-timer" id="lvt">${st.dur}</div><div class="lv-expl lv-dim">${P.mode === 'coop' ? 'Answer on your phone — every right answer fuels the class rocket 🚀' : 'Answer on your phone'}</div><div class="lv-ans"><b id="lva">${Object.keys(LV.cur || {}).length}</b>answers</div></div>
       <div class="lv-opts">${q.options.map((o, k) => `<div class="lv-opt" style="background:${LCOL[k]}"><span class="lv-shape">${LSH[k]}</span><span>${esc(o)}</span></div>`).join('')}</div>
       <div class="lv-center"><button class="lv-btn ghost" id="lvskip">Stop the time</button></div>`;
   } else if (st.phase === 'reveal') {
@@ -1815,13 +1946,14 @@ function lvRender() {
     body += `<div class="lv-note lv-fbk" id="lvfbk">${lvFbHtml()}</div>
       <div class="lv-note">${LV.saving ? 'Saving marks to the gradebook…' : LV.saveErr ? `Marks were not saved: ${esc(LV.saveErr)} <button class="lv-btn" id="lvretry" style="margin-left:10px">Try again</button>`
         : sv ? `Marks: <b>${sv.written}</b> written to the gradebook${P.date ? ' (' + esc(md(P.date)) + ')' : ''}${sv.conflicts.length ? ` · not written: ${sv.conflicts.map(esc).join('; ')}` : ''}${sv.skipped.length ? ` · skipped: ${sv.skipped.map(esc).join('; ')}` : ''}
-          <button class="lv-btn" id="lvrep" style="margin-left:12px;padding:8px 16px">📋 Report</button>` : ''}</div>`;
+          <button class="lv-btn" id="lvrep" style="margin-left:12px;padding:8px 16px">📋 Report</button>${P.date ? '<button class="lv-btn" id="lvfin" style="margin-left:8px;padding:8px 16px">✓ Finish lesson</button>' : ''}` : ''}</div>`;
   }
   const mus = LV.musOpen ? `<div class="lv-mus"><span class="lv-dim">Music:</span>${LV_THEMES.map(([k, l]) => `<button class="lv-btn ghost ${LVM.theme === k ? 'on' : ''}" data-theme="${k}">${l}</button>`).join('')}
     <span class="lv-dim" style="margin-left:12px">Volume:</span><button class="lv-btn ghost" data-vol="-0.1" ${LVM.vol <= 0.1 ? 'disabled' : ''}>−</button><b style="min-width:44px;text-align:center">${Math.round(LVM.vol * 100)}%</b><button class="lv-btn ghost" data-vol="0.1" ${LVM.vol >= 1 ? 'disabled' : ''}>+</button></div>` : '';
   el.innerHTML = top + mus + `<div class="lv-main">${body}</div>`;
   const qrEl = $('#lvqr'); if (qrEl) lvQr(qrEl);
   const rb = $('#lvrep'); if (rb) rb.onclick = () => showLiveReport(P.quiz_id);
+  const fb2 = $('#lvfin'); if (fb2) fb2.onclick = () => finishDialog(P.group, P.date);
   $('#lvx').onclick = lvClose;
   $('#lvauto').onclick = () => { LV.auto = !LV.auto; lsSet('lv_auto', LV.auto ? 'on' : 'off'); lvRender(); };
   $('#lvmus').onclick = () => { LV.musOpen = !LV.musOpen; lvRender(); };
@@ -1831,7 +1963,7 @@ function lvRender() {
   lvMusicFor(st); lvAuto(st);
   $('#lvfs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => {}); };
   $$('[data-kick]', el).forEach(b => b.onclick = () => { if (confirm('Remove "' + b.textContent + '"? The student can join again with another nickname.')) lvKick(b.dataset.kick); });
-  $('#lvreact').onclick = () => { LV.reactOn = !LV.reactOn; lsSet('lv_react', LV.reactOn ? 'on' : 'off'); lvRender(); };
+  $('#lvreact').onclick = () => { LV.reactOn = !LV.reactOn; lsSet('lv_react2', LV.reactOn ? 'on' : 'off'); lvRender(); };
   const go = $('#lvgo'); if (go) go.onclick = () => { go.disabled = true; lvAssignTeams().then(() => P.mode === 'robot' ? lvRaceStart() : lvAsk(0)).catch(e => { go.disabled = false; fail(e); }); };
   const re = $('#lvrend'); if (re) re.onclick = () => { if (confirm('End the game now and show the results?')) lvRaceEnd(); };
   if (RR_PH.includes(st.phase)) rrDraw();
@@ -2068,7 +2200,7 @@ async function quizLive(id, res) {
         <div class="stat"><b>${res.avg == null ? '—' : res.avg}</b><span>average /10</span></div>
         <div class="stat"><b>${esc(md(q.lesson_date) || '—')}</b><span>${res.dateOk ? 'gradebook column' : '<span style="color:var(--bad)">no column</span>'}</span></div></div>
       ${isOpen ? `<div class="row" style="margin-top:14px"><button class="btn" id="qnot">Notify students</button><button class="btn" id="qext">+2 min</button><span class="spacer"></span><button class="btn danger" id="qclose">Close now</button></div>` : ''}
-      ${!isOpen && nbCand.length && res.dateOk ? `<div class="row" style="margin-top:14px"><span class="small muted" style="flex:1">${nbCand.length} did not take it and have no mark on ${esc(md(q.lesson_date))}.</span><button class="btn danger" id="qnb">Mark them nb…</button></div>` : ''}</div>
+      ${!isOpen && res.dateOk ? `<div class="row" style="margin-top:14px"><span class="small muted" style="flex:1">${nbCand.length ? nbCand.length + ' did not take it and have no mark on ' + esc(md(q.lesson_date)) + '.' : 'Lesson ' + esc(md(q.lesson_date)) + ': send the marks to the group when you are ready.'}</span>${nbCand.length ? '<button class="btn danger" id="qnb">Mark them absent (0)…</button>' : ''}<button class="btn primary" id="qfin">✓ Finish lesson</button></div>` : ''}</div>
     <div class="card"><h2>Students</h2><ul class="dlist">${res.rows.map(r => `<li><div class="nm">${esc(r.name)}${r.linked ? '' : ' <span class="small muted">(no account)</span>'}</div>
       <b style="min-width:36px;text-align:right">${r.score10 == null ? '' : r.score10}</b><div style="text-align:right">${st(r)}</div></li>`).join('')}</ul></div>
     <div class="card"><h2>Most missed</h2>${res.top.length ? res.top.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="row"><b style="flex:1;min-width:0">${x.n}. ${esc(x.prompt)}</b><span class="pill bad">${x.wrongPct}% wrong</span></div>
@@ -2080,7 +2212,8 @@ async function quizLive(id, res) {
   act('#qnot', async () => { const r = await api('notifyQuiz', id); toast(`Sent to ${r.sent} of ${r.of} linked students`); });
   act('#qext', async () => quizLive(id, await api('extendQuiz', id, 2)));
   act('#qclose', async () => { if (!confirm('Close the quiz now? Unfinished students are graded on what they saved.')) return; quizLive(id, await api('closeQuiz', id)); });
-  act('#qnb', async () => { if (!confirm('Put nb on ' + md(q.lesson_date) + ' for:\n' + nbCand.map(r => r.name).join('\n'))) return; quizLive(id, await api('quizMarkNb', id, nbCand.map(r => r.row))); S.data = {}; toast('nb saved'); });
+  act('#qnb', async () => { if (!confirm('Put 0 (absent) on ' + md(q.lesson_date) + ' for:\n' + nbCand.map(r => r.name).join('\n'))) return; quizLive(id, await api('quizMarkNb', id, nbCand.map(r => r.row))); S.data = {}; toast('Absences saved (0)'); });
+  if ($('#qfin')) $('#qfin').onclick = () => finishDialog(q.group, q.lesson_date);
   $$('[data-use]').forEach(b => b.onclick = async () => { if (!confirm('Replace the existing mark of ' + b.dataset.use + ' with the quiz mark?')) return; try { quizLive(id, await api('quizUseMark', id, b.dataset.use)); S.data = {}; toast('Saved'); } catch (e) { fail(e); } });
   if (isOpen) {
     const closes = Date.parse(q.closes_at); let n = 0;
@@ -2117,11 +2250,19 @@ async function pageSettings() {
           <div class="row" style="margin-bottom:14px"><button class="btn primary" id="tgme">${s.teacherLinked ? 'Reconnect my Telegram' : 'Connect my Telegram'}</button></div>`
         : '<p class="muted">Not connected yet. Create a new bot in @BotFather (/newbot) and paste its token here.</p>'}
         <div class="row"><input type="text" id="bt" placeholder="${s.botTokenSet ? 'New token (only to replace)' : '123456:ABC…'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="bts">Save</button></div></div>
+      <div class="card"><h2>Group bot (marks picture)</h2>
+        <p class="muted">“Finish lesson” sends the marks picture to the group chat through <b>AI Xizmatkor</b> (it is in all five group chats). The token is kept only on the server.</p>
+        <p>Status: ${s.groupBotSet ? `<b style="color:var(--good)">connected</b> · @${esc(s.groupBotUsername)}` : '<b>not connected</b>'}</p>
+        <div class="row"><input type="text" id="gbt" placeholder="${s.groupBotSet ? 'New token (only to replace)' : 'AI Xizmatkor token from @BotFather'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="gbts">Save</button></div></div>
+      <div class="card"><h2>Deadline reminders</h2><p class="muted">Every evening (after 18:00) the student bot reminds linked students privately: 3 days before and 1 day before a deadline of their group.</p>
+        <div class="seg"><button data-rm="off" class="${s.reminders !== 'on' ? 'on' : ''}">Off</button><button data-rm="on" class="${s.reminders === 'on' ? 'on' : ''}">On</button></div></div>
     </div><p class="small muted" style="margin-top:16px">Groups: ${s.groups.map(esc).join(', ')} · Version ${esc(s.version)} · Data: Google Sheets “Baholash jurnali 2026-2027”</p>`;
     $('#cpw').onclick = async () => { try { await api('changePassword', $('#op').value, $('#np').value); $('#op').value = $('#np').value = ''; toast('Password changed'); } catch (e) { fail(e); } };
     $('#so').onclick = () => signOut();
     $('#soa').onclick = async () => { if (!confirm('Sign out on all devices?')) return; try { await api('logoutAll'); signOut(); } catch (e) { fail(e); } };
     $$('[data-m]').forEach(b => b.onclick = async () => { try { await api('setMinAttend', b.dataset.m === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
+    $('#gbts').onclick = async () => { $('#gbts').disabled = true; try { await api('setGroupBot', $('#gbt').value); toast('Group bot connected'); pageSettings(); } catch (e) { $('#gbts').disabled = false; fail(e); } };
+    $$('[data-rm]').forEach(b => b.onclick = async () => { try { await api('setReminders', b.dataset.rm === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
     $('#bts').onclick = async () => { $('#bts').disabled = true; try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { $('#bts').disabled = false; fail(e); } };
     if ($('#tgme')) $('#tgme').onclick = async () => {
       try { const link = await api('teacherTgLink');
