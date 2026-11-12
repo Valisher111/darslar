@@ -162,11 +162,22 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 <div id="live" class="hidden"></div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH/exec';
+/* One site, many teachers (2.3): the student's link carries &a=<teacher's deployment id> (none = Valisher). */
+const MAIN_API = 'AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH';
+const API_ID = (() => {
+  const a = /[#&]a=([A-Za-z0-9_-]{20,140})/.exec(location.hash);
+  if (a) return a[1];
+  if (/[#&](k|play|preview)=/.test(location.hash)) return MAIN_API;     // an old link without a= is Valisher's
+  try { return localStorage.getItem('ds_a') || MAIN_API; } catch (e) { return MAIN_API; }
+})();
+const IS_MAIN_API = API_ID === MAIN_API;
+const API = 'https://script.google.com/macros/s/' + API_ID + '/exec';
+const NS = IS_MAIN_API ? '' : API_ID.slice(-10) + '_';
+const sigKey = g => NS + String(g).replace(/[.#$\/\[\]]/g, '_');
 
 /* Requests go through the Cloudflare Worker (faster, retries when Google is busy).
    If the Worker cannot be reached, the page talks to Apps Script directly. */
-const API_CF = 'https://darslar-api.vtangriyev.workers.dev';
+const API_CF = 'https://darslar-api.vtangriyev.workers.dev' + (IS_MAIN_API ? '' : '/?a=' + API_ID);
 let viaCF = (() => { try { return sessionStorage.getItem('dp_nocf') !== '1'; } catch (e) { return true; } })();
 async function apiFetch(body) {
   if (viaCF) {
@@ -189,7 +200,8 @@ function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').
 
 let KEY = null;
 const m = /k=([a-f0-9]{40})/.exec(location.hash);
-if (m) { KEY = m[1]; ls.set('ds_k', KEY); } else KEY = ls.get('ds_k');
+if (m) { KEY = m[1]; ls.set('ds_k', KEY); ls.set('ds_a', API_ID); } else KEY = ls.get('ds_k');
+if (!m && KEY && (ls.get('ds_a') || MAIN_API) !== API_ID) KEY = null;   // the saved link belongs to another teacher's platform
 // Teacher "Student view": s.html#preview=<quiz_id>, opened from the teacher site (uses the teacher key, writes nothing)
 const PLm = /play=([a-f0-9]{16,64})/.exec(location.hash);
 const PLAY = PLm ? PLm[1] : null;   // opened from the QR code on the projector
@@ -225,6 +237,7 @@ function buildTabs() {
 }
 function showHome(h) {
   H = h;
+  if (h.fb && h.fb.databaseURL) FB_CFG = h.fb;   // the teacher's own Firebase for live games
   $('#hi').textContent = 'Group ' + H.group + ' · ' + H.subject; $('#who').textContent = H.name;
   $('#sub').textContent = 'Today is ' + dayName(H.today);
   buildTabs(); render();
@@ -510,7 +523,7 @@ let SIG = null, sigLast, lastCheck = 0;
 function sigOpen() {
   if (!H || SIG || document.hidden || PREVIEW || !window.EventSource) return;
   try {
-    SIG = new EventSource(FB_CFG.databaseURL + '/sig/' + encodeURIComponent(H.group) + '.json');
+    SIG = new EventSource(FB_CFG.databaseURL + '/sig/' + encodeURIComponent(sigKey(H.group)) + '.json');
     const on = e => { let d = null; try { d = JSON.parse(e.data); } catch (x) { return; } const v = d ? d.data : null; if (sigLast !== undefined && v !== sigLast) setTimeout(checkNow, Math.random() * 2500); sigLast = v; };
     SIG.addEventListener('put', on); SIG.addEventListener('patch', on);
   } catch (e) { SIG = null; }
@@ -560,7 +573,7 @@ async function finishPreview(auto) {
 }
 
 /* ===================== live game (student) ===================== */
-const FB_CFG = { apiKey: 'AIzaSyDgrzdKXA_cOfiMeMX6EOYLSyeSZrAUOfc', authDomain: 'darslar-live.firebaseapp.com', databaseURL: 'https://darslar-live-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'darslar-live', appId: '1:400814296064:web:f2c8964ce914602158dce5' };
+let FB_CFG = { apiKey: 'AIzaSyDgrzdKXA_cOfiMeMX6EOYLSyeSZrAUOfc', authDomain: 'darslar-live.firebaseapp.com', databaseURL: 'https://darslar-live-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'darslar-live', appId: '1:400814296064:web:f2c8964ce914602158dce5' };
 const FBV = '10.12.2', LCOL = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], LSH = ['▲', '◆', '●', '■'];
 function loadScript(src) {
   return new Promise((ok, no) => {
@@ -579,7 +592,7 @@ async function fbApp(name) {
   o.now = () => Date.now() + o.off;
   return o;
 }
-let SL = null;
+let SL = null, FB_PICKED = false;
 const slBox = h => `<div class="lvs">${h}</div>`;
 async function joinLive(playGid) {
   clearInterval(pingT); if (typeof playGid !== 'string') playGid = null;
@@ -590,6 +603,7 @@ async function joinLive(playGid) {
     if (KEY) { try { j = await api('stLiveJoin'); } catch (e) { j = null; } if (j && playGid && j.gid !== playGid) j = null; }
     if (!j && !playGid) throw new Error('There is no live game for your group now.');
     if (!j) j = { gid: playGid, title: '', ticket: null, guest: true };   // not on the group list: play as a guest, no mark
+    if (!H && !IS_MAIN_API && !FB_PICKED) { try { const c = await api('pubCfg'); if (c && c.fb && c.fb.databaseURL) FB_CFG = c.fb; } catch (e) {} FB_PICKED = true; }
     const fb = await fbApp('student');
     SL = { j, fb, g: fb.db.ref('games/' + j.gid), state: undefined, rt: 0, my: {}, qi: -1, qd: null, sent: null, rev: {}, tick: null, n: 0 };
     if (j.guest) {
