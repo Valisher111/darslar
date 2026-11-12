@@ -377,7 +377,20 @@ async function review(id) {
 }
 
 /* ===================== quiz taking ===================== */
-let Q = null, A = {}, touched = {}, off = 0, qTimer = null, saveT = null, dirty = false, submitting = false;
+let Q = null, A = {}, touched = {}, off = 0, qTimer = null, saveT = null, dirty = false, submitting = false, lastSync = 0, endCheck = false;
+/* The teacher can add time (+2 min) while a quiz runs: re-read the closing time from the server
+   every ~20 s and once more before auto-sending at 0:00. */
+function setClose(c) {
+  if (!Q || !c || isNaN(Date.parse(c))) return;
+  const more = Date.parse(c) > Date.parse(Q.closes_at) + 1000;
+  if (Date.parse(c) !== Date.parse(Q.closes_at)) { Q.closes_at = c; if (more) toast('Your teacher added more time'); }
+}
+async function syncClose() {
+  if (!Q || PREVIEW) return;
+  lastSync = Date.now();
+  const id = Q.quiz_id;
+  try { const p = await api('stPing'); if (Q && p && p.open === id && p.closes) setClose(p.closes); } catch (e) {}
+}
 async function startQuiz(id) {
   const btn = $('#qgo'); if (btn) btn.disabled = true;
   try {
@@ -386,6 +399,7 @@ async function startQuiz(id) {
     Object.keys(A).forEach(k => touched[k] = true);
     clearInterval(pingT);
     $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); window.scrollTo(0, 0);
+    lastSync = Date.now(); endCheck = false;
     drawQuiz(); qTimer = setInterval(tickQ, 1000); tickQ();
   } catch (e) { fail(e); if (btn) btn.disabled = false; load(true); }
 }
@@ -433,7 +447,7 @@ function progress() { const n = answered(); $('#qcount').textContent = n + ' of 
 async function save() {
   if (PREVIEW) { dirty = false; if ($('#qsave')) $('#qsave').textContent = 'Saved (preview)'; return; }
   if (!dirty || !Q) return; dirty = false;
-  try { const r = await api('stQuizSave', Q.quiz_id, A); $('#qsave').textContent = r.ok ? 'Saved' : 'Time is over'; }
+  try { const r = await api('stQuizSave', Q.quiz_id, A); if (r.closes) { setClose(r.closes); lastSync = Date.now(); } $('#qsave').textContent = r.ok ? 'Saved' : 'Time is over'; }
   catch (e) { dirty = true; $('#qsave').textContent = 'Not saved — check the internet'; }
 }
 function tickQ() {
@@ -441,7 +455,15 @@ function tickQ() {
   const left = Math.max(0, Math.round((Date.parse(Q.closes_at) - Date.now() - off) / 1000));
   const el = $('#tmr'); el.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); el.classList.toggle('low', left <= 60);
   if (left === 60) toast('1 minute left');
-  if (left === 0) finish(true);
+  if (!PREVIEW && left > 0 && Date.now() - lastSync > 20000 + Math.random() * 5000) syncClose();
+  if (left === 0 && !endCheck) {
+    if (PREVIEW) return finish(true);
+    endCheck = true; el.textContent = '0:00…';
+    syncClose().then(() => {
+      endCheck = false; if (!Q) return;
+      if (Date.parse(Q.closes_at) - Date.now() - off > 1000) tickQ(); else finish(true);
+    });
+  }
 }
 async function finish(auto) {
   if (submitting || !Q) return;
