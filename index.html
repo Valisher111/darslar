@@ -97,7 +97,7 @@ h3{font-size:15px;margin:0 0 8px}
 .pill.bad{background:var(--bad-soft);color:var(--bad)}
 label.f{display:block;margin-bottom:12px}
 label.f span{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
-input[type=text],input[type=password],select,textarea{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 12px;min-height:var(--tap)}
+input[type=text],input[type=password],input[type=number],input[type=date],select,textarea{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 12px;min-height:var(--tap)}
 textarea{min-height:76px;resize:vertical}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .loading{padding:50px;text-align:center;color:var(--muted)}
@@ -153,16 +153,6 @@ table.g td.ed{cursor:pointer}
 table.g td.ed:hover{outline:2px solid var(--accent);outline-offset:-2px}
 table.g td.nbv{color:var(--bad);font-weight:700}
 table.g td.hl{background:var(--changed)}
-table.g td.sc{background:hsl(var(--h) 78% 80%);color:#1d2b26}
-table.g td.sc.ro{background:hsl(var(--h) 50% 87%);color:#3b4a44}
-.mleg{display:inline-block;width:70px;height:10px;border-radius:5px;vertical-align:middle;margin:0 4px;background:linear-gradient(90deg,hsl(0 78% 72%),hsl(60 78% 72%),hsl(120 60% 62%))}
-table.g td.sc.nbv{color:#a01818}
-table.g td.sc.hl{box-shadow:inset 0 0 0 3px #e0a800}
-@media (prefers-color-scheme: dark){
-  table.g td.sc{background:hsl(var(--h) 55% 24%);color:#eef5f2}
-  table.g td.sc.ro{background:hsl(var(--h) 35% 19%);color:#c9d6d1}
-  table.g td.sc.nbv{color:#ffb0b0}
-}
 .lrow{display:flex;gap:14px;align-items:flex-start;cursor:pointer}
 .lrow .dt{min-width:58px;font-weight:700}
 .lrow .dt small{display:block;font-weight:500;color:var(--muted);font-size:12px}
@@ -343,6 +333,13 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .auth .card{width:100%;max-width:400px;padding:28px}
 .auth .logo{width:48px;height:48px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:22px;margin-bottom:14px}
 .check{display:flex;align-items:center;gap:8px;margin:4px 0 16px;font-size:14px;color:var(--muted)}
+.steps{margin:0 0 14px;padding-left:20px}.steps li{margin-bottom:8px}
+.gcard .top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.gcard .kv{margin-bottom:12px}
+.slist{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.srow{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}.srow .nm{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}.srow .btn.sm{padding:4px 9px}
+.modal.wide{max-width:640px;width:100%}
 </style>
 </head>
 <body>
@@ -352,7 +349,7 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
   <div class="card">
     <div class="logo">D</div>
     <h2 id="auth-title" style="font-size:22px;margin-bottom:4px">Darslar</h2>
-    <p class="muted" id="auth-sub" style="margin-top:0">Teacher dashboard · V.A. Tangriyev</p>
+    <p class="muted" id="auth-sub" style="margin-top:0">Teacher dashboard</p>
     <form id="auth-form" autocomplete="on">
       <input type="text" name="username" value="teacher" autocomplete="username" class="hidden" readonly>
       <label class="f"><span>Password</span><input type="password" id="pw1" autocomplete="current-password" required></label>
@@ -367,7 +364,7 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 <!-- ============ APP ============ -->
 <div id="app" class="app hidden">
   <aside>
-    <div class="brand"><div class="logo">D</div><div>Darslar<small>2026–2027 · DTPI</small></div></div>
+    <div class="brand"><div class="logo">D</div><div>Darslar<small id="brand-sub">Teacher dashboard</small></div></div>
     <nav class="nav" id="nav"></nav>
     <div class="side-foot" id="side-foot"></div>
   </aside>
@@ -392,11 +389,32 @@ var qrcode=function(){function i(t,r){function a(t,r){g=function(t){for(var r=ne
 </script>
 <script>
 /* ===================== config ===================== */
-const API = 'https://script.google.com/macros/s/AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH/exec';
+/* One site, many teachers (2.3): every teacher has an own Google Sheet + Apps Script.
+   Valisher's is the default; a colleague's site link carries #api=<deployment id> once, then it is remembered. */
+const MAIN_API = 'AKfycbzP51ZVzUqdzT-iV_Un8g82e7SvX-iSIDm2Qm1oz05AkdDPkWnNw0Yk_C9JCf6HEvqH';
+const API_ID = (() => {
+  const m = /[#&]api=([A-Za-z0-9_-]{20,140})/.exec(location.hash);
+  let id = null; try { id = localStorage.getItem('dp_api'); } catch (e) {}
+  if (m) {
+    const nid = m[1] === 'main' ? MAIN_API : m[1];
+    if (nid !== (id || MAIN_API)) {   // another teacher's platform on this browser: forget the old session and cache
+      try { Object.keys(localStorage).filter(k => /^dp_(c_|key$|group$)/.test(k)).forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('dp_key'); } catch (e) {}
+    }
+    try { localStorage.setItem('dp_api', nid); } catch (e) {}
+    id = nid;
+    if (!/setup=/.test(location.hash)) history.replaceState(null, '', location.pathname);
+  }
+  return id || MAIN_API;
+})();
+const IS_MAIN_API = API_ID === MAIN_API;
+const API = 'https://script.google.com/macros/s/' + API_ID + '/exec';
+/** Firebase key prefix for this teacher's "something opened" signals (Valisher: none, as before). */
+const NS = IS_MAIN_API ? '' : API_ID.slice(-10) + '_';
+const sigKey = g => NS + String(g).replace(/[.#$\/\[\]]/g, '_');
 
 /* Requests go through the Cloudflare Worker (faster, retries when Google is busy).
    If the Worker cannot be reached, the page talks to Apps Script directly. */
-const API_CF = 'https://darslar-api.vtangriyev.workers.dev';
+const API_CF = 'https://darslar-api.vtangriyev.workers.dev' + (IS_MAIN_API ? '' : '/?a=' + API_ID);
 let viaCF = (() => { try { return sessionStorage.getItem('dp_nocf') !== '1'; } catch (e) { return true; } })();
 async function apiFetch(body) {
   if (viaCF) {
@@ -412,12 +430,13 @@ const ICONS = {
   lessons: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
   students: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
   deadlines: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+  groups: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
   quizzes: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
 const PAGES = [
   ['today', 'Today'], ['grades', 'Grades'], ['lessons', 'Lessons'], ['students', 'Students'],
-  ['deadlines', 'Deadlines & PW'], ['quizzes', 'Quizzes'], ['settings', 'Settings']
+  ['deadlines', 'Deadlines & PW'], ['quizzes', 'Quizzes'], ['groups', 'Groups'], ['settings', 'Settings']
 ];
 const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines', 'quizzes'];
 
@@ -493,7 +512,7 @@ let SIGFB = null;
 async function sigBump() {
   try {
     if (!SIGFB) SIGFB = await fbApp('host');
-    const u = {}; (S.groups || []).forEach(g => u[g] = firebase.database.ServerValue.TIMESTAMP);
+    const u = {}; (S.groups || []).forEach(g => u[sigKey(g)] = firebase.database.ServerValue.TIMESTAMP);
     await SIGFB.db.ref('sig').update(u);
   } catch (e) { console.warn('sig', e); }
 }
@@ -501,26 +520,8 @@ async function sigBump() {
 /* ===================== state ===================== */
 const S = {
   page: 'today', groups: [], subjects: {}, group: store.get('dp_group'), today: '',
-  data: {}, pending: {}, view: store.get('dp_gv_view') === 'table' ? 'table' : 'day', day: {},
-  block: [0, 1, 2].indexOf(+store.get('dp_gv_block')) >= 0 && store.get('dp_gv_block') != null ? +store.get('dp_gv_block') : 1,
-  dmode: store.get('dp_gv_dmode') === 'att' ? 'att' : 'marks', profile: null
+  data: {}, pending: {}, view: 'day', day: {}, block: 1, profile: null
 };
-/* Grades: remember view / block / lesson date / table scroll between reloads (12.11.2026) */
-const gvSave = () => {
-  store.set('dp_gv_view', S.view, true); store.set('dp_gv_block', String(S.block), true); store.set('dp_gv_dmode', S.dmode || 'marks', true);
-};
-const gvSaveDay = (g, h) => { if (g && h) store.set('dp_gv_day_' + g, JSON.stringify({ h: h, on: S.today }), true); };
-const gvLoadDay = g => { try { return JSON.parse(store.get('dp_gv_day_' + g) || 'null'); } catch (e) { return null; } };
-/** Mark colour: 0 = red … 10 (or the column maximum) = green. Returns the hue 0–120, or null if not a mark. */
-function markHue(c, v) {
-  v = String(v == null ? '' : v).trim(); if (!v) return null;
-  if (v.toLowerCase() === 'nb') return 0;
-  let max = c.max;
-  if (!max && c.kind === 'formula') { const m = /\((\d+)\)\s*$/.exec(c.h || ''); if (m) max = +m[1]; }
-  if (!max || c.kind === 'team') return null;
-  const n = Number(v.replace(',', '.')); if (!isFinite(n)) return null;
-  return Math.round(Math.max(0, Math.min(1, n / max)) * 120);
-}
 
 /* ===================== auth ===================== */
 let authMode = 'login', setupKey = null;
@@ -535,6 +536,7 @@ async function startAuth() {
     $('#auth-btn').textContent = 'Save password';
   }
   setTimeout(() => $('#pw1').focus(), 50);
+  if (authMode !== 'setup') api('status').then(s => { if (s && s.teacher) $('#auth-sub').textContent = 'Teacher dashboard · ' + s.teacher; }).catch(() => {});
 }
 $('#auth-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -571,8 +573,11 @@ async function boot() {
   try {
     const b = await api('boot');
     S.groups = b.groups; S.subjects = b.subjects || {}; S.today = b.today;
+    S.teacher = b.teacher || ''; S.main = b.main !== false; S.build = b.build || '';
+    if (b.fb && b.fb.databaseURL) FB_CFG = b.fb;   // the teacher's own Firebase for live games
     if (S.groups.indexOf(S.group) < 0) S.group = S.groups.find(g => g !== 'TEST') || S.groups[0];
     $('#side-foot').textContent = 'Version ' + b.version;
+    $('#brand-sub').textContent = S.teacher || 'Teacher dashboard';
     buildNav(); route();
   } catch (e) { if (KEY) fail(e); }
 }
@@ -597,7 +602,7 @@ function route() {
   $('#title').textContent = PAGES.find(p => p[0] === S.page)[1];
   renderChips();
   ({ today: pageToday, grades: pageGrades, lessons: pageLessons, students: pageStudents,
-     deadlines: pageDeadlines, quizzes: pageQuizzes, settings: pageSettings })[S.page]();
+     deadlines: pageDeadlines, quizzes: pageQuizzes, groups: pageGroups, settings: pageSettings })[S.page]();
 }
 function renderChips() {
   const show = GROUP_PAGES.includes(S.page);
@@ -654,6 +659,7 @@ $('#saveall').onclick = async () => {
 
 /* ===================== TODAY ===================== */
 async function pageToday() {
+  if (!S.groups.filter(g => g !== 'TEST').length) return pageWelcome();
   loading();
   try {
     const my = S.navId;
@@ -698,7 +704,7 @@ async function pageToday() {
         <div class="progress"><i style="width:${pct}%"></i></div></div>`;
     }).join('');
     view().innerHTML = `
-      <div class="hero"><div><div class="muted small">Hello, Valisher</div><div class="date">${esc(longDate(h.today))}</div></div></div>
+      <div class="hero"><div><div class="muted small">Hello${S.teacher ? ', ' + esc(firstName(S.teacher)) : ''}</div><div class="date">${esc(longDate(h.today))}</div></div></div>
       ${todayHtml}
       <div class="grid g2" style="margin-top:14px">
         <div class="card"><h2>Coming up</h2>${upHtml}</div>
@@ -723,12 +729,9 @@ async function pageGrades() {
     const my = S.navId; const d = await getGroup(); if (my !== S.navId) return;
     const days = d.cols.filter(c => c.kind === 'day');
     if (!S.day[S.group]) {
-      const sv = gvLoadDay(S.group), keep = sv && sv.on === S.today && days.find(c => c.h === sv.h);
       const past = days.filter(c => ddKey(c.h) <= ddKey(S.today));
-      S.day[S.group] = (keep || days.find(c => c.h === S.today) || past[past.length - 1] || days[0] || {}).c;
+      S.day[S.group] = (days.find(c => c.h === S.today) || past[past.length - 1] || days[0] || {}).c;
     }
-    { const dc = d.cols[S.day[S.group] - 1]; if (dc) gvSaveDay(S.group, dc.h); }
-    gvSave();
     view().innerHTML = `
       <div class="row" style="margin-bottom:14px">
         <div><div class="small muted">${esc(S.subjects[S.group] || '')}</div><b style="font-size:17px">Group ${esc(S.group)} · ${d.students.length} students</b></div>
@@ -736,7 +739,7 @@ async function pageGrades() {
         <div class="seg"><button data-v="day" class="${S.view === 'day' ? 'on' : ''}">Day</button><button data-v="table" class="${S.view === 'table' ? 'on' : ''}">Table</button></div>
         <button class="btn sm" id="reload" title="Reload from the gradebook">Refresh</button>
       </div><div id="gv"></div>`;
-    $$('[data-v]').forEach(b => b.onclick = () => { S.view = b.dataset.v; gvSave(); pageGrades(); });
+    $$('[data-v]').forEach(b => b.onclick = () => { S.view = b.dataset.v; pageGrades(); });
     $('#reload').onclick = () => { if (!Object.keys(S.pending).length || confirm('Discard unsaved changes?')) { S.pending = {}; updateSavebar(); getGroup(true).then(pageGrades).catch(fail); } };
     S.view === 'day' ? dayView(d, days) : tableView(d);
   } catch (e) { fail(e); }
@@ -773,8 +776,8 @@ function dayView(d, days) {
           <input class="mark${ch}${ab ? ' nb' : ''}" inputmode="decimal" data-row="${s.row}" value="${esc(v)}" aria-label="Mark for ${esc(s.name)}">
           <div class="quick"><button class="btn sm" data-q="${s.row}|10">10</button><button class="btn sm danger" data-q="${s.row}|0" title="Absent">Absent</button></div></li>`;
       }).join('')}</ul></div>`;
-  $('#daysel').onchange = e => { S.day[S.group] = +e.target.value; const dc = d.cols[S.day[S.group] - 1]; if (dc) gvSaveDay(S.group, dc.h); pageGrades(); };
-  $$('#gv [data-dm]').forEach(b => b.onclick = () => { S.dmode = b.dataset.dm; gvSave(); dayView(d, days); });
+  $('#daysel').onchange = e => { S.day[S.group] = +e.target.value; pageGrades(); };
+  $$('#gv [data-dm]').forEach(b => b.onclick = () => { S.dmode = b.dataset.dm; dayView(d, days); });
   const bind = inp => {
     if (inp.value.trim().toLowerCase() === 'nb') inp.value = '0';
     setPending(+inp.dataset.row, cn, inp.value);
@@ -813,25 +816,13 @@ function tableView(d) {
   const cols = d.cols.filter(c => c.block === S.block && c.kind !== 'id' && c.kind !== 'empty');
   $('#gv').innerHTML = `
     <div class="row" style="margin-bottom:12px"><div class="seg">${blocks.map(b => `<button data-b="${b[0]}" class="${S.block === b[0] ? 'on' : ''}">${b[1]}</button>`).join('')}</div>
-      <span class="small muted">Tap a white cell to edit. Grey cells are calculated by the gradebook. &nbsp;0<span class="mleg"></span>10</span></div>
+      <span class="small muted">Tap a white cell to edit. Grey cells are calculated by the gradebook.</span></div>
     <div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(md(c.h))}</th>`).join('')}</tr></thead>
     <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(s.name)}</td>${cols.map(c => {
-      const v = String(pv(s.row, c.c)), hu = markHue(c, v);
-      return `<td class="${editable(c) ? 'ed' : 'ro'} ${c.kind === 'day' && isAbs(v) ? 'nbv' : ''} ${hu == null ? '' : 'sc'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}"${hu == null ? '' : ` style="--h:${hu}"`} data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
+      const v = String(pv(s.row, c.c));
+      return `<td class="${editable(c) ? 'ed' : 'ro'} ${c.kind === 'day' && isAbs(v) ? 'nbv' : ''} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table></div>`;
-  $$('#gv [data-b]').forEach(b => b.onclick = () => { S.block = +b.dataset.b; gvSave(); tableView(d); });
-  const tw = $('#gv .tablewrap'), sk = 'dp_gv_scroll_' + S.group + '_' + S.block;
-  if (tw) {
-    let sp = null; try { sp = JSON.parse(store.get(sk) || 'null'); } catch (e) {}
-    if (sp) { tw.scrollLeft = sp.x || 0; tw.scrollTop = sp.y || 0; }
-    else {
-      // first time: show the latest lesson that already has marks (or today)
-      let last = -1; cols.forEach((c, i) => { if (c.kind === 'day' && (c.h === S.today || d.students.some(s => String(pv(s.row, c.c)).trim()))) last = i; });
-      const th = last >= 0 ? tw.querySelectorAll('thead th')[last + 1] : null, st = tw.querySelector('thead th.st');
-      if (th) tw.scrollLeft = Math.max(0, th.offsetLeft - (st ? st.offsetWidth : 0) - 3 * th.offsetWidth);
-    }
-    let tmr; tw.addEventListener('scroll', () => { clearTimeout(tmr); tmr = setTimeout(() => store.set(sk, JSON.stringify({ x: tw.scrollLeft, y: tw.scrollTop }), true), 200); }, { passive: true });
-  }
+  $$('#gv [data-b]').forEach(b => b.onclick = () => { S.block = +b.dataset.b; tableView(d); });
   $$('#gv td.ed').forEach(td => td.onclick = () => cellEditor(d, +td.dataset.r, +td.dataset.c, () => tableView(d)));
 }
 function cellEditor(d, row, cn, after) {
@@ -893,7 +884,7 @@ function finishResult(g, date, res, c) {
     <p class="small" style="margin:0">${res.written} box${res.written === 1 ? '' : 'es'} filled · marked ${res.marked}/${res.students} · absent ${res.absent}${res.avg != null ? ' · average ' + res.avg : ''}</p>
     <img class="fin-img" src="${png}" alt="Marks picture">
     <label class="f"><span>Caption</span><input type="text" id="fcap" value="${esc(cap)}" maxlength="300"></label>
-    ${c.botSet ? '' : '<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">The group bot is not connected yet: Settings → Group bot (AI Xizmatkor). You can download the picture now.</p>'}
+    ${c.botSet ? '' : '<p class="pill warn" style="display:block;padding:8px 10px;border-radius:10px">The bot is not connected yet (Settings → Student bot), or this group has no Telegram chat (Groups → Settings). You can download the picture now.</p>'}
     <div class="row"><a class="btn" href="${png}" download="baholar-${esc(g)}-${esc(date)}.png">Download</a><span class="spacer"></span><button class="btn" data-close>Close</button>
       <button class="btn primary" id="fsend" ${c.botSet && c.chat ? '' : 'disabled'}>Send to group ${esc(g)}</button></div>`, m => {
     m.classList.add('top'); m.querySelector('.modal').classList.add('wide');
@@ -1156,9 +1147,10 @@ async function pageQuizzes() {
         <button class="btn sm" data-copy="${esc(q.quiz_id)}">Copy to…</button>
         ${q.status === 'ready' || q.status === 'draft' ? `<button class="btn sm" data-edit="${esc(q.quiz_id)}">Edit</button><button class="btn sm danger" data-del="${esc(q.quiz_id)}">Delete</button>` : ''}</div></div>`;
     view().innerHTML = `${lvBanner}${banner}<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1;min-width:220px">Group ${esc(S.group)} · ${r.list.length} quiz${r.list.length === 1 ? '' : 'zes'}. Start one in class: students answer on their phones, marks go to the gradebook.</p>
-      <button class="btn primary sm" id="newq">+ New quiz</button></div>
+      <button class="btn sm" id="impq">Paste from Claude</button><button class="btn primary sm" id="newq">+ New quiz</button></div>
       <div class="grid" style="gap:10px">${r.list.map(card).join('') || '<div class="card empty">No quizzes for this group yet. Ask Claude to add one (“quiz qo\'sh”), or press + New quiz.</div>'}</div>`;
     $('#newq').onclick = () => quizEditor({ group: S.group, duration_min: 10, status: 'ready', questions: [] });
+    $('#impq').onclick = importQuizDialog;
     $$('[data-res]').forEach(b => b.onclick = () => quizLive(b.dataset.res));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
     $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
@@ -1187,11 +1179,11 @@ function qBody(q, showAnswer) {
 window.dpKey = () => KEY;
 function studentView(id) {
   modal(`<div class="row" style="margin-bottom:10px"><div style="flex:1;min-width:0"><h3 style="margin:0">Student view</h3><div class="small muted">Exactly what students see on their phones. Try it: answer, press Finish, see the mark and the answers. Nothing goes to the gradebook.</div></div><button class="btn sm" data-close>Close</button></div>
-    <div class="phone"><iframe title="Student view" src="s.html#preview=${encodeURIComponent(id)}"></iframe></div>`, m => { m.querySelector('.modal').classList.add('pmodal'); });
+    <div class="phone"><iframe title="Student view" src="s.html#preview=${encodeURIComponent(id)}${IS_MAIN_API ? '' : '&a=' + API_ID}"></iframe></div>`, m => { m.querySelector('.modal').classList.add('pmodal'); });
 }
 
 /* ===================== LIVE GAME (host screen for the projector) ===================== */
-const FB_CFG = { apiKey: 'AIzaSyDgrzdKXA_cOfiMeMX6EOYLSyeSZrAUOfc', authDomain: 'darslar-live.firebaseapp.com', databaseURL: 'https://darslar-live-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'darslar-live', appId: '1:400814296064:web:f2c8964ce914602158dce5' };
+let FB_CFG = { apiKey: 'AIzaSyDgrzdKXA_cOfiMeMX6EOYLSyeSZrAUOfc', authDomain: 'darslar-live.firebaseapp.com', databaseURL: 'https://darslar-live-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'darslar-live', appId: '1:400814296064:web:f2c8964ce914602158dce5' };
 const FBV = '10.12.2', LCOL = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], LSH = ['▲', '◆', '●', '■'];
 function loadScript(src) {
   return new Promise((ok, no) => {
@@ -1210,7 +1202,7 @@ async function fbApp(name) {
   o.now = () => Date.now() + o.off;
   return o;
 }
-function lvJoinUrl() { return location.href.split('#')[0].replace(/[^/]*$/, '') + 's.html#play=' + LV.P.gid; }
+function lvJoinUrl() { return location.href.split('#')[0].replace(/[^/]*$/, '') + 's.html#play=' + LV.P.gid + (IS_MAIN_API ? '' : '&a=' + API_ID); }
 function lvQr(el) {
   try {
     const q = qrcode(0, 'M'); q.addData(lvJoinUrl()); q.make();
@@ -2194,6 +2186,27 @@ function quizEditor(q) {
     draw();
   });
 }
+/** Claude (or anyone) writes the quiz as JSON; the teacher pastes it here. One quiz opens in the editor for a check; several are saved at once. */
+function importQuizDialog() {
+  modal(`<h3>Paste a quiz from Claude · group ${esc(S.group)}</h3>
+    <p class="small muted">Ask Claude: “Darslar quiz JSON: Unit 5 …”. Paste the whole answer (the JSON block). One quiz opens in the editor so you can check it; a list of quizzes is saved at once.</p>
+    <textarea id="qj" rows="9" placeholder='{"title": "Unit 5 - Food", "unit": "Unit 5", "duration_min": 10, "questions": [ … ]}' style="font:13px ui-monospace,monospace"></textarea>
+    <div class="row" style="margin-top:10px"><span class="small muted" id="qjm"></span><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="qjok">Continue</button></div>`, m => {
+    $('#qjok', m).onclick = async () => {
+      let txt = $('#qj', m).value.trim();
+      const fence = /```(?:json)?\s*([\s\S]*?)```/.exec(txt); if (fence) txt = fence[1].trim();
+      let data; try { data = JSON.parse(txt); } catch (e) { return fail('This is not valid JSON. Copy the whole block from Claude.'); }
+      const list = Array.isArray(data) ? data : data.quizzes || [data];
+      if (!list.length || !list.every(q => q && q.title && Array.isArray(q.questions) && q.questions.length)) return fail('Each quiz needs "title" and "questions".');
+      if (list.length === 1) { closeModal(); return quizEditor({ group: S.group, title: list[0].title, unit: list[0].unit || '', duration_min: list[0].duration_min || 10, status: 'ready', questions: list[0].questions }); }
+      $('#qjok', m).disabled = true; let ok = 0;
+      try {
+        for (const q of list) { $('#qjm', m).textContent = `Saving ${ok + 1}/${list.length}…`; await api('saveQuiz', { group: S.group, title: q.title, unit: q.unit || '', duration_min: q.duration_min || 10, questions: q.questions, status: 'ready' }); ok++; }
+        closeModal(); toast(ok + ' quizzes saved'); pageQuizzes();
+      } catch (e) { $('#qjok', m).disabled = false; $('#qjm', m).textContent = ok + ' saved before the error.'; fail(e); }
+    };
+  });
+}
 function copyDialog(id) {
   modal(`<h3>Copy quiz to another group</h3><label class="f"><span>Group</span><select id="cg">${S.groups.map(g => `<option ${g === S.group ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
     <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="cok">Copy</button></div>`, m => {
@@ -2273,11 +2286,225 @@ async function quizLive(id, res) {
 }
 
 /* ===================== SETTINGS ===================== */
+/* ===================== GROUPS (2.3: add groups and students without touching the sheet) ===================== */
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const firstName = s => { const p = String(s || '').replace(/^[A-Z]\.\s*[A-Z]\.\s*/, '').trim().split(/\s+/); return p.length > 1 && /^[A-Z]\.?$/.test(p[0]) ? p[p.length - 1] : p[0] || ''; };
+const isoToDmy = v => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? `${m[3]}.${m[2]}.${m[1]}` : ''; };
+const dmy = d => ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+/** dd.MM inside the academic year (Sep→Aug) → yyyy-mm-dd for a date input. */
+function ddmmToIso(ddmm) {
+  const now = new Date(); const [d, m] = ddmm.split('.').map(Number);
+  let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--;
+  return `${y}-${('0' + m).slice(-2)}-${('0' + d).slice(-2)}`;
+}
+async function refreshGroups() {
+  const b = await api('boot');
+  S.groups = b.groups; S.subjects = b.subjects || {};
+  if (S.groups.indexOf(S.group) < 0) S.group = S.groups.find(g => g !== 'TEST') || S.groups[0];
+  S.data = {};
+}
+
+function pageWelcome() {
+  view().innerHTML = `<div class="hero"><div><div class="muted small">Welcome${S.teacher ? ', ' + esc(firstName(S.teacher)) : ''}</div><div class="date">Let's set up Darslar</div></div></div>
+    <div class="card"><h2>Three steps</h2>
+      <ol class="steps">
+        <li><b>Add your first group.</b> Paste the student list, choose the lesson days — the gradebook sheet with all formulas is made for you.</li>
+        <li><b>Connect a Telegram bot</b> for your students (Settings → Student bot). It takes 2 minutes in @BotFather.</li>
+        <li><b>Send the bot link to your groups.</b> Students press Start, choose their name, you approve.</li>
+      </ol>
+      <div class="row"><button class="btn primary" id="wg">Add a group</button><button class="btn" id="ws">Settings</button>
+        <a class="btn" href="help.html" target="_blank" rel="noopener">Guide (o'zbekcha)</a></div></div>`;
+  $('#wg').onclick = () => { go('groups'); setTimeout(groupWizard, 300); };
+  $('#ws').onclick = () => go('settings');
+}
+
+async function pageGroups() {
+  loading();
+  try {
+    const my = S.navId; const a = await api('groupsAdmin'); if (my !== S.navId) return;
+    S.adm = a;
+    const act = a.groups.filter(g => g.status !== 'archived'), hid = a.groups.filter(g => g.status === 'archived');
+    const card = g => `<div class="card gcard">
+      <div class="top"><span class="gbadge">${esc(g.group)}</span><b>${esc(g.subject) || '<span class="muted">no subject</span>'}</b></div>
+      <div class="kv small">
+        <b>Students</b><span>${g.students}${g.linked ? ` · <span class="muted">${g.linked} in the bot</span>` : ''}${g.archived ? ` · <span class="muted">${g.archived} removed</span>` : ''}</span>
+        <b>Lessons</b><span>${g.lessons}${g.first ? ` · <span class="muted">${esc(md(g.first))} – ${esc(md(g.last))}</span>` : ''}</span>
+        <b>Telegram</b><span>${g.chat_id ? esc(g.chat_title || 'chat ' + g.chat_id) : '<span class="muted">no group chat</span>'}</span>
+      </div>
+      <div class="row"><button class="btn sm" data-st="${esc(g.group)}">Students</button><button class="btn sm" data-dt="${esc(g.group)}">Lesson dates</button>
+        <button class="btn sm" data-gs="${esc(g.group)}">Settings</button></div></div>`;
+    view().innerHTML = `<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1;min-width:220px">Each group is a sheet in your Google gradebook. Add and remove students here — the formulas stay correct.</p>
+        <button class="btn primary" id="gadd">+ Add group</button></div>
+      ${act.length ? `<div class="grid g2">${act.map(card).join('')}</div>` : '<div class="card"><p class="muted" style="margin:0">No groups yet. Press <b>+ Add group</b>.</p></div>'}
+      ${hid.length ? `<div class="card" style="margin-top:14px"><h2>Hidden groups</h2><p class="small muted">Hidden from all pages and from the bot. The sheet and the marks stay in the gradebook.</p>
+        ${hid.map(g => `<div class="row" style="margin-bottom:6px"><span class="gbadge">${esc(g.group)}</span><span>${esc(g.subject)}</span><span class="spacer"></span><button class="btn sm" data-show="${esc(g.group)}">Show again</button></div>`).join('')}</div>` : ''}`;
+    $('#gadd').onclick = groupWizard;
+    $$('[data-st]').forEach(b => b.onclick = () => studentsModal(b.dataset.st));
+    $$('[data-dt]').forEach(b => b.onclick = () => datesModal(b.dataset.dt));
+    $$('[data-gs]').forEach(b => b.onclick = () => groupSettingsModal(b.dataset.gs));
+    $$('[data-show]').forEach(b => b.onclick = async () => { try { await api('updateGroup', b.dataset.show, { status: 'active' }); await refreshGroups(); toast('Group is visible again'); pageGroups(); } catch (e) { fail(e); } });
+  } catch (e) { fail(e); }
+}
+
+/* ---- new group wizard ---- */
+function groupWizard() {
+  const t = new Date(); const iso = `${t.getFullYear()}-${('0' + (t.getMonth() + 1)).slice(-2)}-${('0' + t.getDate()).slice(-2)}`;
+  modal(`<h3>New group</h3>
+    <div class="grid g2" style="gap:10px">
+      <label class="f"><span>Group name (as in HEMIS)</span><input type="text" id="ng" maxlength="20" placeholder="e.g. 101"></label>
+      <label class="f"><span>Subject</span><input type="text" id="ns" maxlength="80" placeholder="e.g. Reading and Writing"></label>
+    </div>
+    <label class="f"><span>Lesson days</span><div class="seg" id="nwd">${WD.map((d, i) => `<button type="button" data-wd="${i + 1}">${d}</button>`).join('')}</div></label>
+    <div class="grid g3" style="gap:10px">
+      <label class="f"><span>First lesson</span><input type="date" id="nst" value="${iso}"></label>
+      <label class="f"><span>Lessons in block 1</span><input type="number" id="n1" min="1" max="60" value="15"></label>
+      <label class="f"><span>Lessons in block 2</span><input type="number" id="n2" min="0" max="60" value="15"></label>
+    </div>
+    <label class="f"><span>Independent work (MI, 10 points)</span><div class="seg" id="nmi">
+      <button type="button" data-mi="pw" class="on">PW1 + PW2 (5 + 5)</button><button type="button" data-mi="mt">MT1–MT10 (1 each)</button><button type="button" data-mi="none">None</button></div></label>
+    <p class="small muted" id="nprev" style="margin:4px 0 12px">Choose the lesson days.</p>
+    <label class="f"><span>Students — one name per line (copy the list from HEMIS)</span><textarea id="nnames" rows="6" placeholder="ALIYEV VALI ...&#10;KARIMOVA DILNOZA ..."></textarea></label>
+    <details><summary class="small" style="cursor:pointer;margin-bottom:8px">Lesson topics (optional)</summary>
+      <label class="f"><span>One topic per lesson, in order. “Unit 1 - Topic” keeps the unit separately.</span><textarea id="ntop" rows="5" placeholder="Unit 1 - Getting to know you&#10;Unit 2 - Daily routines"></textarea></label></details>
+    <p class="small muted">You can move any lesson date later (holidays): Groups → Lesson dates.</p>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="ncreate">Create group</button></div>`, m => {
+    const st = { wd: new Set(), mi: 'pw' };
+    const dates = () => {
+      const start = $('#nst', m).value, n1 = Math.max(0, +$('#n1', m).value || 0), n2 = Math.max(0, +$('#n2', m).value || 0);
+      if (!start || !st.wd.size || !n1) return null;
+      const d = new Date(start + 'T00:00:00'), out = [];
+      for (let k = 0; out.length < n1 + n2 && k < 800; k++, d.setDate(d.getDate() + 1)) {
+        const w = d.getDay(); if (st.wd.has(w)) out.push(dmy(d));
+      }
+      return { d1: out.slice(0, n1), d2: out.slice(n1) };
+    };
+    const prev = () => {
+      const x = dates();
+      $('#nprev', m).innerHTML = !x ? 'Choose the lesson days.' :
+        `Block 1: <b>${x.d1.length}</b> lessons, ${esc(md(x.d1[0]))} – ${esc(md(x.d1[x.d1.length - 1]))}` +
+        (x.d2.length ? ` · Block 2: <b>${x.d2.length}</b> lessons, ${esc(md(x.d2[0]))} – ${esc(md(x.d2[x.d2.length - 1]))}` : '');
+    };
+    $$('[data-wd]', m).forEach(b => b.onclick = () => { const v = +b.dataset.wd; st.wd.has(v) ? st.wd.delete(v) : st.wd.add(v); b.classList.toggle('on'); prev(); });
+    $$('[data-mi]', m).forEach(b => b.onclick = () => { st.mi = b.dataset.mi; $$('[data-mi]', m).forEach(x => x.classList.toggle('on', x === b)); });
+    ['#nst', '#n1', '#n2'].forEach(q => $(q, m).addEventListener('input', prev));
+    $('#ncreate', m).onclick = async () => {
+      const x = dates(), g = $('#ng', m).value.trim();
+      if (!g) return toast('Write the group name.', true);
+      if (!x) return toast('Choose the lesson days and the first lesson.', true);
+      const names = $('#nnames', m).value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const btn = $('#ncreate', m); btn.disabled = true; btn.textContent = 'Creating…';
+      try {
+        await api('createGroup', { group: g, subject: $('#ns', m).value, dates1: x.d1, dates2: x.d2, mi: st.mi, students: names,
+          topics: $('#ntop', m).value.split(/\r?\n/).map(s => s.trim()) });
+        closeModal(); await refreshGroups(); toast('Group ' + g + ' is ready');
+        pageGroups();
+      } catch (e) { btn.disabled = false; btn.textContent = 'Create group'; fail(e); }
+    };
+    setTimeout(() => $('#ng', m).focus(), 50);
+  });
+}
+
+/* ---- students of one group ---- */
+async function studentsModal(g) {
+  modal('<div class="loading">Loading…</div>');
+  let info;
+  try { info = await api('groupInfo', g); } catch (e) { closeModal(); return fail(e); }
+  const draw = () => {
+    const pill = s => s.tg === 'active' ? '<span class="pill">bot</span>' : s.tg === 'pending' ? '<span class="pill warn">waiting</span>' : '';
+    modal(`<h3>Group ${esc(g)} · ${info.students.length} students</h3>
+      <div class="slist">${info.students.map((s, i) => `<div class="srow"><span class="muted small" style="width:24px">${i + 1}</span><span class="nm">${esc(s.name)}</span>${pill(s)}
+        <button class="btn sm" data-rn="${s.row}" title="Fix the name">Rename</button><button class="btn sm danger" data-rm="${s.row}">Remove</button></div>`).join('') || '<p class="muted">No students yet.</p>'}</div>
+      <label class="f" style="margin-top:12px"><span>Add students — one name per line</span><textarea id="adds" rows="3"></textarea></label>
+      <div class="row"><button class="btn primary" id="addb">Add</button><span class="spacer"></span><button class="btn" data-close>Close</button></div>
+      ${info.archive.length ? `<details style="margin-top:12px"><summary class="small" style="cursor:pointer">Removed students (${info.archive.length}) — their marks are kept</summary>
+        ${info.archive.map(a => `<div class="srow"><span class="nm">${esc(a.name)}</span><span class="small muted">${esc(a.at)}</span><button class="btn sm" data-rs="${esc(a.id)}">Restore</button></div>`).join('')}</details>` : ''}`, m => {
+      m.querySelector('.modal').classList.add('wide');
+      const busy = async (fn, ok) => { try { info = await fn(); S.data = {}; toast(ok); draw(); } catch (e) { fail(e); } };
+      $('#addb', m).onclick = () => {
+        const names = $('#adds', m).value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        if (!names.length) return toast('Write at least one name.', true);
+        $('#addb', m).disabled = true;
+        busy(() => api('addStudents', g, names), names.length + ' added');
+      };
+      $$('[data-rn]', m).forEach(b => b.onclick = () => {
+        const s = info.students.find(x => x.row === +b.dataset.rn);
+        const nn = prompt('Correct name (as in the gradebook and HEMIS):', s.name);
+        if (nn == null || nn.trim() === s.name) return;
+        busy(() => api('renameStudent', g, s.row, s.name, nn.trim()), 'Name changed');
+      });
+      $$('[data-rm]', m).forEach(b => b.onclick = () => {
+        const s = info.students.find(x => x.row === +b.dataset.rm);
+        if (!confirm(`Remove ${s.name} from group ${g}?\n\nThe row with all marks is saved in the archive first, so you can restore it. The Telegram link stops working.`)) return;
+        busy(() => api('removeStudent', g, s.row, s.name), 'Removed (kept in the archive)');
+      });
+      $$('[data-rs]', m).forEach(b => b.onclick = () => busy(() => api('restoreStudent', b.dataset.rs), 'Restored'));
+    });
+  };
+  draw();
+}
+
+/* ---- lesson dates ---- */
+async function datesModal(g) {
+  modal('<div class="loading">Loading…</div>');
+  let info;
+  try { info = await api('groupInfo', g); } catch (e) { closeModal(); return fail(e); }
+  const draw = () => modal(`<h3>Lesson dates · ${esc(g)}</h3>
+    <p class="small muted">Moving a lesson moves its marks column, its topic and its quiz together. Use it for holidays and changed timetables.</p>
+    <div class="slist">${info.days.map((d, i) => `<div class="srow"><span class="muted small" style="width:28px">${i + 1}</span><span class="pill gray">B${d.block || '?'}</span>
+      <span class="nm">${esc(longDate(d.date))}</span><input type="date" value="${ddmmToIso(d.date)}" data-col="${d.col}" data-old="${esc(d.date)}" style="width:auto;min-height:34px"></div>`).join('')}</div>
+    <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" data-close>Close</button></div>`, m => {
+    m.querySelector('.modal').classList.add('wide');
+    $$('input[data-col]', m).forEach(inp => inp.onchange = async () => {
+      const nd = isoToDmy(inp.value); if (!nd || nd.slice(0, 5) === inp.dataset.old) return;
+      if (!confirm(`Move the lesson of ${md(inp.dataset.old)} to ${md(nd)}?`)) { inp.value = ddmmToIso(inp.dataset.old); return; }
+      try { info = await api('moveLesson', g, +inp.dataset.col, inp.dataset.old, nd); S.data = {}; toast('Lesson moved'); draw(); } catch (e) { inp.value = ddmmToIso(inp.dataset.old); fail(e); }
+    });
+  });
+  draw();
+}
+
+/* ---- subject, Telegram chat, hide ---- */
+function groupSettingsModal(g) {
+  const a = S.adm, gr = a.groups.find(x => x.group === g) || {};
+  const chats = a.chats.filter(c => !c.left);
+  const bot = a.groupBotUsername || a.botUsername;
+  modal(`<h3>Group ${esc(g)}</h3>
+    <label class="f"><span>Subject</span><input type="text" id="gsub" maxlength="80" value="${esc(gr.subject || '')}"></label>
+    <label class="f"><span>Telegram group chat (the marks picture after “Finish lesson” goes here)</span>
+      <select id="gchat"><option value="">— no chat —</option>
+        ${chats.map(c => `<option value="${esc(c.id)}" ${c.id === gr.chat_id ? 'selected' : ''}>${esc(c.title || c.id)}</option>`).join('')}
+        ${gr.chat_id && !chats.some(c => c.id === gr.chat_id) ? `<option value="${esc(gr.chat_id)}" selected>${esc(gr.chat_title || gr.chat_id)}</option>` : ''}
+        <option value="__id">Type the chat id…</option></select></label>
+    <input type="text" id="gchatid" class="hidden" placeholder="-1001234567890" style="margin:-6px 0 12px">
+    <p class="small muted">${bot ? `Not in the list? Add <b>@${esc(bot)}</b> to the group chat in Telegram, write anything there, wait a minute and open this window again.` : 'Connect the student bot first (Settings → Student bot).'}</p>
+    <div class="row"><button class="btn danger" id="ghide">Hide group</button><span class="spacer"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="gsave">Save</button></div>`, m => {
+    $('#gchat', m).onchange = () => $('#gchatid', m).classList.toggle('hidden', $('#gchat', m).value !== '__id');
+    $('#gsave', m).onclick = async () => {
+      let chat = $('#gchat', m).value; if (chat === '__id') chat = $('#gchatid', m).value.trim();
+      try { await api('updateGroup', g, { subject: $('#gsub', m).value, chat_id: chat }); closeModal(); await refreshGroups(); toast('Saved'); pageGroups(); } catch (e) { fail(e); }
+    };
+    $('#ghide', m).onclick = async () => {
+      if (!confirm(`Hide group ${g}? It disappears from all pages and from the bot. Nothing is deleted.`)) return;
+      try { await api('updateGroup', g, { status: 'archived' }); closeModal(); await refreshGroups(); toast('Group hidden'); pageGroups(); } catch (e) { fail(e); }
+    };
+  });
+}
+
+/* ===================== SETTINGS ===================== */
 async function pageSettings() {
   loading();
   try {
     const my = S.navId; const s = await api('settings'); if (my !== S.navId) return;
     view().innerHTML = `<div class="grid g2">
+      <div class="card"><h2>Your name</h2><p class="muted">Shown on your dashboard and to your students.</p>
+        <div class="row"><input type="text" id="tn" value="${esc(s.teacher || '')}" placeholder="e.g. A.B. Karimova" maxlength="60" style="flex:1;min-width:200px"><button class="btn" id="tns">Save</button></div></div>
+      <div class="card"><h2>Student bot</h2>
+        ${s.botTokenSet ? `<p>Status: <b style="color:var(--good)">connected</b> · <a href="https://t.me/${esc(s.botUsername)}" target="_blank" rel="noopener">@${esc(s.botUsername)}</a><br>
+          <span class="small muted">Send this link to your groups: students press Start, choose their name, you approve. Add the bot to your group chats too — it sends the marks picture there.</span></p>
+          <p class="small">Your Telegram: ${s.teacherLinked ? '<b style="color:var(--good)">connected</b> — approval requests come to you in the bot.' : '<b>not connected</b> — connect it to approve students right in Telegram.'}</p>
+          <div class="row" style="margin-bottom:14px"><button class="btn primary" id="tgme">${s.teacherLinked ? 'Reconnect my Telegram' : 'Connect my Telegram'}</button></div>`
+        : '<p class="muted">Not connected yet. In Telegram open @BotFather → /newbot → choose a name → copy the token and paste it here.</p>'}
+        <div class="row"><input type="text" id="bt" placeholder="${s.botTokenSet ? 'New token (only to replace)' : '123456:ABC…'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="bts">Save</button></div></div>
       <div class="card"><h2>Password</h2>
         <label class="f"><span>Current password</span><input type="password" id="op" autocomplete="current-password"></label>
         <label class="f"><span>New password (6+ characters)</span><input type="password" id="np" autocomplete="new-password"></label>
@@ -2286,27 +2513,50 @@ async function pageSettings() {
         <div class="row"><button class="btn" id="so">Sign out</button><button class="btn danger" id="soa">Sign out everywhere</button></div></div>
       <div class="card"><h2>Minimum mark for quiz takers</h2><p class="muted">When on, a student who takes an in-class quiz gets at least 5.</p>
         <div class="seg"><button data-m="off" class="${s.minAttendScore !== 'on' ? 'on' : ''}">Off</button><button data-m="on" class="${s.minAttendScore === 'on' ? 'on' : ''}">On</button></div></div>
-      <div class="card"><h2>Student bot</h2>
-        ${s.botTokenSet ? `<p>Status: <b style="color:var(--good)">connected</b> · <a href="https://t.me/${esc(s.botUsername)}" target="_blank" rel="noopener">@${esc(s.botUsername)}</a><br>
-          <span class="small muted">Send this link to your groups: students press Start, choose their name, you approve.</span></p>
-          <p class="small">Your Telegram: ${s.teacherLinked ? '<b style="color:var(--good)">connected</b> — approval requests come to you in the bot.' : '<b>not connected</b> — connect it to approve students right in Telegram.'}</p>
-          <div class="row" style="margin-bottom:14px"><button class="btn primary" id="tgme">${s.teacherLinked ? 'Reconnect my Telegram' : 'Connect my Telegram'}</button></div>`
-        : '<p class="muted">Not connected yet. Create a new bot in @BotFather (/newbot) and paste its token here.</p>'}
-        <div class="row"><input type="text" id="bt" placeholder="${s.botTokenSet ? 'New token (only to replace)' : '123456:ABC…'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="bts">Save</button></div></div>
-      <div class="card"><h2>Group bot (marks picture)</h2>
-        <p class="muted">“Finish lesson” sends the marks picture to the group chat through <b>AI Xizmatkor</b> (it is in all five group chats). The token is kept only on the server.</p>
-        <p>Status: ${s.groupBotSet ? `<b style="color:var(--good)">connected</b> · @${esc(s.groupBotUsername)}` : '<b>not connected</b>'}</p>
-        <div class="row"><input type="text" id="gbt" placeholder="${s.groupBotSet ? 'New token (only to replace)' : 'AI Xizmatkor token from @BotFather'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="gbts">Save</button></div></div>
       <div class="card"><h2>Deadline reminders</h2><p class="muted">Every evening (after 18:00) the student bot reminds linked students privately: 3 days before and 1 day before a deadline of their group.</p>
         <div class="seg"><button data-rm="off" class="${s.reminders !== 'on' ? 'on' : ''}">Off</button><button data-rm="on" class="${s.reminders === 'on' ? 'on' : ''}">On</button></div></div>
-    </div><p class="small muted" style="margin-top:16px">Groups: ${s.groups.map(esc).join(', ')} · Version ${esc(s.version)} · Data: Google Sheets “Baholash jurnali 2026-2027”</p>`;
+      <div class="card"><h2>Separate bot for group chats <span class="pill gray">optional</span></h2>
+        <p class="muted">Normally the student bot sends the marks picture to the group chats. Paste another bot's token only if you want a different bot there.</p>
+        <p>Status: ${s.groupBotSet ? `<b style="color:var(--good)">connected</b> · @${esc(s.groupBotUsername)}` : '<b>not used</b> (the student bot sends)'}</p>
+        <div class="row"><input type="text" id="gbt" placeholder="${s.groupBotSet ? 'New token (empty + Save = stop using it)' : 'Token from @BotFather'}" autocomplete="off" style="flex:1;min-width:200px"><button class="btn" id="gbts">Save</button></div></div>
+      <div class="card"><h2>Live game server <span class="pill gray">optional</span></h2>
+        <p class="muted">Live games use a shared free Firebase server (about 100 players at the same time for all teachers). If you play Live often with big groups, connect your own free Firebase — see the guide.</p>
+        <p>Now: ${s.fbProject ? `<b style="color:var(--good)">your own</b> · ${esc(s.fbProject)}` : '<b>shared</b>'}</p>
+        <textarea id="fbc" rows="3" placeholder="Paste the firebaseConfig block here"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn" id="fbs">Save</button>${s.fbProject ? '<button class="btn" id="fbr">Use the shared server</button>' : ''}<a class="btn" href="help.html#firebase" target="_blank" rel="noopener">How?</a></div></div>
+      <div class="card"><h2>Gradebook and updates</h2>
+        <p>Your data: <a href="${esc(s.sheetUrl)}" target="_blank" rel="noopener">${esc(s.sheetName)}</a> (Google Sheets, only in your account)</p>
+        <p class="small muted">Version ${esc(s.version)} · build ${esc(s.build || '—')}</p>
+        ${s.main ? '' : '<div class="row"><button class="btn" id="upc">Check for updates</button><span class="small muted" id="upm"></span></div>'}
+        <p class="small" style="margin-top:10px"><a href="help.html" target="_blank" rel="noopener">Guide (o'zbekcha)</a></p></div>
+    </div>`;
+    $('#tns').onclick = async () => { try { const r = await api('setProfile', $('#tn').value); S.teacher = r.teacher; $('#brand-sub').textContent = S.teacher || 'Teacher dashboard'; toast('Saved'); } catch (e) { fail(e); } };
     $('#cpw').onclick = async () => { try { await api('changePassword', $('#op').value, $('#np').value); $('#op').value = $('#np').value = ''; toast('Password changed'); } catch (e) { fail(e); } };
     $('#so').onclick = () => signOut();
     $('#soa').onclick = async () => { if (!confirm('Sign out on all devices?')) return; try { await api('logoutAll'); signOut(); } catch (e) { fail(e); } };
     $$('[data-m]').forEach(b => b.onclick = async () => { try { await api('setMinAttend', b.dataset.m === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
-    $('#gbts').onclick = async () => { $('#gbts').disabled = true; try { await api('setGroupBot', $('#gbt').value); toast('Group bot connected'); pageSettings(); } catch (e) { $('#gbts').disabled = false; fail(e); } };
+    $('#gbts').onclick = async () => { $('#gbts').disabled = true; try { await api('setGroupBot', $('#gbt').value); toast('Saved'); pageSettings(); } catch (e) { $('#gbts').disabled = false; fail(e); } };
     $$('[data-rm]').forEach(b => b.onclick = async () => { try { await api('setReminders', b.dataset.rm === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
     $('#bts').onclick = async () => { $('#bts').disabled = true; try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { $('#bts').disabled = false; fail(e); } };
+    $('#fbs').onclick = async () => { try { await api('setFirebase', $('#fbc').value); toast('Saved. Reload the page to use it.'); pageSettings(); } catch (e) { fail(e); } };
+    if ($('#fbr')) $('#fbr').onclick = async () => { try { await api('setFirebase', ''); toast('Back to the shared server. Reload the page.'); pageSettings(); } catch (e) { fail(e); } };
+    if ($('#upc')) $('#upc').onclick = async () => {
+      $('#upc').disabled = true; $('#upm').textContent = 'Checking…';
+      try {
+        const u = await api('checkUpdate');
+        if (!u.newer) { $('#upm').textContent = 'You have the newest version.'; return; }
+        $('#upm').textContent = '';
+        modal(`<h3>New version ${esc(u.latest)}</h3><p class="muted">${esc(u.notes || 'Improvements and fixes.')}</p>
+          <p class="small">Your gradebook, students and quizzes are not touched. It takes about half a minute.</p>
+          <div class="row"><span class="spacer"></span><button class="btn" data-close>Later</button><button class="btn primary" id="upgo">Update now</button></div>`, m => {
+          $('#upgo', m).onclick = async () => {
+            $('#upgo', m).disabled = true; $('#upgo', m).textContent = 'Updating…';
+            try { const r = await api('updatePlatform'); closeModal(); toast(r.updated ? 'Updated to ' + r.build + '. Reloading…' : 'Already up to date'); if (r.updated) setTimeout(() => location.reload(), 1500); }
+            catch (e) { $('#upgo', m).disabled = false; $('#upgo', m).textContent = 'Update now'; fail(e); }
+          };
+        });
+      } catch (e) { $('#upm').textContent = ''; fail(e); } finally { $('#upc').disabled = false; }
+    };
     if ($('#tgme')) $('#tgme').onclick = async () => {
       try { const link = await api('teacherTgLink');
         modal(`<h3>Connect your Telegram</h3><p class="muted">Open the bot and press <b>Start</b>. The link works for 15 minutes, only once.</p>
