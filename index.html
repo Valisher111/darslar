@@ -153,6 +153,16 @@ table.g td.ed{cursor:pointer}
 table.g td.ed:hover{outline:2px solid var(--accent);outline-offset:-2px}
 table.g td.nbv{color:var(--bad);font-weight:700}
 table.g td.hl{background:var(--changed)}
+table.g td.sc{background:hsl(var(--h) 78% 80%);color:#1d2b26}
+table.g td.sc.ro{background:hsl(var(--h) 50% 87%);color:#3b4a44}
+.mleg{display:inline-block;width:70px;height:10px;border-radius:5px;vertical-align:middle;margin:0 4px;background:linear-gradient(90deg,hsl(0 78% 72%),hsl(60 78% 72%),hsl(120 60% 62%))}
+table.g td.sc.nbv{color:#a01818}
+table.g td.sc.hl{box-shadow:inset 0 0 0 3px #e0a800}
+@media (prefers-color-scheme: dark){
+  table.g td.sc{background:hsl(var(--h) 55% 24%);color:#eef5f2}
+  table.g td.sc.ro{background:hsl(var(--h) 35% 19%);color:#c9d6d1}
+  table.g td.sc.nbv{color:#ffb0b0}
+}
 .lrow{display:flex;gap:14px;align-items:flex-start;cursor:pointer}
 .lrow .dt{min-width:58px;font-weight:700}
 .lrow .dt small{display:block;font-weight:500;color:var(--muted);font-size:12px}
@@ -491,8 +501,26 @@ async function sigBump() {
 /* ===================== state ===================== */
 const S = {
   page: 'today', groups: [], subjects: {}, group: store.get('dp_group'), today: '',
-  data: {}, pending: {}, view: 'day', day: {}, block: 1, profile: null
+  data: {}, pending: {}, view: store.get('dp_gv_view') === 'table' ? 'table' : 'day', day: {},
+  block: [0, 1, 2].indexOf(+store.get('dp_gv_block')) >= 0 && store.get('dp_gv_block') != null ? +store.get('dp_gv_block') : 1,
+  dmode: store.get('dp_gv_dmode') === 'att' ? 'att' : 'marks', profile: null
 };
+/* Grades: remember view / block / lesson date / table scroll between reloads (12.11.2026) */
+const gvSave = () => {
+  store.set('dp_gv_view', S.view, true); store.set('dp_gv_block', String(S.block), true); store.set('dp_gv_dmode', S.dmode || 'marks', true);
+};
+const gvSaveDay = (g, h) => { if (g && h) store.set('dp_gv_day_' + g, JSON.stringify({ h: h, on: S.today }), true); };
+const gvLoadDay = g => { try { return JSON.parse(store.get('dp_gv_day_' + g) || 'null'); } catch (e) { return null; } };
+/** Mark colour: 0 = red … 10 (or the column maximum) = green. Returns the hue 0–120, or null if not a mark. */
+function markHue(c, v) {
+  v = String(v == null ? '' : v).trim(); if (!v) return null;
+  if (v.toLowerCase() === 'nb') return 0;
+  let max = c.max;
+  if (!max && c.kind === 'formula') { const m = /\((\d+)\)\s*$/.exec(c.h || ''); if (m) max = +m[1]; }
+  if (!max || c.kind === 'team') return null;
+  const n = Number(v.replace(',', '.')); if (!isFinite(n)) return null;
+  return Math.round(Math.max(0, Math.min(1, n / max)) * 120);
+}
 
 /* ===================== auth ===================== */
 let authMode = 'login', setupKey = null;
@@ -695,9 +723,12 @@ async function pageGrades() {
     const my = S.navId; const d = await getGroup(); if (my !== S.navId) return;
     const days = d.cols.filter(c => c.kind === 'day');
     if (!S.day[S.group]) {
+      const sv = gvLoadDay(S.group), keep = sv && sv.on === S.today && days.find(c => c.h === sv.h);
       const past = days.filter(c => ddKey(c.h) <= ddKey(S.today));
-      S.day[S.group] = (days.find(c => c.h === S.today) || past[past.length - 1] || days[0] || {}).c;
+      S.day[S.group] = (keep || days.find(c => c.h === S.today) || past[past.length - 1] || days[0] || {}).c;
     }
+    { const dc = d.cols[S.day[S.group] - 1]; if (dc) gvSaveDay(S.group, dc.h); }
+    gvSave();
     view().innerHTML = `
       <div class="row" style="margin-bottom:14px">
         <div><div class="small muted">${esc(S.subjects[S.group] || '')}</div><b style="font-size:17px">Group ${esc(S.group)} · ${d.students.length} students</b></div>
@@ -705,7 +736,7 @@ async function pageGrades() {
         <div class="seg"><button data-v="day" class="${S.view === 'day' ? 'on' : ''}">Day</button><button data-v="table" class="${S.view === 'table' ? 'on' : ''}">Table</button></div>
         <button class="btn sm" id="reload" title="Reload from the gradebook">Refresh</button>
       </div><div id="gv"></div>`;
-    $$('[data-v]').forEach(b => b.onclick = () => { S.view = b.dataset.v; pageGrades(); });
+    $$('[data-v]').forEach(b => b.onclick = () => { S.view = b.dataset.v; gvSave(); pageGrades(); });
     $('#reload').onclick = () => { if (!Object.keys(S.pending).length || confirm('Discard unsaved changes?')) { S.pending = {}; updateSavebar(); getGroup(true).then(pageGrades).catch(fail); } };
     S.view === 'day' ? dayView(d, days) : tableView(d);
   } catch (e) { fail(e); }
@@ -742,8 +773,8 @@ function dayView(d, days) {
           <input class="mark${ch}${ab ? ' nb' : ''}" inputmode="decimal" data-row="${s.row}" value="${esc(v)}" aria-label="Mark for ${esc(s.name)}">
           <div class="quick"><button class="btn sm" data-q="${s.row}|10">10</button><button class="btn sm danger" data-q="${s.row}|0" title="Absent">Absent</button></div></li>`;
       }).join('')}</ul></div>`;
-  $('#daysel').onchange = e => { S.day[S.group] = +e.target.value; pageGrades(); };
-  $$('#gv [data-dm]').forEach(b => b.onclick = () => { S.dmode = b.dataset.dm; dayView(d, days); });
+  $('#daysel').onchange = e => { S.day[S.group] = +e.target.value; const dc = d.cols[S.day[S.group] - 1]; if (dc) gvSaveDay(S.group, dc.h); pageGrades(); };
+  $$('#gv [data-dm]').forEach(b => b.onclick = () => { S.dmode = b.dataset.dm; gvSave(); dayView(d, days); });
   const bind = inp => {
     if (inp.value.trim().toLowerCase() === 'nb') inp.value = '0';
     setPending(+inp.dataset.row, cn, inp.value);
@@ -782,13 +813,25 @@ function tableView(d) {
   const cols = d.cols.filter(c => c.block === S.block && c.kind !== 'id' && c.kind !== 'empty');
   $('#gv').innerHTML = `
     <div class="row" style="margin-bottom:12px"><div class="seg">${blocks.map(b => `<button data-b="${b[0]}" class="${S.block === b[0] ? 'on' : ''}">${b[1]}</button>`).join('')}</div>
-      <span class="small muted">Tap a white cell to edit. Grey cells are calculated by the gradebook.</span></div>
+      <span class="small muted">Tap a white cell to edit. Grey cells are calculated by the gradebook. &nbsp;0<span class="mleg"></span>10</span></div>
     <div class="tablewrap"><table class="g"><thead><tr><th class="st">Student</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(md(c.h))}</th>`).join('')}</tr></thead>
     <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(s.name)}</td>${cols.map(c => {
-      const v = String(pv(s.row, c.c));
-      return `<td class="${editable(c) ? 'ed' : 'ro'} ${c.kind === 'day' && isAbs(v) ? 'nbv' : ''} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
+      const v = String(pv(s.row, c.c)), hu = markHue(c, v);
+      return `<td class="${editable(c) ? 'ed' : 'ro'} ${c.kind === 'day' && isAbs(v) ? 'nbv' : ''} ${hu == null ? '' : 'sc'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}"${hu == null ? '' : ` style="--h:${hu}"`} data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table></div>`;
-  $$('#gv [data-b]').forEach(b => b.onclick = () => { S.block = +b.dataset.b; tableView(d); });
+  $$('#gv [data-b]').forEach(b => b.onclick = () => { S.block = +b.dataset.b; gvSave(); tableView(d); });
+  const tw = $('#gv .tablewrap'), sk = 'dp_gv_scroll_' + S.group + '_' + S.block;
+  if (tw) {
+    let sp = null; try { sp = JSON.parse(store.get(sk) || 'null'); } catch (e) {}
+    if (sp) { tw.scrollLeft = sp.x || 0; tw.scrollTop = sp.y || 0; }
+    else {
+      // first time: show the latest lesson that already has marks (or today)
+      let last = -1; cols.forEach((c, i) => { if (c.kind === 'day' && (c.h === S.today || d.students.some(s => String(pv(s.row, c.c)).trim()))) last = i; });
+      const th = last >= 0 ? tw.querySelectorAll('thead th')[last + 1] : null, st = tw.querySelector('thead th.st');
+      if (th) tw.scrollLeft = Math.max(0, th.offsetLeft - (st ? st.offsetWidth : 0) - 3 * th.offsetWidth);
+    }
+    let tmr; tw.addEventListener('scroll', () => { clearTimeout(tmr); tmr = setTimeout(() => store.set(sk, JSON.stringify({ x: tw.scrollLeft, y: tw.scrollTop }), true), 200); }, { passive: true });
+  }
   $$('#gv td.ed').forEach(td => td.onclick = () => cellEditor(d, +td.dataset.r, +td.dataset.c, () => tableView(d)));
 }
 function cellEditor(d, row, cn, after) {
