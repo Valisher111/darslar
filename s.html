@@ -256,11 +256,16 @@ function quizBox() {
     <p class="small muted" style="margin:4px 0 12px">${q.count} questions · about ${left} min left · one attempt</p>
     <button class="btn primary block" id="qgo">${q.state === 'working' ? 'Continue the quiz' : 'Start the quiz'}</button></div>`;
 }
+function personalBox() {
+  return (H.personal || []).map(p => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Personal test · only for you</div><div class="t">${esc(p.title)}</div>
+    <p class="small muted" style="margin:4px 0 12px">${p.count} questions · ${p.minutes} min after you start · one attempt${p.deadline ? ' · until ' + esc(p.deadline) : ''}</p>
+    <button class="btn primary block" data-pt="${esc(p.id)}">${p.state === 'working' ? 'Continue the test' : 'Start the test'}</button></div>`).join('');
+}
 function tHome() {
   const dl = H.deadlines.slice(0, 4).map(d => `<li><div style="flex:1;min-width:0"><b>${esc(d.title)}</b><div class="small muted">${esc(md(d.due_date))} · ${esc(d.type)}${d.notes ? ' · ' + esc(d.notes) : ''}</div></div>
     ${d.days < 0 ? '<span class="pill gray">passed</span>' : d.days === 0 ? '<span class="pill bad">today</span>' : d.days <= 3 ? `<span class="pill warn">in ${d.days} d</span>` : `<span class="pill">in ${d.days} d</span>`}</li>`).join('');
   const hw = H.lessons.filter(l => l.homework).slice(-1)[0];
-  $('#view').innerHTML = `${quizBox()}
+  $('#view').innerHTML = `${personalBox()}${quizBox()}
     <div class="card"><div class="stats">
       <div class="stat"><b>${H.avg == null ? '—' : H.avg}</b><span>your average</span></div>
       <div class="stat"><b>${H.rank ? ord(H.rank) : '—'}</b><span>${H.rank ? 'of ' + H.ranked + ' in group' : 'place'}</span></div>
@@ -270,6 +275,7 @@ function tHome() {
     <div class="card"><h2>Deadlines</h2>${dl ? `<ul class="list">${dl}</ul>` : '<p class="muted" style="margin:0">No deadlines now.</p>'}</div>
     <div class="card"><h2>Gradebook totals</h2><ul class="list">${H.totals.filter(t => t.value !== '').map(t => `<li><span style="flex:1">${esc(t.label)}</span><b>${esc(t.value)}</b><span class="small muted">/ ${t.max}</span></li>`).join('') || '<li class="muted">Nothing yet.</li>'}</ul></div>`;
   if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
+  $$('[data-pt]').forEach(b => b.onclick = () => { b.disabled = true; startQuiz(b.dataset.pt); });
 }
 function chart(series) {
   const pts = series.filter(s => s.raw !== ''); if (pts.length < 2) return '';
@@ -476,6 +482,13 @@ async function finish(auto) {
   while (true) {
     try {
       const r = await api('stQuizSubmit', Q.quiz_id, A);
+      if (r.personal) {
+        $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+        ${r.hidden ? `<div class="big" style="margin:12px 0 4px">✓</div><div class="muted">Your answers were sent.</div><p class="small muted">${auto ? 'Time is over. ' : ''}Your teacher will tell you the result.</p>`
+          : `<div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of ${r.max} · ${r.right} of ${r.total} fully right</div><p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook.</p>`}
+        <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+        $('#qdone').onclick = backHome; Q = null; submitting = false; return;
+      }
       $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
         <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
         <p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook. You will see the right answers when your teacher closes the quiz.</p>
