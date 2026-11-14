@@ -219,8 +219,25 @@ if (PREVIEW) {
   try { if (parent !== window && parent.dpKey) KEY = parent.dpKey(); } catch (e) {}
   if (!KEY) { try { KEY = localStorage.getItem('dp_key') || sessionStorage.getItem('dp_key'); } catch (e) {} }
 }
+/* Teacher sees a real student's page, read only (15.11):
+   s.html#v=<view token> — from the student bot (/student → a real student), token lives 6 h on the server;
+   s.html#as=<group>|<name> — from the teacher site (uses the teacher key). Nothing can be done for the student. */
+const VWm = /[#&]v=([a-f0-9]{24})/.exec(location.hash), ASm = /[#&]as=([^&]+)/.exec(location.hash);
+const VIEW = VWm ? VWm[1] : null, AS = ASm ? decodeURIComponent(ASm[1]) : null;
+const READONLY = !!(VIEW || AS);
+if (VIEW) KEY = 'view';
+if (AS) {
+  KEY = null;
+  try { if (parent !== window && parent.dpKey) KEY = parent.dpKey(); } catch (e) {}
+  if (!KEY) { try { KEY = localStorage.getItem('dp_key') || sessionStorage.getItem('dp_key'); } catch (e) {} }
+}
 
 async function api(action, ...args) {
+  if (READONLY && /^st/.test(action)) {
+    if (action === 'stHome') { if (VIEW) { action = 'viewHome'; args = [VIEW]; } else { const i = AS.indexOf('|'); action = 'studentView'; args = [AS.slice(0, i), AS.slice(i + 1)]; } }
+    else if (action === 'stPing') return { open: null, closes: null, live: null };
+    else throw new Error('Teacher view — read only. To try it yourself, use the 🧪 test student (/student in the bot).');
+  }
   const r = await apiFetch(JSON.stringify({ action, key: KEY, args }));
   if (!r.ok) throw new Error('Server error ' + r.status + '. Try again.');
   const j = await r.json();
@@ -248,11 +265,14 @@ function showHome(h) {
   if (h.fb && h.fb.databaseURL) FB_CFG = h.fb;   // the teacher's own Firebase for live games
   $('#hi').textContent = 'Group ' + H.group + ' · ' + H.subject; $('#who').textContent = H.name;
   $('#sub').textContent = 'Today is ' + dayName(H.today);
+  if ((READONLY || H.group === 'TEST') && !$('#vwbar')) document.body.insertAdjacentHTML('afterbegin', READONLY
+    ? '<div class="pvbar" id="vwbar">👁 Teacher view · read only — exactly what this student sees</div>'
+    : '<div class="pvbar" id="vwbar">🧪 Test student (TEST group) — everything works, only on the TEST sheet</div>');
   buildTabs(); render();
 }
 async function load(quiet) {
   // show the last saved page at once (without quiz/live: those always come fresh), then refresh
-  const ck = 'ds_home_' + String(KEY || '').slice(0, 12);
+  const ck = READONLY ? 'ds_view_' + (VIEW || AS) : 'ds_home_' + String(KEY || '').slice(0, 12);
   if (!H) { try { const c = JSON.parse(ls.get(ck) || 'null'); if (c && c.name) { c.quiz = null; c.live = null; showHome(c); $('#sub').textContent += ' · updating…'; } } catch (e) {} }
   try {
     const h = await api('stHome');
