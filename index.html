@@ -737,7 +737,7 @@ async function pageToday() {
         <div class="progress"><i style="width:${pct}%"></i></div></div>`;
     }).join('');
     view().innerHTML = `
-      <div class="hero"><div><div class="muted small">Hello${S.teacher ? ', ' + esc(firstName(S.teacher)) : ''}</div><div class="date">${esc(longDate(h.today))}</div></div></div>
+      <div class="hero"><div style="flex:1"><div class="muted small">Hello${S.teacher ? ', ' + esc(firstName(S.teacher)) : ''}</div><div class="date">${esc(longDate(h.today))}</div></div><button class="btn sm" id="tstu">🧪 Test student</button></div>
       ${alertsHtml(h.alerts)}
       ${h.bonusRequests ? `<div class="card row" style="border:2px solid var(--warn);margin-bottom:14px"><b style="flex:1">🪙 ${h.bonusRequests} bonus request${h.bonusRequests > 1 ? 's' : ''} waiting for you</b><button class="btn sm primary" id="breq">Open Coins</button></div>` : ''}
       ${(h.top5Due || []).length ? `<div class="card row" style="margin-bottom:14px"><b style="flex:1">🏆 Weekly Top 5 not sent yet</b>${h.top5Due.map(g => `<button class="btn sm" data-t5="${esc(g)}">${esc(g)}</button>`).join('')}</div>` : ''}
@@ -755,6 +755,7 @@ async function pageToday() {
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
     $$('[data-finish]').forEach(b => b.onclick = () => { const [g, d] = b.dataset.finish.split('|'); finishDialog(g, d); });
     bindReopen(() => pageToday());
+    if ($('#tstu')) $('#tstu').onclick = () => testStudentDialog(1);
     $$('[data-coins]').forEach(b => b.onclick = () => go('coins', b.dataset.coins));
     $$('[data-t5]').forEach(b => b.onclick = () => top5Dialog(b.dataset.t5));
     if ($('#breq')) $('#breq').onclick = () => go('coins');
@@ -1118,7 +1119,7 @@ async function showProfile(row) {
     const sm = p.summary, a = (k, i) => ((sm[k] || [])[i || 0]) || '—';
     const stat = (v, l) => `<div class="stat"><b>${esc(v == null || v === '' ? '—' : v)}</b><span>${l}</span></div>`;
     view().innerHTML = `<div class="row" style="margin-bottom:14px"><button class="btn sm" id="back">← All students</button></div>
-      <div class="card"><h2 style="margin-bottom:4px">${esc(p.name)}</h2><p class="muted small" style="margin-top:0">Group ${esc(S.group)} · ${esc(S.subjects[S.group] || '')}</p>
+      <div class="card"><div class="row"><h2 style="margin-bottom:4px;flex:1">${esc(p.name)}</h2><button class="btn sm" id="asst">👁 View as student</button></div><p class="muted small" style="margin-top:0">Group ${esc(S.group)} · ${esc(S.subjects[S.group] || '')}</p>
       <div class="grid g4">${stat(p.avg, 'Average daily mark')}${stat(p.groupAvg, 'Group average')}${stat(p.attended + '/' + p.marked, 'Lessons attended')}${stat(p.nb, 'Absences (nb)')}
         ${stat(a('Joriy (20)'), 'Joriy (20) · block 1')}${stat(a('1-reyting (20)'), '1-reyting (20)')}${stat(a('Joriy (20)', 1), 'Joriy (20) · block 2')}${stat(a('2-reyting (20)'), '2-reyting (20)')}
         ${stat(a('MI (10)'), 'Independent work (10)')}${stat(a('Jami (100)'), 'Total (100)')}</div></div>
@@ -1130,6 +1131,7 @@ async function showProfile(row) {
       <div class="card"><div class="row"><div style="flex:1"><h2 style="margin:0">Telegram account</h2><div class="small muted">${p.account ? (p.account.status === 'active' ? 'Linked' : 'Waiting for approval') + (p.account.tg_username ? ' · @' + esc(p.account.tg_username) : '') + ' · ' + esc(p.account.linked_at) : 'Not linked. The student presses /start in the student bot.'}</div></div>
         ${p.account ? '<button class="btn sm danger" id="unl">Unlink</button>' : ''}</div></div>`;
     $('#back').onclick = pageStudents;
+    $('#asst').onclick = () => viewAsStudent(S.group, p.name);
     if ($('#unl')) $('#unl').onclick = async () => { if (!confirm('Unlink ' + p.name + '? The old personal link stops working; the student can /start again.')) return; try { await api('unlink', S.group, p.name); toast('Unlinked'); showProfile(row); } catch (e) { fail(e); } };
   } catch (e) { fail(e); }
 }
@@ -1246,6 +1248,24 @@ function qBody(q, showAnswer) {
   if (q.type === 'match') return `<div class="small" style="margin-top:4px">${q.pairs.map(p => `${esc(p[0])} → <b>${esc(p[1])}</b>`).join('<br>')}</div>`;
   if (q.type === 'order') return `<div class="small" style="margin-top:4px">${q.items.map((x, i) => `${i + 1}. ${esc(x)}`).join('<br>')}</div>`;
   return '';
+}
+/* 15.11: a real student's page, read only (s.html#as=…), and the working 🧪 test student of the TEST group */
+function viewAsStudent(g, name) {
+  modal(`<div class="row" style="margin-bottom:10px"><div style="flex:1;min-width:0"><h3 style="margin:0">👁 ${esc(name)}</h3><div class="small muted">Exactly what this student sees. Read only: nothing can be pressed for the student.</div></div><button class="btn sm" data-close>Close</button></div>
+    <div class="phone"><iframe title="Student page" src="s.html#as=${encodeURIComponent(g + '|' + name)}${IS_MAIN_API ? '' : '&a=' + API_ID}"></iframe></div>`, m => { m.querySelector('.modal').classList.add('pmodal'); });
+}
+async function testStudentDialog(n) {
+  let r; try { r = await api('testStudent', n || 1); } catch (e) { return fail(e); }
+  const src = 's.html#k=' + r.token + (IS_MAIN_API ? '' : '&a=' + API_ID);
+  modal(`<div class="row" style="margin-bottom:8px"><div style="flex:1;min-width:0"><h3 style="margin:0">🧪 ${esc(r.name)} · TEST</h3><div class="small muted">A working student in the TEST group. Open a quiz for TEST (Quizzes → TEST), give coins (Coins → TEST) — it shows here. In Telegram: send /student to the student bot.</div></div><button class="btn sm" data-close>Close</button></div>
+    <div class="row" style="margin-bottom:8px;gap:6px">${r.students.slice(0, 4).map((x, i) => `<button class="btn sm ${x === r.name ? 'primary' : ''}" data-tsn="${i + 1}">${i + 1}</button>`).join('')}<span class="spacer"></span>
+      <button class="btn sm" id="tsr">↻</button><a class="btn sm" href="${esc(src)}" target="_blank" rel="noopener">New tab</a><button class="btn sm danger" id="tsx">Reset test data</button></div>
+    <div class="phone"><iframe id="tsf" title="Test student" src="${esc(src)}"></iframe></div>`, m => {
+    m.querySelector('.modal').classList.add('pmodal');
+    $$('[data-tsn]', m).forEach(b => b.onclick = () => testStudentDialog(+b.dataset.tsn));
+    $('#tsr', m).onclick = () => { $('#tsf', m).src = src + '&r=' + Date.now(); };
+    $('#tsx', m).onclick = async () => { if (!confirm('Clear all TEST data (marks, quiz results, coins, cards, bonus requests)?')) return; try { await api('testReset'); toast('Test data cleared'); $('#tsf', m).src = src + '&r=' + Date.now(); } catch (e) { fail(e); } };
+  });
 }
 /* "Student view": the real student page inside a phone frame, in preview mode (nothing is saved) */
 window.dpKey = () => KEY;
