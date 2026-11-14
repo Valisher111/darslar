@@ -235,7 +235,8 @@ function noAccess() {
 }
 
 const TABS = [['home', 'Home', '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'], ['marks', 'Marks', '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
-  ['lessons', 'Lessons', '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/>'], ['quizzes', 'Quizzes', '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>']];
+  ['lessons', 'Lessons', '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/>'], ['quizzes', 'Quizzes', '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>'],
+  ['coins', 'Coins', '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>']];
 let H = null, tab = 'home', pingT = null;
 function buildTabs() {
   $('#tabs .in').innerHTML = TABS.map(t => `<button data-t="${t[0]}" class="${t[0] === tab ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${t[2]}</svg>${t[1]}</button>`).join('');
@@ -262,7 +263,7 @@ async function load(quiet) {
 }
 const isAbs = v => { v = String(v == null ? '' : v).trim().toLowerCase(); return v === 'nb' || (v !== '' && Number(v.replace(',', '.')) === 0); };
 function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return isAbs(v) ? '<span class="mk nb">absent</span>' : `<span class="mk ${isFinite(n) && n < 6 ? 'low' : ''}">${esc(v || '—')}</span>`; }
-function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes })[tab](); $$('[data-join]').forEach(b => b.onclick = joinLive); }
+function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes, coins: tCoins })[tab](); bindCoinBtns(); $$('[data-join]').forEach(b => b.onclick = joinLive); }
 
 function liveCard() {
   return H && H.live ? `<div class="card livecard"><div class="small" style="color:#fde68a;font-weight:800">● LIVE GAME NOW</div><div class="t" style="color:#fff;font-size:20px;font-weight:800;margin:4px 0">${esc(H.live.title)}</div>
@@ -285,7 +286,7 @@ function tHome() {
   const dl = H.deadlines.slice(0, 4).map(d => `<li><div style="flex:1;min-width:0"><b>${esc(d.title)}</b><div class="small muted">${esc(md(d.due_date))} · ${esc(d.type)}${d.notes ? ' · ' + esc(d.notes) : ''}</div></div>
     ${d.days < 0 ? '<span class="pill gray">passed</span>' : d.days === 0 ? '<span class="pill bad">today</span>' : d.days <= 3 ? `<span class="pill warn">in ${d.days} d</span>` : `<span class="pill">in ${d.days} d</span>`}</li>`).join('');
   const hw = H.lessons.filter(l => l.homework).slice(-1)[0];
-  $('#view').innerHTML = `${personalBox()}${quizBox()}
+  $('#view').innerHTML = `${personalBox()}${quizBox()}${coinMini()}
     <div class="card"><div class="stats">
       <div class="stat"><b>${H.avg == null ? '—' : H.avg}</b><span>your average</span></div>
       <div class="stat"><b>${H.rank ? ord(H.rank) : '—'}</b><span>${H.rank ? 'of ' + H.ranked + ' in group' : 'place'}</span></div>
@@ -324,6 +325,78 @@ function tQuizzes() {
   if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
   $$('[data-rv]').forEach(li => li.onclick = () => review(li.dataset.rv));
   if ($('#pmgo0')) $('#pmgo0').onclick = () => practice(false);
+}
+
+
+/* ===================== coins, bonus shop, cards (15.11.2026) ===================== */
+const BST = { requested: ['warn', 'waiting for your teacher'], approved: ['', 'approved · take the test'], started: ['warn', 'test started'], done: ['', 'done ✓'],
+  failed1: ['bad', 'not passed · 1 more try from tomorrow'], failed: ['bad', 'not passed'], rejected: ['gray', 'not approved'] };
+function coinMini() {
+  const c = H.coins; if (!c) return '';
+  const ready = (H.shop && H.shop.requests || []).filter(r => r.canStart);
+  return ready.map(r => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Bonus test · only for you</div><div class="t">${esc(r.title)}</div>
+      <p class="small muted" style="margin:4px 0 12px">${H.shop.test.count} questions · ${H.shop.test.minutes} min · you need ${H.shop.test.pass}% · do not leave the page</p>
+      <button class="btn primary block" data-bt="${esc(r.id)}">${r.status === 'started' ? 'Continue the test' : 'Start the test'}</button></div>`).join('') +
+    `<div class="card coinmini" data-go="coins" style="cursor:pointer"><div class="row" style="display:flex;align-items:center;gap:10px"><span style="font-size:28px">🪙</span>
+      <div style="flex:1"><b style="font-size:20px">${c.balance}</b> coins<div class="small muted">${c.rank ? ord(c.rank) + ' of ' + c.of + ' in the group' : ''}${c.cards.yellow ? ' · ' + (c.frozen ? '🟥 red card: coins frozen' : '🟨 yellow card') : ''}</div></div>
+      <span class="small" style="color:var(--accent);font-weight:600">Shop ›</span></div></div>`;
+}
+function tCoins() {
+  const c = H.coins, s = H.shop;
+  if (!c || !s) { $('#view').innerHTML = '<div class="card"><p class="muted" style="margin:0">Coins are not available now.</p></div>'; return; }
+  const items = s.items.map(b => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${esc(b.title)}</b><div class="small muted">${esc(b.note)}${b.limit ? ' · ' + b.used + '/' + b.limit + ' this semester' : ''}</div>
+      ${b.ok ? '' : `<div class="small" style="color:var(--warn);margin-top:3px">${esc(b.why)}</div>`}</div>
+      <div style="text-align:right"><div style="font-weight:800;margin-bottom:6px">${b.price} 🪙</div><button class="btn ${b.ok ? 'primary' : ''}" data-buy="${esc(b.key)}" ${b.ok ? '' : 'disabled'}>Get</button></div></li>`).join('');
+  const cards = s.cards.map(x => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>🟨 Yellow card</b><div class="small muted">${esc(x.reason)} · ${esc(x.at)}</div>
+      ${x.ok ? '' : x.why ? `<div class="small" style="color:var(--warn)">${esc(x.why)}</div>` : ''}</div><button class="btn ${x.ok ? 'primary' : ''}" data-cardtest="${esc(x.card)}" ${x.ok ? '' : 'disabled'}>Remove with a test</button></li>`).join('');
+  const reqs = s.requests.map(r => `<li style="flex-wrap:wrap"><div style="flex:1 1 100%;min-width:0"><b>${esc(r.title)}</b><div class="small muted">${esc(r.created_at)}${r.kind !== 'card' && r.target ? ' · lesson ' + esc(md(r.target)) : ''}${r.score !== '' && r.score != null ? ' · test ' + esc(r.score) + '%' : ''}</div></div>
+      <div style="display:flex;gap:8px;align-items:center;width:100%;margin-top:6px"><span class="pill ${(BST[r.status] || ['gray'])[0]}" style="margin-right:auto">${esc((BST[r.status] || [, r.status])[1])}</span>${r.canStart ? `<button class="btn sm primary" data-bt="${esc(r.id)}">Take the test</button>` : ''}
+      ${['requested', 'approved', 'failed1'].includes(r.status) ? `<button class="btn sm" data-bc="${esc(r.id)}" title="Cancel">✕</button>` : ''}</div></li>`).join('');
+  const board = c.board.map(x => `<li style="${x.me ? 'background:var(--accent-soft);border-radius:10px;padding-left:8px;padding-right:8px' : ''}"><span style="min-width:26px" class="muted">${x.rank}</span>
+      <span style="flex:1;min-width:0">${esc(x.name)}${x.yellow ? ' ' + '🟨'.repeat(Math.min(2, x.yellow)) : ''}${x.me ? ' <span class="small muted">(you)</span>' : ''}</span><b>${x.balance}</b></li>`).join('');
+  const hist = c.history.map(h => `<li><span style="flex:1;min-width:0"><span class="small muted">${esc(h.time.slice(5))}</span> · ${esc(h.reason)}</span>
+      <b style="color:${h.amount < 0 ? 'var(--bad)' : 'var(--good)'}">${h.amount > 0 ? '+' : ''}${h.amount}</b></li>`).join('');
+  $('#view').innerHTML = `<div class="card" style="text-align:center"><div style="font-size:40px;line-height:1">🪙</div><div class="big" style="margin:6px 0 2px">${c.balance}</div>
+      <div class="muted">coins${c.rank ? ' · ' + ord(c.rank) + ' of ' + c.of + ' in the group' : ''}</div>
+      ${c.frozen ? '<p style="color:var(--bad);font-weight:700;margin:10px 0 0">🟥 Red card (2 yellow cards): you cannot earn or spend coins. Remove a card with a test.</p>'
+        : c.cards.yellow ? '<p style="color:var(--warn);font-weight:600;margin:10px 0 0">🟨 You have a yellow card: the shop is closed until you remove it.</p>' : ''}</div>
+    ${coinMini().replace(/<div class="card coinmini"[\s\S]*$/, '')}
+    ${cards ? `<div class="card"><h2>My cards</h2><ul class="list">${cards}</ul></div>` : ''}
+    <div class="card"><h2>Bonus shop</h2><p class="small muted" style="margin:0 0 8px">Ask for a bonus → your teacher approves → you take a ${s.test.count}-question test (${s.test.minutes} min) from past topics. With ${s.test.pass}% or more you get the bonus and the coins are spent. If you do not pass, you keep your coins.</p>
+      <ul class="list">${items}</ul></div>
+    ${reqs ? `<div class="card"><h2>My requests</h2><ul class="list">${reqs}</ul></div>` : ''}
+    <div class="card"><h2>Group leaderboard</h2><ul class="list">${board}</ul></div>
+    <div class="card"><h2>My coins</h2>${hist ? `<ul class="list">${hist}</ul>` : '<p class="muted" style="margin:0">No coins yet.</p>'}</div>
+    <div class="card"><h2>How to earn coins</h2>${['Quiz or Live game: 10 → <b>+3</b>, 8–9.9 → <b>+2</b>, 6–7.9 → <b>+1</b>', 'Live game top 3 → <b>+1</b> more',
+      'Being active in class → <b>+1 / +2 / +3</b> from your teacher', '"Practise my mistakes" (5 right answers a day) → <b>+1</b>',
+      '🟨 A yellow card closes the shop. Two yellow cards = 🟥 red: coins are frozen.'].map(x => `<div class="small" style="padding:7px 0;border-bottom:1px solid var(--line)">${x}</div>`).join('')}</div>`;
+  bindCoinBtns();
+}
+function bindCoinBtns() {
+  $$('[data-bt]').forEach(b => b.onclick = () => { b.disabled = true; startQuiz(b.dataset.bt); });
+  $$('[data-go]').forEach(b => b.onclick = () => { tab = b.dataset.go; buildTabs(); render(); window.scrollTo(0, 0); });
+  $$('[data-buy]').forEach(b => b.onclick = () => {
+    const it = H.shop.items.find(x => x.key === b.dataset.buy);
+    if (it.key === 'makeup') return pickMakeup(it);
+    if (!confirm(`Ask for "${it.title}" (${it.price} coins)?\nAfter your teacher approves, you take the test. Coins are spent only if you pass.`)) return;
+    shopReq(b, it.key, '');
+  });
+  $$('[data-cardtest]').forEach(b => b.onclick = () => { if (confirm('Ask to remove this yellow card with a test?')) shopReq(b, 'card', b.dataset.cardtest); });
+  $$('[data-bc]').forEach(b => b.onclick = async () => { if (!confirm('Cancel this request?')) return; b.disabled = true; try { H.shop = await api('stBonusCancel', b.dataset.bc); render(); } catch (e) { fail(e); b.disabled = false; } });
+}
+function pickMakeup(it) {
+  const d = document.createElement('div'); d.className = 'gwarn';
+  d.innerHTML = `<div class="box" style="border-color:var(--accent)"><h3 style="color:var(--ink)">${esc(it.title)}</h3><p class="small muted">Choose the missed lesson (0). It will get your average daily mark.</p>
+    <select id="mkd" style="width:100%;padding:10px;font-size:16px;margin-bottom:12px">${H.shop.makeup.map(x => `<option value="${esc(x)}">${esc(dayName(x))}</option>`).join('')}</select>
+    <button class="btn primary block" id="mkok">Ask for it · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Cancel</button></div>`;
+  document.body.appendChild(d);
+  $('#mkno').onclick = () => d.remove();
+  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); shopReq(null, 'makeup', v); };
+}
+async function shopReq(b, key, target) {
+  if (b) b.disabled = true;
+  try { H.shop = await api('stBonusRequest', key, target); toast('Sent to your teacher'); render(); }
+  catch (e) { fail(e); if (b) b.disabled = false; }
 }
 
 /* ===================== practice my mistakes (nothing goes to the gradebook) ===================== */
@@ -385,6 +458,7 @@ function pmDraw() {
     const b = $('#pmnext'); b.disabled = true;
     try {
       PM.res = await api('stPracticeCheck', it.key, PM.a);
+      if (PM.res.coin) toast('+' + PM.res.coin + ' 🪙 for practising today!');
       if (PM.res.score >= 1) { PM.right++; const d = pmDone(); d[it.key] = 1; ls.set(pmKey(), JSON.stringify(d)); } else PM.wrong.push(it);
       pmDraw();
     } catch (e) { b.disabled = false; fail(e); }
@@ -504,6 +578,14 @@ async function finish(auto) {
   while (true) {
     try {
       const r = await api('stQuizSubmit', Q.quiz_id, A);
+      if (r.bonus) {
+        $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.passed ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+        <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div><div class="muted">you needed ${r.pass}%</div>
+        ${r.passed ? `<p style="font-size:18px;font-weight:700;color:var(--good)">🎉 Passed!</p><p class="small muted">${esc(r.written || 'Your bonus is done.')}</p>`
+          : `<p style="font-size:18px;font-weight:700;color:var(--bad)">Not passed</p><p class="small muted">Your coins were not spent. ${r.status === 'failed1' ? 'You can try once more from tomorrow.' : 'You can ask again in a week.'} Practise your mistakes in Quizzes.</p>`}
+        <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+        $('#qdone').onclick = () => { tab = 'coins'; backHome(); setTimeout(() => { tab = 'coins'; }, 0); }; Q = null; submitting = false; return;
+      }
       if (r.personal) {
         $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
         ${r.hidden ? `<div class="big" style="margin:12px 0 4px">✓</div><div class="muted">Your answers were sent.</div><p class="small muted">${auto ? 'Time is over. ' : ''}Your teacher will tell you the result.</p>`
