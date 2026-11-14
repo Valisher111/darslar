@@ -733,6 +733,7 @@ async function pageToday() {
     }).join('');
     view().innerHTML = `
       <div class="hero"><div><div class="muted small">Hello${S.teacher ? ', ' + esc(firstName(S.teacher)) : ''}</div><div class="date">${esc(longDate(h.today))}</div></div></div>
+      ${alertsHtml(h.alerts)}
       ${todayHtml}
       <div class="grid g2" style="margin-top:14px">
         <div class="card"><h2>Coming up</h2>${upHtml}</div>
@@ -746,8 +747,26 @@ async function pageToday() {
     $$('[data-live]').forEach(b => b.onclick = () => liveStartDialog(b.dataset.live));
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
     $$('[data-finish]').forEach(b => b.onclick = () => { const [g, d] = b.dataset.finish.split('|'); finishDialog(g, d); });
+    bindReopen(() => pageToday());
     });
   } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
+}
+
+/* "Left the test" alerts (15.11): a test closed because the student left it twice → yellow card; Reopen undoes both. */
+function alertsHtml(a) {
+  if (!a || !a.length) return '';
+  return `<div class="card" style="border:2px solid var(--bad);margin-bottom:14px"><h2 style="color:var(--bad)">⚠ Left the test</h2>${a.map(x => `<div class="up"><span class="gbadge">${esc(x.group)}</span>
+    <div style="flex:1;min-width:0"><div><b>${esc(x.name)}</b> 🟨</div><div class="small muted">${esc(x.reason)} · ${esc(x.at)}</div></div>
+    <button class="btn sm" data-reopen="${esc(x.ref)}|${esc(x.name)}">Reopen</button></div>`).join('')}
+    <div class="small muted" style="margin-top:6px">Reopen if it was not cheating (a phone call etc.): the test continues and the yellow card is removed.</div></div>`;
+}
+function bindReopen(after) {
+  $$('[data-reopen]').forEach(b => b.onclick = async () => {
+    const i = b.dataset.reopen.indexOf('|'), ref = b.dataset.reopen.slice(0, i), name = b.dataset.reopen.slice(i + 1);
+    if (!confirm('Reopen the test for ' + name + '?\nThe mark is taken back, the yellow card is removed and the student can continue.')) return;
+    b.disabled = true;
+    try { const r = await api('reopenLeft', ref, name); toast(r.msg || 'Reopened'); S.data = {}; after && after(); } catch (e) { fail(e); b.disabled = false; }
+  });
 }
 
 /* ===================== GRADES ===================== */
@@ -2287,7 +2306,8 @@ async function quizLive(id, res) {
   const off = Date.parse(res.now) - Date.now();
   const q = res.quiz, isOpen = q.status === 'open';
   const nbCand = res.rows.filter(r => r.state === 'not started' && r.cell === '');
-  const st = r => r.state === 'done' ? (r.written ? '<span class="pill">in gradebook</span>'
+  const leftPill = r => /left the test/.test(r.note || '') ? `<span class="pill bad" title="${esc(r.note)}">⚠ ${esc((r.note.match(/left the test (\d+)× \(([^)]*)\)/) || [, '2', ''])[1])}× left ${esc((r.note.match(/left the test \d+× \(([^)]*)\)/) || [, ''])[1])}</span>${isOpen ? ` <button class="btn sm" data-reopen="q:${esc(q.quiz_id)}|${esc(r.name)}">Reopen</button>` : ''} ` : '';
+  const st = r => r.state === 'done' ? leftPill(r) + (r.written ? '<span class="pill">in gradebook</span>'
       : /conflict/.test(r.note) ? `<span class="pill warn">cell has ${esc((r.note.match(/has ([^;]+)/) || [])[1] || '?')}</span> <button class="btn sm" data-use="${esc(r.name)}">Use quiz mark</button>`
       : `<span class="pill bad">${esc(r.note || 'not written')}</span>`)
     : r.state === 'working' ? '<span class="pill warn">working…</span>' : `<span class="pill gray">not started</span>${r.cell ? ' <span class="small muted">(' + esc(r.cell) + ')</span>' : ''}`;
@@ -2313,6 +2333,7 @@ async function quizLive(id, res) {
   act('#qclose', async () => { if (!confirm('Close the quiz now? Unfinished students are graded on what they saved.')) return; quizLive(id, await api('closeQuiz', id)); });
   act('#qnb', async () => { if (!confirm('Put 0 (absent) on ' + md(q.lesson_date) + ' for:\n' + nbCand.map(r => r.name).join('\n'))) return; quizLive(id, await api('quizMarkNb', id, nbCand.map(r => r.row))); S.data = {}; toast('Absences saved (0)'); });
   if ($('#qfin')) $('#qfin').onclick = () => finishDialog(q.group, q.lesson_date);
+  bindReopen(() => quizLive(id));
   $$('[data-use]').forEach(b => b.onclick = async () => { if (!confirm('Replace the existing mark of ' + b.dataset.use + ' with the quiz mark?')) return; try { quizLive(id, await api('quizUseMark', id, b.dataset.use)); S.data = {}; toast('Saved'); } catch (e) { fail(e); } });
   if (isOpen) {
     const closes = Date.parse(q.closes_at); let n = 0;
