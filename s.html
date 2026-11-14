@@ -150,6 +150,13 @@ select{width:100%;border:1.5px solid var(--line);background:var(--panel);border-
 .pvbar{background:#fef3c7;color:#92400e;padding:8px 14px;font-size:13px;text-align:center;font-weight:600}
 .rv .y{color:var(--bad)} .rv.ok .y{color:var(--good)} .rv .r{color:var(--good)}
 svg text{fill:var(--muted);font-size:10px;font-family:inherit}
+.gwarn{position:fixed;inset:0;z-index:95;background:rgba(120,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px}
+.gwarn .box{background:#fff;color:#1b1b1b;border-radius:16px;max-width:420px;width:100%;padding:22px 18px;border:3px solid #d32f2f;text-align:center}
+.gwarn .ic{font-size:44px;line-height:1;color:#d32f2f}
+.gwarn h3{color:#d32f2f;margin:8px 0 6px;font-size:20px}
+.gbar{background:#d32f2f;color:#fff;font-size:13px;text-align:center;padding:6px 10px}
+.gclosed{border:3px solid #d32f2f;background:#fff5f5;color:#1b1b1b}
+.gclosed .ic{font-size:54px;color:#d32f2f;line-height:1}
 </style>
 </head>
 <body>
@@ -414,12 +421,14 @@ async function startQuiz(id) {
   const btn = $('#qgo'); if (btn) btn.disabled = true;
   try {
     Q = await api('stQuizStart', id);
+    if (Q.left_closed) { const g = Q.guard, t = Q.title; Q = null; $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); return showLeftClosed(t, g); }
     off = Date.parse(Q.now) - Date.now(); A = Q.saved || {}; touched = {};
     Object.keys(A).forEach(k => touched[k] = true);
     clearInterval(pingT);
     $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); window.scrollTo(0, 0);
     lastSync = Date.now(); endCheck = false;
     drawQuiz(); qTimer = setInterval(tickQ, 1000); tickQ();
+    guardAfterStart();
   } catch (e) { fail(e); if (btn) btn.disabled = false; load(true); }
 }
 const answered = () => Q.questions.filter(q => isAnswered(q)).length;
@@ -431,7 +440,7 @@ function isAnswered(q) {
 function drawQuiz() {
   const L = 'ABCDEF';
   $('#quiz').innerHTML = `<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5" id="qcount"></div></div><div class="timer" id="tmr">--:--</div></div></div>
-    <div class="qprog"><i id="qpi" style="width:0"></i></div>
+    <div class="qprog"><i id="qpi" style="width:0"></i></div><div id="gbar"></div>
     <div class="qwrap">${Q.questions.map((q, n) => `<div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${n + 1} of ${Q.questions.length}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>`).join('')}
       <p class="small muted" style="text-align:center">Your answers are saved as you go. When you finish, press <b>Finish</b>.</p></div>
     <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1">Saved</span><button class="btn primary" id="qfin" style="min-width:140px">Finish</button></div></div>`;
@@ -516,6 +525,73 @@ async function finish(auto) {
 function backHome() { $('#quiz').classList.add('hidden'); $('#quiz').innerHTML = ''; $('#main').classList.remove('hidden'); tab = 'home'; load(true); startPing(); }
 window.addEventListener('beforeunload', e => { if (Q && !submitting && !PREVIEW) { save(); e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && Q) save(); });
+
+/* "Left the test" guard (15.11): another app / tab / screen off for more than 2 s.
+   1st time — red warning; 2nd time — the server finishes the test and gives a yellow card. Not in Live. */
+let hideAt = 0, warnShown = 0;
+const guardOn = () => Q && !PREVIEW && !submitting && !Q.left_closed;
+const HK = 'dq_hide';
+function beacon(action, args) {
+  try { const body = JSON.stringify({ action, key: KEY, args }); navigator.sendBeacon(viaCF ? API_CF : API, new Blob([body], { type: 'text/plain' })); } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (!guardOn()) return;
+  if (document.hidden) {
+    hideAt = Date.now(); ls.set(HK, JSON.stringify({ id: Q.quiz_id, t: hideAt }));
+    beacon('stQuizHide', [Q.quiz_id, hideAt]);
+  } else if (hideAt) {
+    const t = hideAt, dur = Date.now() - t; hideAt = 0; ls.set(HK, '');
+    if (dur > 2000) reportLeave(t, dur);
+  }
+});
+async function reportLeave(t, dur) {
+  if (!Q) return; const id = Q.quiz_id;
+  let g = null;
+  for (let i = 0; i < 3 && !g; i++) { try { g = await api('stQuizLeave', id, t, dur, A); } catch (e) { await new Promise(r => setTimeout(r, 1500 * (i + 1))); } }
+  if (!g || !Q || Q.quiz_id !== id) return;
+  applyGuard(g);
+}
+function applyGuard(g) {
+  if (!g || !Q) return;
+  if (g.closed) {
+    const t = Q.title; clearInterval(qTimer); clearTimeout(saveT); Q = null; submitting = false; ls.set(HK, '');
+    return showLeftClosed(t, g);
+  }
+  drawGuardBar(g);
+  if (g.count >= 1 && warnShown < g.count) { warnShown = g.count; showWarn(g); }
+}
+function drawGuardBar(g) {
+  const el = $('#gbar'); if (!el) return;
+  el.innerHTML = g && g.count ? `<div class="gbar">⚠ Warning used (${esc(g.times.join(', '))}). If you leave the quiz again, it will be closed.</div>` : '';
+}
+function showWarn(g) {
+  $$('.gwarn').forEach(x => x.remove());
+  const d = document.createElement('div'); d.className = 'gwarn';
+  d.innerHTML = `<div class="box"><div class="ic">⚠</div><h3>Warning ${g.count}/${g.limit - 1}</h3>
+    <p>You left the quiz${g.times.length ? ' at ' + esc(g.times[g.times.length - 1]) : ''}.</p>
+    <p><b>If you leave it again, the quiz will be closed</b> with the answers you have now, and you will get a yellow card.</p>
+    <p class="small muted">Your teacher can see this.</p><button class="btn primary block" id="gok">I understand</button></div>`;
+  document.body.appendChild(d); $('#gok').onclick = () => d.remove();
+}
+function showLeftClosed(title, g) {
+  $$('.gwarn').forEach(x => x.remove());
+  const r = (g && g.result) || {};
+  $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card gclosed" style="text-align:center;padding:28px 18px"><div class="ic">⚠</div>
+    <h2 style="color:#d32f2f;margin:10px 0 6px">Quiz closed</h2><div class="small muted">${esc(title || '')}</div>
+    <p><b>You left the quiz ${g ? g.count : 2} times</b>${g && g.times.length ? ' (' + esc(g.times.join(', ')) + ')' : ''}.<br>Your answers until then were sent${r.score != null ? ': <b>' + esc(r.score) + ' / ' + esc(r.max) + '</b>' : ''}.</p>
+    <p>🟨 You got a <b>yellow card</b>.</p><p class="small muted">Only your teacher can reopen the quiz (for example, if you had a phone call).</p>
+    <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+  $('#qdone').onclick = backHome;
+}
+/* After the quiz screen opens: warnings already used, and a leave the page could not report (it was closed). */
+function guardAfterStart() {
+  if (!Q || PREVIEW) return;
+  warnShown = (Q.guard && Q.guard.count) || 0;
+  drawGuardBar(Q.guard);
+  let h = null; try { h = JSON.parse(ls.get(HK) || 'null'); } catch (e) {}
+  ls.set(HK, '');
+  if (h && h.id === Q.quiz_id && h.t) { const dur = Date.now() - h.t; if (dur > 2000) reportLeave(h.t, dur); }
+}
 
 /* "Did a quiz or live game open?" — the teacher site bumps sig/<group> in Firebase, the page listens
    (one light stream, no server calls). A slow check every 2 min stays as a fallback. */
