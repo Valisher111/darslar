@@ -350,6 +350,9 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .srow{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:0}.srow .nm{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}.srow .btn.sm{padding:4px 9px}
 .modal.wide{max-width:640px;width:100%}
+.tbl th,.tbl td{padding:6px 4px;border-bottom:1px solid var(--line);font-size:14px;text-align:left}
+.coinrow .coinbtn{min-width:46px}
+.coinrow{gap:6px}
 </style>
 </head>
 <body>
@@ -442,13 +445,14 @@ const ICONS = {
   deadlines: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
   groups: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
   quizzes: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  coins: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
 };
 const PAGES = [
   ['today', 'Today'], ['grades', 'Grades'], ['lessons', 'Lessons'], ['students', 'Students'],
-  ['deadlines', 'Deadlines & PW'], ['quizzes', 'Quizzes'], ['groups', 'Groups'], ['settings', 'Settings']
+  ['deadlines', 'Deadlines & PW'], ['quizzes', 'Quizzes'], ['coins', 'Coins'], ['groups', 'Groups'], ['settings', 'Settings']
 ];
-const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines', 'quizzes'];
+const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines', 'quizzes', 'coins'];
 
 /* ===================== helpers ===================== */
 const $ = (q, el) => (el || document).querySelector(q);
@@ -630,7 +634,7 @@ function route() {
   $('#title').textContent = PAGES.find(p => p[0] === S.page)[1];
   renderChips();
   ({ today: pageToday, grades: pageGrades, lessons: pageLessons, students: pageStudents,
-     deadlines: pageDeadlines, quizzes: pageQuizzes, groups: pageGroups, settings: pageSettings })[S.page]();
+     deadlines: pageDeadlines, quizzes: pageQuizzes, coins: () => pageCoins(), groups: pageGroups, settings: pageSettings })[S.page]();
 }
 function renderChips() {
   const show = GROUP_PAGES.includes(S.page);
@@ -707,6 +711,7 @@ async function pageToday() {
           <button class="btn primary" data-mark="${esc(l.group)}|${l.col}">Mark grades</button>
           <button class="btn" data-lesson="${esc(l.group)}|${esc(l.date)}">Edit lesson</button>
           <button class="btn" data-finish="${esc(l.group)}|${esc(l.date)}">✓ Finish lesson</button>
+          <button class="btn" data-coins="${esc(l.group)}">🪙 Coins</button>
         </div></div>`;
     };
     const todayHtml = h.todayLessons.length
@@ -734,6 +739,8 @@ async function pageToday() {
     view().innerHTML = `
       <div class="hero"><div><div class="muted small">Hello${S.teacher ? ', ' + esc(firstName(S.teacher)) : ''}</div><div class="date">${esc(longDate(h.today))}</div></div></div>
       ${alertsHtml(h.alerts)}
+      ${h.bonusRequests ? `<div class="card row" style="border:2px solid var(--warn);margin-bottom:14px"><b style="flex:1">🪙 ${h.bonusRequests} bonus request${h.bonusRequests > 1 ? 's' : ''} waiting for you</b><button class="btn sm primary" id="breq">Open Coins</button></div>` : ''}
+      ${(h.top5Due || []).length ? `<div class="card row" style="margin-bottom:14px"><b style="flex:1">🏆 Weekly Top 5 not sent yet</b>${h.top5Due.map(g => `<button class="btn sm" data-t5="${esc(g)}">${esc(g)}</button>`).join('')}</div>` : ''}
       ${todayHtml}
       <div class="grid g2" style="margin-top:14px">
         <div class="card"><h2>Coming up</h2>${upHtml}</div>
@@ -748,6 +755,9 @@ async function pageToday() {
     $$('[data-start]').forEach(b => b.onclick = () => startDialog(b.dataset.start));
     $$('[data-finish]').forEach(b => b.onclick = () => { const [g, d] = b.dataset.finish.split('|'); finishDialog(g, d); });
     bindReopen(() => pageToday());
+    $$('[data-coins]').forEach(b => b.onclick = () => go('coins', b.dataset.coins));
+    $$('[data-t5]').forEach(b => b.onclick = () => top5Dialog(b.dataset.t5));
+    if ($('#breq')) $('#breq').onclick = () => go('coins');
     });
   } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
 }
@@ -2554,6 +2564,89 @@ function groupSettingsModal(g) {
   });
 }
 
+
+/* ===================== COINS (15.11.2026) ===================== */
+/* In class: +1/+2/+3 (max 5 a lesson), yellow cards; bonus requests (Approve / Reject); board; history; weekly Top 5. */
+const BSTAT = { requested: 'warn', approved: '', started: 'warn', done: '', failed1: 'bad', failed: 'bad', rejected: 'gray' };
+const BLABEL = { requested: 'waiting for you', approved: 'approved · test not taken', started: 'taking the test', done: 'done', failed1: 'failed · 1 try left', failed: 'failed', rejected: 'rejected' };
+async function pageCoins(c) {
+  if (!c) loading();
+  try {
+    const my = S.navId; if (!c) c = await api('coins', S.group); if (my !== S.navId) return;
+    S.coins = c;
+    const today = S.today;
+    const given = {};
+    c.history.forEach(h => { if (h.source === 'class' && new RegExp('· ' + today.replace('.', '\\.') + '$').test(h.reason)) given[h.name] = (given[h.name] || 0) + h.amount; });
+    const max = (c.rules && c.rules.manualMax) || 5;
+    const req = c.requests.filter(r => r.status === 'requested');
+    const reqHtml = req.length ? req.map(r => `<div class="up"><div style="flex:1;min-width:0"><b>${esc(r.name)}</b>
+        <div class="small">${esc(r.title)}${r.kind !== 'card' && r.target ? ' · ' + esc(md(r.target)) : ''}${r.price ? ' · ' + r.price + ' 🪙' : ''}</div><div class="small muted">${esc(r.created_at)}</div></div>
+        <button class="btn sm primary" data-bok="${esc(r.id)}">Approve</button><button class="btn sm" data-bno="${esc(r.id)}">Reject</button></div>`).join('')
+      : '<div class="empty">No new requests.</div>';
+    const other = c.requests.filter(r => r.status !== 'requested').slice(0, 12);
+    const otherHtml = other.length ? other.map(r => `<div class="row small" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(r.name)} · ${esc(r.title)}</span>
+        ${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}%</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
+    const cards = {}; c.cards.forEach(x => (cards[x.name] = cards[x.name] || []).push(x));
+    const classHtml = c.board.slice().sort((a, b) => a.row - b.row).map(s => {
+      const g = given[s.name] || 0, left = max - g;
+      return `<div class="up coinrow"><div style="flex:1;min-width:0"><div class="nm">${esc(s.name)} ${'🟨'.repeat(Math.min(2, s.yellow))}</div>
+        <div class="small muted">${s.balance} 🪙${g ? ' · today +' + g : ''}</div></div>
+        ${s.red ? '<span class="pill bad">red card</span>' : [1, 2, 3].map(n => `<button class="btn sm coinbtn" data-give="${n}" data-n="${esc(s.name)}" ${n > left ? 'disabled' : ''}>+${n}</button>`).join('')}
+        <button class="btn sm" data-card="${esc(s.name)}" title="Yellow card">🟨</button></div>`;
+    }).join('');
+    const boardHtml = c.board.map(s => `<tr><td>${s.rank}</td><td>${esc(s.name)} ${'🟨'.repeat(Math.min(2, s.yellow))}</td><td style="text-align:right"><b>${s.balance}</b></td>
+        <td style="text-align:right" class="muted">${s.earned}</td><td style="text-align:right" class="muted">${s.spent}</td></tr>`).join('');
+    const cardsHtml = c.cards.length ? c.cards.map(x => `<div class="up"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b> 🟨<div class="small muted">${esc(x.reason)} · ${esc(x.at)}${x.by === 'auto' ? ' · automatic' : ''}</div></div>
+        ${/^[qpb]:/.test(x.ref || '') && x.by === 'auto' ? `<button class="btn sm" data-reopen="${esc(x.ref)}|${esc(x.name)}">Reopen test</button>` : ''}<button class="btn sm" data-cardrm="${esc(x.id)}">Remove</button></div>`).join('') : '<div class="empty">No cards.</div>';
+    const histHtml = c.history.length ? c.history.slice(0, 40).map(h => `<div class="row small" style="padding:5px 0;border-bottom:1px solid var(--line)">
+        <span class="muted" style="min-width:92px">${esc(h.time.slice(5))}</span><span style="flex:1;min-width:0">${esc(h.name)} · ${esc(h.reason)}</span>
+        <b style="min-width:34px;text-align:right;color:${h.amount < 0 ? 'var(--bad)' : h.amount ? 'var(--good)' : 'inherit'}">${h.amount > 0 ? '+' : ''}${h.amount}</b>
+        ${h.amount > 0 && h.source !== 'bonus' ? `<button class="btn sm" data-undo="${esc(h.id)}" title="Undo">↶</button>` : '<span style="width:34px"></span>'}</div>`).join('') : '<div class="empty">No coins yet.</div>';
+    view().innerHTML = `
+      ${req.length ? `<div class="card" style="border:2px solid var(--warn,#e6a700)"><h2>🪙 Bonus requests</h2>${reqHtml}
+        <div class="small muted" style="margin-top:6px">After you approve, the student takes a ${c.rules.test.count}-question test (${c.rules.test.minutes} min) and needs ${c.rules.test.pass}%. Coins are paid and the bonus is written only after a pass.</div></div>` : ''}
+      <div class="grid g2">
+        <div class="card"><div class="row"><h2 style="flex:1">In class · ${esc(md(today))}</h2><span class="small muted">max ${max} a lesson</span></div>${classHtml}</div>
+        <div>
+          <div class="card"><div class="row"><h2 style="flex:1">Leaderboard</h2><button class="btn sm" id="t5">🏆 Weekly Top 5</button></div>
+            <table class="tbl" style="width:100%"><thead><tr><th>#</th><th>Student</th><th style="text-align:right">Coins</th><th style="text-align:right">earned</th><th style="text-align:right">spent</th></tr></thead><tbody>${boardHtml}</tbody></table></div>
+          <div class="card"><h2>Cards</h2>${cardsHtml}<div class="small muted" style="margin-top:6px">A yellow card closes the bonus shop. Two yellow cards = red: coins are frozen. A student can remove a card by passing the test.</div></div>
+          ${!req.length ? `<div class="card"><h2>Bonus requests</h2>${reqHtml}</div>` : ''}
+          ${other.length ? `<div class="card"><h2>Earlier requests</h2>${otherHtml}</div>` : ''}
+        </div>
+      </div>
+      <div class="card"><h2>History</h2>${histHtml}</div>
+      <div class="card"><h2>How students earn coins</h2><div class="small">Quiz or Live game: 10 → +3, 8–9.9 → +2, 6–7.9 → +1 · Live top 3 → +1 more · in class: your +1/+2/+3 · "Practise my mistakes": +1 a day.
+        Bonuses for this group: ${c.bonuses.map(b => esc(b.title) + ' — ' + b.price + ' 🪙' + (b.limit ? ' (×' + b.limit + ')' : '')).join(' · ')}. Prices: Settings → Coins & bonuses.</div></div>`;
+    const busy = async (b, fn) => { b.disabled = true; try { await fn(); } catch (e) { fail(e); b.disabled = false; } };
+    $$('[data-give]').forEach(b => b.onclick = () => busy(b, async () => {
+      const r = await api('coinGive', S.group, b.dataset.n, +b.dataset.give, today);
+      toast(`+${r.added} 🪙 ${b.dataset.n.split(' ').slice(0, 2).join(' ')}`); pageCoins(await api('coins', S.group));
+    }));
+    $$('[data-card]').forEach(b => b.onclick = () => {
+      const why = prompt('Yellow card for ' + b.dataset.card + '. Reason (students see it):', 'Not ready for the lesson');
+      if (why == null) return; busy(b, async () => { pageCoins(await api('cardGive', S.group, b.dataset.card, why)); toast('Yellow card given'); });
+    });
+    $$('[data-cardrm]').forEach(b => b.onclick = () => { if (confirm('Remove this card?')) busy(b, async () => pageCoins(await api('cardRemove', b.dataset.cardrm))); });
+    $$('[data-undo]').forEach(b => b.onclick = () => { if (confirm('Undo this entry?')) busy(b, async () => pageCoins(await api('coinUndo', b.dataset.undo))); });
+    $$('[data-bok]').forEach(b => b.onclick = () => busy(b, async () => { pageCoins(await api('bonusDecide', b.dataset.bok, true)); toast('Approved. The student gets a message in the bot.'); }));
+    $$('[data-bno]').forEach(b => b.onclick = () => { if (confirm('Reject this request? No coins are used.')) busy(b, async () => pageCoins(await api('bonusDecide', b.dataset.bno, false))); });
+    bindReopen(async () => pageCoins(await api('coins', S.group)));
+    $('#t5').onclick = () => top5Dialog(S.group);
+  } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
+}
+async function top5Dialog(g) {
+  let d; try { d = await api('top5Draft', g); } catch (e) { return fail(e); }
+  modal(`<h2>🏆 Weekly Top 5 · ${esc(g)}</h2>
+    ${d.top.length ? `<p class="small muted">Coins earned in the last 7 days. You can edit the text before sending.${d.sent ? ' <b>Already sent this week.</b>' : ''}</p>
+      <textarea id="t5t" rows="10" style="width:100%">${esc(d.text)}</textarea>
+      <div class="row" style="margin-top:12px"><button class="btn" data-close>Cancel</button><span class="spacer"></span><button class="btn primary" id="t5s" ${d.chat ? '' : 'disabled'}>Send to the group chat</button></div>
+      ${d.chat ? '' : '<p class="small" style="color:var(--bad)">This group has no Telegram chat yet (Groups page).</p>'}`
+    : '<p class="muted">No coins were earned in this group in the last 7 days.</p><div class="row"><button class="btn" data-close>Close</button></div>'}`, bg => {
+    const b = $('#t5s', bg); if (b) b.onclick = async () => { b.disabled = true; try { await api('top5Send', g, $('#t5t', bg).value); closeModal(); toast('Sent to the group'); if (S.page === 'today') pageToday(); } catch (e) { fail(e); b.disabled = false; } };
+  });
+}
+
 /* ===================== SETTINGS ===================== */
 async function pageSettings() {
   loading();
@@ -2588,6 +2681,14 @@ async function pageSettings() {
         <p>Now: ${s.fbProject ? `<b style="color:var(--good)">your own</b> · ${esc(s.fbProject)}` : '<b>shared</b>'}</p>
         <textarea id="fbc" rows="3" placeholder="Paste the firebaseConfig block here"></textarea>
         <div class="row" style="margin-top:8px"><button class="btn" id="fbs">Save</button>${s.fbProject ? '<button class="btn" id="fbr">Use the shared server</button>' : ''}<a class="btn" href="help.html#firebase" target="_blank" rel="noopener">How?</a></div></div>
+      <div class="card"><h2>🪙 Coins & bonuses</h2>
+        ${s.coinRules ? `<p class="small muted">Price in coins and how many times a semester (0 = no limit).</p>
+        ${s.coinRules.bonuses.map(b => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:160px">${esc(b.title)}<br><span class="small muted">${b.groups === 'all' ? 'all groups' : 'groups ' + esc(b.groups.join(', '))}</span></span>
+          <span style="white-space:nowrap"><input type="number" min="1" max="500" value="${b.price}" data-bp="${esc(b.key)}" style="width:70px" aria-label="price"> 🪙 × <input type="number" min="0" max="20" value="${b.limit}" data-bl="${esc(b.key)}" style="width:56px" aria-label="limit"></span></div>`).join('')}
+        <div class="row" style="margin-bottom:8px"><span style="flex:1">Bonus test: questions · minutes · pass %</span>
+          <input type="number" id="ctn" min="5" max="30" value="${s.coinRules.test.count}" style="width:64px"><input type="number" id="ctm" min="3" max="30" value="${s.coinRules.test.minutes}" style="width:64px"><input type="number" id="ctp" min="50" max="100" value="${s.coinRules.test.pass}" style="width:64px"></div>
+        <div class="row"><button class="btn primary" id="crs">Save</button><span class="spacer"></span><button class="btn danger" id="cns">New semester…</button></div>
+        <p class="small muted" style="margin-top:8px">New semester: every balance starts from 0 (the history stays).</p>` : '<p class="muted">Not available.</p>'}</div>
       <div class="card"><h2>Gradebook and updates</h2>
         <p>Your data: <a href="${esc(s.sheetUrl)}" target="_blank" rel="noopener">${esc(s.sheetName)}</a> (Google Sheets, only in your account)</p>
         <p class="small muted">Version ${esc(s.version)} · build ${esc(s.build || '—')}</p>
@@ -2602,6 +2703,11 @@ async function pageSettings() {
     $('#gbts').onclick = async () => { $('#gbts').disabled = true; try { await api('setGroupBot', $('#gbt').value); toast('Saved'); pageSettings(); } catch (e) { $('#gbts').disabled = false; fail(e); } };
     $$('[data-rm]').forEach(b => b.onclick = async () => { try { await api('setReminders', b.dataset.rm === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
     $('#bts').onclick = async () => { $('#bts').disabled = true; try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { $('#bts').disabled = false; fail(e); } };
+    if ($('#crs')) $('#crs').onclick = async () => {
+      const bonuses = $$('[data-bp]').map(i => ({ key: i.dataset.bp, price: +i.value, limit: +$(`[data-bl="${i.dataset.bp}"]`).value }));
+      try { await api('setCoinRules', { bonuses, test: { count: +$('#ctn').value, minutes: +$('#ctm').value, pass: +$('#ctp').value } }); toast('Saved'); pageSettings(); } catch (e) { fail(e); }
+    };
+    if ($('#cns')) $('#cns').onclick = async () => { if (!confirm('Start a new semester? Every student\'s coins go back to 0. The history stays.')) return; try { await api('coinNewSemester'); toast('Coins reset for the new semester'); } catch (e) { fail(e); } };
     $('#fbs').onclick = async () => { try { await api('setFirebase', $('#fbc').value); toast('Saved. Reload the page to use it.'); pageSettings(); } catch (e) { fail(e); } };
     if ($('#fbr')) $('#fbr').onclick = async () => { try { await api('setFirebase', ''); toast('Back to the shared server. Reload the page.'); pageSettings(); } catch (e) { fail(e); } };
     if ($('#upc')) $('#upc').onclick = async () => {
