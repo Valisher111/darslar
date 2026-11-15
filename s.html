@@ -663,6 +663,10 @@ async function seqSend(auto, done) {
       Object.assign(Q, { question: r.question, index: r.index, total: r.total, q_deadline: r.q_deadline, q_secs: r.q_secs });
       A = {}; drawSeq(); window.scrollTo(0, 0); return;
     } catch (e) {
+      if (/closed|Time is up/i.test(String(e && e.message))) {   // the teacher closed the quiz or the time is over: show the result
+        try { const r = await api('stQuizSubmit', Q.quiz_id, {}); submitting = false; return showQuizResult(r, true); } catch (x) {}
+        submitting = false; fail(e); Q = null; return backHome();
+      }
       if (++tries >= 4) { submitting = false; if ($('#qfin')) $('#qfin').disabled = false; if ($('#qsave')) $('#qsave').textContent = 'Not sent. Press again.'; return fail(e); }
       await new Promise(r => setTimeout(r, 1200 * tries));
     }
