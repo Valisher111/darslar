@@ -763,6 +763,8 @@ async function pageToday() {
   } catch (e) { fail(e); view().innerHTML = '<div class="card empty">Could not load. Check the internet and refresh.</div>'; }
 }
 
+/* 15.11 anti-AI: a result much higher than usual, or slow-but-perfect timing */
+const unusualPill = note => { const m = /⚠ unusual: ([^;]+(?:; [^;]+)?)/.exec(note || ''); return m ? `<span class="pill warn" title="${esc(m[1])}">⚠ unusual</span> ` : ''; };
 /* "Left the test" alerts (15.11): a test closed because the student left it twice → yellow card; Reopen undoes both. */
 function alertsHtml(a) {
   if (!a || !a.length) return '';
@@ -2337,7 +2339,7 @@ async function quizLive(id, res) {
   const q = res.quiz, isOpen = q.status === 'open';
   const nbCand = res.rows.filter(r => r.state === 'not started' && r.cell === '');
   const leftPill = r => /left the test/.test(r.note || '') ? `<span class="pill bad" title="${esc(r.note)}">⚠ ${esc((r.note.match(/left the test (\d+)× \(([^)]*)\)/) || [, '2', ''])[1])}× left ${esc((r.note.match(/left the test \d+× \(([^)]*)\)/) || [, ''])[1])}</span>${isOpen ? ` <button class="btn sm" data-reopen="q:${esc(q.quiz_id)}|${esc(r.name)}">Reopen</button>` : ''} ` : '';
-  const st = r => r.state === 'done' ? leftPill(r) + (r.written ? '<span class="pill">in gradebook</span>'
+  const st = r => r.state === 'done' ? leftPill(r) + unusualPill(r.note) + (r.written ? '<span class="pill">in gradebook</span>'
       : /conflict/.test(r.note) ? `<span class="pill warn">cell has ${esc((r.note.match(/has ([^;]+)/) || [])[1] || '?')}</span> <button class="btn sm" data-use="${esc(r.name)}">Use quiz mark</button>`
       : `<span class="pill bad">${esc(r.note || 'not written')}</span>`)
     : r.state === 'working' ? '<span class="pill warn">working…</span>' : `<span class="pill gray">not started</span>${r.cell ? ' <span class="small muted">(' + esc(r.cell) + ')</span>' : ''}`;
@@ -2605,7 +2607,7 @@ async function pageCoins(c) {
       : '<div class="empty">No new requests.</div>';
     const other = c.requests.filter(r => r.status !== 'requested').slice(0, 12);
     const otherHtml = other.length ? other.map(r => `<div class="row small" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(r.name)} · ${esc(r.title)}</span>
-        ${r.mode === 'auto' ? '<span class="pill gray" title="Free test of the week (no approval)">free</span>' : ''}${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}%</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
+        ${r.mode === 'auto' ? '<span class="pill gray" title="Free test of the week (no approval)">free</span>' : ''}${unusualPill(r.note)}${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}%</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
     const cards = {}; c.cards.forEach(x => (cards[x.name] = cards[x.name] || []).push(x));
     const classHtml = c.board.slice().sort((a, b) => a.row - b.row).map(s => {
       const g = given[s.name] || 0, left = max - g;
