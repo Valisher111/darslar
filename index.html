@@ -156,7 +156,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 table.g{border-collapse:separate;border-spacing:0;font-size:13px}
 table.g th,table.g td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:7px 8px;text-align:center;white-space:nowrap}
 table.g thead th{position:sticky;top:0;background:var(--soft);z-index:2;font-weight:600}
-table.g .st{position:sticky;left:0;background:var(--panel);z-index:1;text-align:left;max-width:210px;overflow:hidden;text-overflow:ellipsis}
+table.g .st{position:sticky;left:0;background:var(--panel);z-index:1;text-align:left;white-space:nowrap}
+table.g td:not(.st),table.g th:not(.st){padding:6px 4px;min-width:38px}
+table.g thead th:not(.st){font-size:12px}
 table.g thead .st{z-index:3;background:var(--soft)}
 table.g td.ro{background:var(--ro);color:var(--muted)}
 table.g td.ed{cursor:pointer}
@@ -478,6 +480,7 @@ const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines', 'quizzes', 'c
 /* ===================== helpers ===================== */
 const $ = (q, el) => (el || document).querySelector(q);
 const $$ = (q, el) => Array.from((el || document).querySelectorAll(q));
+const shortName = n => String(n || '').trim().split(/\s+/).slice(0, 2).join(' ');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = {
   get(k) { try { return localStorage.getItem(k) || sessionStorage.getItem(k); } catch (e) { return null; } },
@@ -909,7 +912,7 @@ function tableView(d) {
     <div class="row" style="margin-bottom:12px"><div class="seg">${blocks.map(b => `<button data-b="${b[0]}" class="${S.block === b[0] ? 'on' : ''}">${b[1]}</button>`).join('')}</div>
       <span class="small muted">Tahrirlash uchun oq katakni bosing. Kulrang kataklarni jurnal o'zi hisoblaydi. &nbsp;0<span class="mleg"></span>10</span></div>
     <div class="tablewrap"><table class="g"><thead><tr><th class="st">Talaba</th>${cols.map(c => `<th title="${esc(c.section)}">${esc(md(c.h))}</th>`).join('')}</tr></thead>
-    <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(s.name)}</td>${cols.map(c => {
+    <tbody>${d.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(s.no)}. ${esc(shortName(s.name))}</td>${cols.map(c => {
       const v = String(pv(s.row, c.c)), hu = markHue(c, v);
       return `<td class="${editable(c) ? 'ed' : 'ro'} ${c.kind === 'day' && isAbs(v) ? 'nbv' : ''} ${hu == null ? '' : 'sc'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}"${hu == null ? '' : ` style="--h:${hu}"`} data-r="${s.row}" data-c="${c.c}">${esc(v)}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -1205,7 +1208,7 @@ async function pageDeadlines() {
     }).join('');
     const pw = r.pw;
     const pwT = pw && pw.cols.length ? `<div class="tablewrap"><table class="g"><thead><tr><th class="st">Talaba</th>${pw.cols.map(c => `<th>${esc(md(c.h))}</th>`).join('')}</tr></thead>
-      <tbody>${pw.students.map(s => `<tr><td class="st">${esc(s.name)}</td>${pw.cols.map(c => `<td class="${editable(c) ? 'ed' : 'ro'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(pv(s.row, c.c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+      <tbody>${pw.students.map(s => `<tr><td class="st" title="${esc(s.name)}">${esc(shortName(s.name))}</td>${pw.cols.map(c => `<td class="${editable(c) ? 'ed' : 'ro'} ${S.pending[s.row + ':' + c.c] ? 'hl' : ''}" data-r="${s.row}" data-c="${c.c}">${esc(pv(s.row, c.c))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
       : '<div class="card empty">Bu varaqda loyiha ishi ustunlari yo\'q.</div>';
     view().innerHTML = `<div class="card"><div class="row" style="margin-bottom:6px"><h2 style="margin:0">Muddatlar</h2><span class="spacer"></span><button class="btn primary sm" id="addd">+ Muddat qo'shish</button></div>
       ${dl || '<div class="empty">Hali muddatlar yo\'q.</div>'}</div>
