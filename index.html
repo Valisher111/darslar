@@ -2720,7 +2720,7 @@ function coinGuideHtml(o) {
     <table class="tbl" style="width:100%"><thead><tr><th>Bonus</th><th style="text-align:right">Narxi</th><th style="text-align:right">Semestrda</th></tr></thead><tbody>${(o.bonuses || []).map(row).join('')}</tbody></table>
     <h3 style="margin-top:14px">3. Bonusni qanday olasiz</h3>
     <ol style="margin:6px 0 0;padding-left:22px">
-      <li style="margin:5px 0">Botdagi shaxsiy sahifangizni oching → <b>Tangalar</b> → <b>Bonus shop</b> → kerakli bonus yonidagi <b>Get</b> tugmasini bosing.</li>
+      <li style="margin:5px 0">Botdagi shaxsiy sahifangizni oching → <b>Coins</b> → <b>Bonus shop</b> → kerakli bonus yonidagi <b>Get</b> tugmasini bosing.</li>
       <li style="margin:5px 0">Haftasiga <b>${free} ta</b> test so'rovsiz darhol boshlanadi. Undan ko'pi uchun o'qituvchi ruxsat beradi.</li>
       <li style="margin:5px 0">O'tgan mavzulardan <b>${t.count} ta savol</b>, <b>${t.minutes} daqiqa</b>. Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi.</li>
       <li style="margin:5px 0"><b>${t.pass}%</b> va undan ko'p to'g'ri javob → bonus jurnalga yoziladi, tangalar yechiladi.</li>
@@ -2796,7 +2796,7 @@ async function pageSettings() {
         <div class="row" style="margin-top:8px"><button class="btn" id="fbs">Saqlash</button>${s.fbProject ? '<button class="btn" id="fbr">Umumiy serverdan foydalanish</button>' : ''}<a class="btn" href="help.html#firebase" target="_blank" rel="noopener">Qanday?</a></div></div>
       <div class="card"><h2>🪙 Tangalar va bonuslar</h2>
         ${s.coinRules ? `<p class="small muted">Tangadagi narxi va semestrda necha marta (0 = cheksiz).</p>
-        ${s.coinRules.bonuses.map(b => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:160px">${esc(b.title)}<br><span class="small muted">${b.groups === 'all' ? 'barcha guruhlar' : 'groups ' + esc(b.groups.join(', '))}</span></span>
+        ${s.coinRules.bonuses.map(b => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:160px">${esc((BONUS_UZ[b.key] || [b.title])[0])}<br><span class="small muted">${b.groups === 'all' ? 'barcha guruhlar' : 'guruhlar: ' + esc(b.groups.join(', '))}</span></span>
           <span style="white-space:nowrap"><input type="number" min="1" max="500" value="${b.price}" data-bp="${esc(b.key)}" style="width:70px" aria-label="price"> 🪙 × <input type="number" min="0" max="20" value="${b.limit}" data-bl="${esc(b.key)}" style="width:56px" aria-label="limit"></span></div>`).join('')}
         <div class="row" style="margin-bottom:8px"><span style="flex:1">Haftalik bepul bonus testlari (tasdiqsiz)</span><input type="number" id="cap" min="0" max="7" value="${s.coinRules.autoPerWeek == null ? 2 : s.coinRules.autoPerWeek}" style="width:64px"></div>
         <div class="row" style="margin-bottom:8px"><span style="flex:1">Bonus testi: savollar · daqiqa · o'tish %</span>
