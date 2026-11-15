@@ -157,6 +157,11 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .gbar{background:#d32f2f;color:#fff;font-size:13px;text-align:center;padding:6px 10px}
 .gclosed{border:3px solid #d32f2f;background:#fff5f5;color:#1b1b1b}
 .gclosed .ic{font-size:54px;color:#d32f2f;line-height:1}
+.nocopy{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.nocopy input,.nocopy select{-webkit-user-select:text;user-select:text}
+.wm{position:fixed;inset:0;z-index:15;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;overflow:hidden;opacity:.07;transform:rotate(-24deg) scale(1.4)}
+.wm span{font-weight:800;font-size:15px;color:#000;padding:22px 18px;white-space:nowrap}
+.seqbar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0 10px}.seqbar i{display:block;height:100%;background:var(--accent);transition:width .25s linear}
 </style>
 </head>
 <body>
@@ -528,6 +533,7 @@ async function startQuiz(id) {
     clearInterval(pingT);
     $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); window.scrollTo(0, 0);
     lastSync = Date.now(); endCheck = false;
+    if (Q.seq) { if (Q.seqDone) return seqSend(null, true); drawSeq(); clearInterval(qTimer); qTimer = setInterval(tickSeq, 250); tickSeq(); guardAfterStart(); return; }
     drawQuiz(); qTimer = setInterval(tickQ, 1000); tickQ();
     guardAfterStart();
   } catch (e) { fail(e); if (btn) btn.disabled = false; load(true); }
@@ -540,9 +546,9 @@ function isAnswered(q) {
 }
 function drawQuiz() {
   const L = 'ABCDEF';
-  $('#quiz').innerHTML = `<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5" id="qcount"></div></div><div class="timer" id="tmr">--:--</div></div></div>
+  $('#quiz').innerHTML = `${PREVIEW ? '' : wmHtml()}<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5" id="qcount"></div></div><div class="timer" id="tmr">--:--</div></div></div>
     <div class="qprog"><i id="qpi" style="width:0"></i></div><div id="gbar"></div>
-    <div class="qwrap">${Q.questions.map((q, n) => `<div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${n + 1} of ${Q.questions.length}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>`).join('')}
+    <div class="qwrap nocopy">${Q.questions.map((q, n) => `<div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${n + 1} of ${Q.questions.length}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>`).join('')}
       <p class="small muted" style="text-align:center">Your answers are saved as you go. When you finish, press <b>Finish</b>.</p></div>
     <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1">Saved</span><button class="btn primary" id="qfin" style="min-width:140px">Finish</button></div></div>`;
   Q.questions.forEach(q => drawQ(q, L));
@@ -571,10 +577,11 @@ function drawQ(q, L) {
     $$('[data-dn]', box).forEach(b => b.onclick = () => mv(+b.dataset.dn, 1));
   }
 }
-function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 5000 : 3000); }
-function progress() { const n = answered(); $('#qcount').textContent = n + ' of ' + Q.questions.length + ' answered'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
+function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); if (Q && Q.seq) return; $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 5000 : 3000); }
+function progress() { if (Q && Q.seq) return; const n = answered(); $('#qcount').textContent = n + ' of ' + Q.questions.length + ' answered'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
 async function save() {
   if (PREVIEW) { dirty = false; if ($('#qsave')) $('#qsave').textContent = 'Saved (preview)'; return; }
+  if (Q && Q.seq) { dirty = false; return; }   // one-question tests are saved on every answer (stQuizStep)
   if (!dirty || !Q) return; dirty = false;
   try { const r = await api('stQuizSave', Q.quiz_id, A); if (r.closes) { setClose(r.closes); lastSync = Date.now(); } $('#qsave').textContent = r.ok ? 'Saved' : 'Time is over'; }
   catch (e) { dirty = true; $('#qsave').textContent = 'Not saved — check the internet'; }
@@ -605,31 +612,87 @@ async function finish(auto) {
   while (true) {
     try {
       const r = await api('stQuizSubmit', Q.quiz_id, A);
-      if (r.bonus) {
-        $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.passed ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-        <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div><div class="muted">you needed ${r.pass}%</div>
-        ${r.passed ? `<p style="font-size:18px;font-weight:700;color:var(--good)">🎉 Passed!</p><p class="small muted">${esc(r.written || 'Your bonus is done.')}</p>`
-          : `<p style="font-size:18px;font-weight:700;color:var(--bad)">Not passed</p><p class="small muted">Your coins were not spent. ${r.status === 'failed1' ? 'You can try once more from tomorrow.' : 'You can ask again in a week.'} Practise your mistakes in Quizzes.</p>`}
-        <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
-        $('#qdone').onclick = () => { tab = 'coins'; backHome(); setTimeout(() => { tab = 'coins'; }, 0); }; Q = null; submitting = false; return;
-      }
-      if (r.personal) {
-        $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-        ${r.hidden ? `<div class="big" style="margin:12px 0 4px">✓</div><div class="muted">Your answers were sent.</div><p class="small muted">${auto ? 'Time is over. ' : ''}Your teacher will tell you the result.</p>`
-          : `<div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of ${r.max} · ${r.right} of ${r.total} fully right</div><p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook.</p>`}
-        <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
-        $('#qdone').onclick = backHome; Q = null; submitting = false; return;
-      }
-      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-        <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
-        <p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook. You will see the right answers when your teacher closes the quiz.</p>
-        <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
-      $('#qdone').onclick = backHome; Q = null; submitting = false; return;
+      return showQuizResult(r, auto);
     } catch (e) {
       if (++tries >= 4) { submitting = false; $('#qfin').disabled = false; $('#qsave').textContent = 'Not sent. Press Finish again.'; return fail(e); }
       await new Promise(r => setTimeout(r, 1500 * tries));
     }
   }
+}
+/* One question at a time (bonus and personal tests, 15.11): the server sends the next question only after an answer;
+   each question has its own time; no going back. Text cannot be copied; the student's name is on the screen. */
+function wmHtml() {
+  const nm = esc((H && H.name) || ''), t = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return nm ? `<div class="wm" aria-hidden="true">${Array.from({ length: 14 }, () => `<span>${nm} · ${t}</span>`).join('')}</div>` : '';
+}
+function drawSeq() {
+  const q = Q.question, L = 'ABCDEF';
+  Q.questions = [q];   // drawQ / answered() work on the current question only
+  $('#quiz').innerHTML = `${wmHtml()}<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5">Question ${Q.index + 1} of ${Q.total} · no going back</div></div><div class="timer" id="tmr">--</div></div></div>
+    <div class="qprog"><i id="qpi" style="width:${(Q.index / Q.total * 100).toFixed(1)}%"></i></div><div id="gbar"></div>
+    <div class="qwrap nocopy"><div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${Q.index + 1} of ${Q.total}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>
+      <div class="seqbar"><i id="sqb" style="width:100%"></i></div>
+      <p class="small muted" style="text-align:center">You have <b>${Q.q_secs} seconds</b> for this question. When the time is over, your answer is sent as it is.</p></div>
+    <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1"></span><button class="btn primary" id="qfin" style="min-width:140px">${Q.index + 1 < Q.total ? 'Next →' : 'Finish'}</button></div></div>`;
+  drawQ(q, L);
+  $('#qfin').onclick = () => seqSend(false);
+  drawGuardBar(Q.guard);
+}
+function tickSeq() {
+  if (!Q || !Q.seq || submitting) return;
+  const left = Math.max(0, (Date.parse(Q.q_deadline) - Date.now() - off) / 1000);
+  const el = $('#tmr'); if (!el) return;
+  el.textContent = Math.ceil(left) + ' s'; el.classList.toggle('low', left <= 5);
+  const b = $('#sqb'); if (b) b.style.width = Math.max(0, left / Q.q_secs * 100).toFixed(1) + '%';
+  if (left <= 0) seqSend(true);
+}
+async function seqSend(auto, done) {
+  if (!Q || submitting) return;
+  const q = Q.question;
+  if (!auto && !done && !isAnswered(q) && !confirm('No answer yet. Go to the next question anyway?')) return;
+  submitting = true;
+  if ($('#qfin')) $('#qfin').disabled = true; if ($('#qsave')) $('#qsave').textContent = auto ? 'Time is over…' : 'Sending…';
+  let tries = 0;
+  while (true) {
+    try {
+      const r = await api('stQuizStep', Q.quiz_id, done ? null : q.id, done ? null : (A[q.id] == null ? null : A[q.id]));
+      submitting = false;
+      if (r.done) return showQuizResult(r, false);
+      if (!Q) return;
+      off = Date.parse(r.now) - Date.now();
+      Object.assign(Q, { question: r.question, index: r.index, total: r.total, q_deadline: r.q_deadline, q_secs: r.q_secs });
+      A = {}; drawSeq(); window.scrollTo(0, 0); return;
+    } catch (e) {
+      if (++tries >= 4) { submitting = false; if ($('#qfin')) $('#qfin').disabled = false; if ($('#qsave')) $('#qsave').textContent = 'Not sent. Press again.'; return fail(e); }
+      await new Promise(r => setTimeout(r, 1200 * tries));
+    }
+  }
+}
+['copy', 'cut', 'contextmenu'].forEach(ev => document.addEventListener(ev, e => { if (Q && !PREVIEW && !(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName) && ev !== 'copy')) e.preventDefault(); }));
+document.addEventListener('selectstart', e => { if (Q && !PREVIEW && !(e.target && e.target.closest && e.target.closest('input,textarea'))) e.preventDefault(); });
+
+function showQuizResult(r, auto) {
+  clearInterval(qTimer); clearTimeout(saveT); $$('.gwarn').forEach(x => x.remove());
+    if (r.bonus) {
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.passed ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+      <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div><div class="muted">you needed ${r.pass}%</div>
+      ${r.passed ? `<p style="font-size:18px;font-weight:700;color:var(--good)">🎉 Passed!</p><p class="small muted">${esc(r.written || 'Your bonus is done.')}</p>`
+        : `<p style="font-size:18px;font-weight:700;color:var(--bad)">Not passed</p><p class="small muted">Your coins were not spent. ${r.status === 'failed1' ? 'You can try once more from tomorrow.' : 'You can ask again in a week.'} Practise your mistakes in Quizzes.</p>`}
+      <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+      $('#qdone').onclick = () => { tab = 'coins'; backHome(); setTimeout(() => { tab = 'coins'; }, 0); }; Q = null; submitting = false; return;
+    }
+    if (r.personal) {
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+      ${r.hidden ? `<div class="big" style="margin:12px 0 4px">✓</div><div class="muted">Your answers were sent.</div><p class="small muted">${auto ? 'Time is over. ' : ''}Your teacher will tell you the result.</p>`
+        : `<div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of ${r.max} · ${r.right} of ${r.total} fully right</div><p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook.</p>`}
+      <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+      $('#qdone').onclick = backHome; Q = null; submitting = false; return;
+    }
+    $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
+      <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
+      <p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook. You will see the right answers when your teacher closes the quiz.</p>
+      <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+    $('#qdone').onclick = backHome; Q = null; submitting = false; return;
 }
 function backHome() { $('#quiz').classList.add('hidden'); $('#quiz').innerHTML = ''; $('#main').classList.remove('hidden'); tab = 'home'; load(true); startPing(); }
 window.addEventListener('beforeunload', e => { if (Q && !submitting && !PREVIEW) { save(); e.preventDefault(); e.returnValue = ''; } });
