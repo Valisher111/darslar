@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>My lessons · Darslar</title>
+<title>Darslarim · Darslar</title>
 <meta name="theme-color" content="#0b7a5f">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
@@ -166,8 +166,8 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 </head>
 <body>
 <div id="main">
-  <header><div class="in"><div class="hi" id="hi">Darslar</div><h1 id="who">Loading…</h1><div class="sub" id="sub"></div></div></header>
-  <div class="wrap" id="view"><div class="card loading">Loading…</div></div>
+  <header><div class="in"><div class="hi" id="hi">Darslar</div><h1 id="who">Yuklanmoqda…</h1><div class="sub" id="sub"></div></div></header>
+  <div class="wrap" id="view"><div class="card loading">Yuklanmoqda…</div></div>
   <nav class="tabs hidden" id="tabs"><div class="in"></div></nav>
 </div>
 <div id="quiz" class="hidden"></div>
@@ -203,12 +203,15 @@ const $ = (q, el) => (el || document).querySelector(q), $$ = (q, el) => Array.fr
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 function toast(m, err) { $$('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), err ? 6000 : 2600); }
-const fail = e => toast((e && e.message) || String(e), true);
-const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
-const MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-function md(s) { s = String(s == null ? '' : s).trim(); const m = /^(\d{1,2})\.(\d{1,2})(?:\.\d{2,4})?$/.exec(s); return m && +m[2] >= 1 && +m[2] <= 12 ? MONS[+m[2] - 1] + ' ' + (+m[1]) : s; }
+const fail = e => toast(uzS((e && e.message) || String(e)), true);
+const ord = n => n + "-o'rin";
+const MONS = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+const MONL = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const WDL = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'], WDS = ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Ju', 'Sha'];
+function md(s) { s = String(s == null ? '' : s).trim(); const m = /^(\d{1,2})\.(\d{1,2})(?:\.\d{2,4})?$/.exec(s); return m && +m[2] >= 1 && +m[2] <= 12 ? (+m[1]) + '-' + MONS[+m[2] - 1] : s; }
 function ddk(s) { const m = /^(\d{2})\.(\d{2})$/.exec(s || ''); if (!m) return 0; let mo = +m[2]; if (mo < 8) mo += 12; return mo * 100 + (+m[1]); }
-function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').map(Number); let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--; return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+function dayName(ddmm) { const now = new Date(); const [d, m] = ddmm.split('.').map(Number); let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--; const dt = new Date(y, m - 1, d); return WDS[dt.getDay()] + ', ' + d + '-' + MONS[m - 1]; }
+function dayLong(ddmm) { const now = new Date(); const [d, m] = String(ddmm).split('.').map(Number); let y = now.getFullYear(); if (now.getMonth() >= 7 && m < 8) y++; if (now.getMonth() < 7 && m >= 8) y--; const dt = new Date(y, m - 1, d); return WDL[dt.getDay()] + ', ' + d + '-' + MONL[m - 1]; }
 
 let KEY = null;
 const m = /k=([a-f0-9]{40})/.exec(location.hash);
@@ -241,24 +244,24 @@ async function api(action, ...args) {
   if (READONLY && /^st/.test(action)) {
     if (action === 'stHome') { if (VIEW) { action = 'viewHome'; args = [VIEW]; } else { const i = AS.indexOf('|'); action = 'studentView'; args = [AS.slice(0, i), AS.slice(i + 1)]; } }
     else if (action === 'stPing') return { open: null, closes: null, live: null };
-    else throw new Error('Teacher view — read only. To try it yourself, use the 🧪 test student (/student in the bot).');
+    else throw new Error("O'qituvchi ko'rinishi — faqat ko'rish uchun. O'zingiz sinash uchun 🧪 test talabadan foydalaning (botda /student).");
   }
   const r = await apiFetch(JSON.stringify({ action, key: KEY, args }));
-  if (!r.ok) throw new Error('Server error ' + r.status + '. Try again.');
+  if (!r.ok) throw new Error('Server xatosi ' + r.status + ". Qayta urinib ko'ring.");
   const j = await r.json();
-  if (!j.ok) { if (j.error === 'LINK_INVALID') { noAccess(); throw new Error('This link no longer works.'); } throw new Error(j.error); }
+  if (!j.ok) { if (j.error === 'LINK_INVALID') { noAccess(); throw new Error('Bu havola endi ishlamaydi.'); } throw new Error(j.error); }
   return j.data;
 }
 function noAccess() {
   try { Object.keys(localStorage).filter(k => k.startsWith('ds_home_')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
   sigClose();
-  $('#who').textContent = 'Personal link needed'; $('#sub').textContent = ''; $('#tabs').classList.add('hidden');
-  $('#view').innerHTML = `<div class="card"><h2>Open your page from Telegram</h2><p class="muted">Open the student bot of your teacher and send <b>/link</b>. You will get your personal link. If you are new, send <b>/start</b> and choose your name.</p></div>`;
+  $('#who').textContent = 'Shaxsiy havola kerak'; $('#sub').textContent = ''; $('#tabs').classList.add('hidden');
+  $('#view').innerHTML = `<div class="card"><h2>Sahifangizni Telegram'dan oching</h2><p class="muted">O'qituvchingizning talabalar botini oching va <b>/link</b> yuboring — shaxsiy havolangiz keladi. Yangi bo'lsangiz, <b>/start</b> yuboring va ismingizni tanlang.</p></div>`;
 }
 
-const TABS = [['home', 'Home', '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'], ['marks', 'Marks', '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
-  ['lessons', 'Lessons', '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/>'], ['quizzes', 'Quizzes', '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>'],
-  ['coins', 'Coins', '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>']];
+const TABS = [['home', 'Asosiy', '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'], ['marks', 'Baholar', '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
+  ['lessons', 'Darslar', '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/>'], ['quizzes', 'Quizlar', '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>'],
+  ['coins', 'Tangalar', '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>']];
 let H = null, tab = 'home', pingT = null;
 function buildTabs() {
   $('#tabs .in').innerHTML = TABS.map(t => `<button data-t="${t[0]}" class="${t[0] === tab ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${t[2]}</svg>${t[1]}</button>`).join('');
@@ -268,58 +271,58 @@ function buildTabs() {
 function showHome(h) {
   H = h;
   if (h.fb && h.fb.databaseURL) FB_CFG = h.fb;   // the teacher's own Firebase for live games
-  $('#hi').textContent = 'Group ' + H.group + ' · ' + H.subject; $('#who').textContent = H.name;
-  $('#sub').textContent = 'Today is ' + dayName(H.today);
+  $('#hi').textContent = H.group + '-guruh · ' + H.subject; $('#who').textContent = H.name;
+  $('#sub').textContent = 'Bugun: ' + dayLong(H.today);
   if ((READONLY || H.group === 'TEST') && !$('#vwbar')) document.body.insertAdjacentHTML('afterbegin', READONLY
-    ? '<div class="pvbar" id="vwbar">👁 Teacher view · read only — exactly what this student sees</div>'
-    : '<div class="pvbar" id="vwbar">🧪 Test student (TEST group) — everything works, only on the TEST sheet</div>');
+    ? '<div class="pvbar" id="vwbar">👁 O\'qituvchi ko\'rinishi · faqat ko\'rish — talaba aynan shuni ko\'radi</div>'
+    : '<div class="pvbar" id="vwbar">🧪 Test talaba (TEST guruhi) — hammasi ishlaydi, faqat TEST varag\'ida</div>');
   buildTabs(); render();
 }
 async function load(quiet) {
   // show the last saved page at once (without quiz/live: those always come fresh), then refresh
   const ck = READONLY ? 'ds_view_' + (VIEW || AS) : 'ds_home_' + String(KEY || '').slice(0, 12);
-  if (!H) { try { const c = JSON.parse(ls.get(ck) || 'null'); if (c && c.name) { c.quiz = null; c.live = null; showHome(c); $('#sub').textContent += ' · updating…'; } } catch (e) {} }
+  if (!H) { try { const c = JSON.parse(ls.get(ck) || 'null'); if (c && c.name) { c.quiz = null; c.live = null; showHome(c); $('#sub').textContent += ' · yangilanmoqda…'; } } catch (e) {} }
   try {
     const h = await api('stHome');
     showHome(h);
     try { ls.set(ck, JSON.stringify(h)); } catch (e) {}
     sigOpen();
-  } catch (e) { if (KEY && !quiet) fail(e); if (!H && KEY) $('#view').innerHTML = `<div class="card"><p>Could not load. Check the internet.</p><button class="btn primary" onclick="load()">Try again</button></div>`; }
+  } catch (e) { if (KEY && !quiet) fail(e); if (!H && KEY) $('#view').innerHTML = `<div class="card"><p>Yuklab bo'lmadi. Internetni tekshiring.</p><button class="btn primary" onclick="load()">Qayta urinish</button></div>`; }
 }
 const isAbs = v => { v = String(v == null ? '' : v).trim().toLowerCase(); return v === 'nb' || (v !== '' && Number(v.replace(',', '.')) === 0); };
-function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return isAbs(v) ? '<span class="mk nb">absent</span>' : `<span class="mk ${isFinite(n) && n < 6 ? 'low' : ''}">${esc(v || '—')}</span>`; }
+function mk(raw) { const v = String(raw); const n = +v.replace(',', '.'); return isAbs(v) ? '<span class="mk nb">kelmagan</span>' : `<span class="mk ${isFinite(n) && n < 6 ? 'low' : ''}">${esc(v || '—')}</span>`; }
 function render() { ({ home: tHome, marks: tMarks, lessons: tLessons, quizzes: tQuizzes, coins: tCoins })[tab](); bindCoinBtns(); $$('[data-join]').forEach(b => b.onclick = joinLive); }
 
 function liveCard() {
-  return H && H.live ? `<div class="card livecard"><div class="small" style="color:#fde68a;font-weight:800">● LIVE GAME NOW</div><div class="t" style="color:#fff;font-size:20px;font-weight:800;margin:4px 0">${esc(H.live.title)}</div>
-    <p class="small" style="margin:0 0 12px;color:#cfe9df">Watch the screen in class and answer on your phone. Faster right answers get more points.</p><button class="btn block lvs-go" data-join>Join live game</button></div>` : '';
+  return H && H.live ? `<div class="card livecard"><div class="small" style="color:#fde68a;font-weight:800">● LIVE O'YIN BOSHLANDI</div><div class="t" style="color:#fff;font-size:20px;font-weight:800;margin:4px 0">${esc(H.live.title)}</div>
+    <p class="small" style="margin:0 0 12px;color:#cfe9df">Sinfdagi ekranga qarang va telefoningizda javob bering. Tez va to'g'ri javob ko'proq ball beradi.</p><button class="btn block lvs-go" data-join>O'yinga qo'shilish</button></div>` : '';
 }
 function quizBox() {
   const q = H.quiz; if (!q) return liveCard();
   const left = Math.max(0, Math.round((Date.parse(q.closes_at) - Date.parse(H.now)) / 60000));
-  if (q.state === 'done') return `<div class="card quizcard"><div class="small muted">Quiz · done</div><div class="t">${esc(q.title)}</div><p style="margin:8px 0 0">Your mark: <b>${q.score10}</b> / 10. You will see the answers when your teacher closes the quiz.</p></div>`;
-  return liveCard() + `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Quiz is open now</div><div class="t">${esc(q.title)}</div>
-    <p class="small muted" style="margin:4px 0 12px">${q.count} questions · about ${left} min left · one attempt</p>
-    <button class="btn primary block" id="qgo">${q.state === 'working' ? 'Continue the quiz' : 'Start the quiz'}</button></div>`;
+  if (q.state === 'done') return `<div class="card quizcard"><div class="small muted">Quiz · bajarildi</div><div class="t">${esc(q.title)}</div><p style="margin:8px 0 0">Bahoingiz: <b>${q.score10}</b> / 10. Javoblarni o'qituvchi quizni yopgandan keyin ko'rasiz.</p></div>`;
+  return liveCard() + `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Quiz hozir ochiq</div><div class="t">${esc(q.title)}</div>
+    <p class="small muted" style="margin:4px 0 12px">${q.count} ta savol · taxminan ${left} daqiqa qoldi · bitta urinish</p>
+    <button class="btn primary block" id="qgo">${q.state === 'working' ? 'Quizni davom ettirish' : 'Quizni boshlash'}</button></div>`;
 }
 function personalBox() {
-  return (H.personal || []).map(p => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Personal test · only for you</div><div class="t">${esc(p.title)}</div>
-    <p class="small muted" style="margin:4px 0 12px">${p.count} questions · ${p.minutes} min after you start · one attempt${p.deadline ? ' · until ' + esc(p.deadline) : ''}</p>
-    <button class="btn primary block" data-pt="${esc(p.id)}">${p.state === 'working' ? 'Continue the test' : 'Start the test'}</button></div>`).join('');
+  return (H.personal || []).map(p => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Shaxsiy test · faqat siz uchun</div><div class="t">${esc(p.title)}</div>
+    <p class="small muted" style="margin:4px 0 12px">${p.count} ta savol · boshlagach ${p.minutes} daqiqa · bitta urinish${p.deadline ? ' · muddat: ' + esc(p.deadline) : ''}</p>
+    <button class="btn primary block" data-pt="${esc(p.id)}">${p.state === 'working' ? 'Testni davom ettirish' : 'Testni boshlash'}</button></div>`).join('');
 }
 function tHome() {
   const dl = H.deadlines.slice(0, 4).map(d => `<li><div style="flex:1;min-width:0"><b>${esc(d.title)}</b><div class="small muted">${esc(md(d.due_date))} · ${esc(d.type)}${d.notes ? ' · ' + esc(d.notes) : ''}</div></div>
-    ${d.days < 0 ? '<span class="pill gray">passed</span>' : d.days === 0 ? '<span class="pill bad">today</span>' : d.days <= 3 ? `<span class="pill warn">in ${d.days} d</span>` : `<span class="pill">in ${d.days} d</span>`}</li>`).join('');
+    ${d.days < 0 ? '<span class="pill gray">o\'tdi</span>' : d.days === 0 ? '<span class="pill bad">bugun</span>' : d.days <= 3 ? `<span class="pill warn">${d.days} kun qoldi</span>` : `<span class="pill">${d.days} kun qoldi</span>`}</li>`).join('');
   const hw = H.lessons.filter(l => l.homework).slice(-1)[0];
   $('#view').innerHTML = `${personalBox()}${quizBox()}${coinMini()}
     <div class="card"><div class="stats">
-      <div class="stat"><b>${H.avg == null ? '—' : H.avg}</b><span>your average</span></div>
-      <div class="stat"><b>${H.rank ? ord(H.rank) : '—'}</b><span>${H.rank ? 'of ' + H.ranked + ' in group' : 'place'}</span></div>
-      <div class="stat"><b>${H.attended}/${H.marked}</b><span>lessons${H.nb ? ' · ' + H.nb + ' absent' : ''}</span></div></div>
-      <p class="small muted" style="margin:10px 0 0">Group average: <b>${H.groupAvg == null ? '—' : H.groupAvg}</b>. Other students' names and marks are not shown.</p></div>
-    ${hw ? `<div class="card"><h2>Latest homework</h2><div class="small muted">${esc(dayName(hw.date))}${hw.unit ? ' · ' + esc(hw.unit) : ''}${hw.topic ? ' · ' + esc(hw.topic) : ''}</div><p style="margin:6px 0 0">${esc(hw.homework)}</p></div>` : ''}
-    <div class="card"><h2>Deadlines</h2>${dl ? `<ul class="list">${dl}</ul>` : '<p class="muted" style="margin:0">No deadlines now.</p>'}</div>
-    <div class="card"><h2>Gradebook totals</h2><ul class="list">${H.totals.filter(t => t.value !== '').map(t => `<li><span style="flex:1">${esc(t.label)}</span><b>${esc(t.value)}</b><span class="small muted">/ ${t.max}</span></li>`).join('') || '<li class="muted">Nothing yet.</li>'}</ul></div>`;
+      <div class="stat"><b>${H.avg == null ? '—' : H.avg}</b><span>o'rtacha bahoingiz</span></div>
+      <div class="stat"><b>${H.rank ? ord(H.rank) : '—'}</b><span>${H.rank ? 'guruhda ' + H.ranked + ' kishidan' : 'guruhdagi o\'rin'}</span></div>
+      <div class="stat"><b>${H.attended}/${H.marked}</b><span>darsga kelgan${H.nb ? ' · ' + H.nb + ' ta qoldirgan' : ''}</span></div></div>
+      <p class="small muted" style="margin:10px 0 0">Guruh o'rtachasi: <b>${H.groupAvg == null ? '—' : H.groupAvg}</b>. Boshqa talabalarning ismi va baholari ko'rsatilmaydi.</p></div>
+    ${hw ? `<div class="card"><h2>Oxirgi uy vazifasi</h2><div class="small muted">${esc(dayName(hw.date))}${hw.unit ? ' · ' + esc(hw.unit) : ''}${hw.topic ? ' · ' + esc(hw.topic) : ''}</div><p style="margin:6px 0 0">${esc(hw.homework)}</p></div>` : ''}
+    <div class="card"><h2>Muddatlar</h2>${dl ? `<ul class="list">${dl}</ul>` : '<p class="muted" style="margin:0">Hozircha muddatlar yo\'q.</p>'}</div>
+    <div class="card"><h2>Jurnaldagi ballar</h2><ul class="list">${H.totals.filter(t => t.value !== '').map(t => `<li><span style="flex:1">${esc(uzS(t.label))}</span><b>${esc(t.value)}</b><span class="small muted">/ ${t.max}</span></li>`).join('') || '<li class="muted">Hozircha hech narsa yo\'q.</li>'}</ul></div>`;
   if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
   $$('[data-pt]').forEach(b => b.onclick = () => { b.disabled = true; startQuiz(b.dataset.pt); });
 }
@@ -331,22 +334,22 @@ function chart(series) {
   [0, 5, 10].forEach(v => grid += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 5}" y="${y(v) + 3}" text-anchor="end">${v}</text>`);
   pts.map((p, i) => [p, i]).filter(([p]) => p.val != null && !isAbs(p.raw)).forEach(([p, i], k) => path += (k ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.val).toFixed(1));
   const dots = pts.map((p, i) => p.val == null || isAbs(p.raw) ? `<text x="${x(i)}" y="${y(0) + 3}" text-anchor="middle" style="fill:var(--bad);font-weight:700;font-size:12px">×</text>` : `<circle cx="${x(i)}" cy="${y(p.val)}" r="3.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>`).join('');
-  return `<div class="card"><h2>My marks</h2><div style="overflow-x:auto"><svg width="${W}" height="${Ht}" role="img" aria-label="Marks chart">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}</svg></div><div class="small muted">× = absent</div></div>`;
+  return `<div class="card"><h2>Baholarim</h2><div style="overflow-x:auto"><svg width="${W}" height="${Ht}" role="img" aria-label="Baholar grafigi">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${dots}</svg></div><div class="small muted">× = kelmagan</div></div>`;
 }
 function tMarks() {
   const rows = H.series.slice().reverse();
-  $('#view').innerHTML = `${chart(H.series)}<div class="card"><h2>Daily marks</h2><ul class="list">${rows.map(s => `<li><span style="flex:1">${esc(dayName(s.date))}</span>${s.raw === '' ? '<span class="small muted">no mark</span>' : mk(s.raw)}</li>`).join('') || '<li class="muted">No marks yet.</li>'}</ul></div>`;
+  $('#view').innerHTML = `${chart(H.series)}<div class="card"><h2>Kunlik baholar</h2><ul class="list">${rows.map(s => `<li><span style="flex:1">${esc(dayName(s.date))}</span>${s.raw === '' ? '<span class="small muted">baho yo\'q</span>' : mk(s.raw)}</li>`).join('') || '<li class="muted">Hozircha baho yo\'q.</li>'}</ul></div>`;
 }
 function tLessons() {
   const ls2 = H.lessons.slice().reverse();
-  $('#view').innerHTML = `<div class="card"><h2>Lessons & homework</h2>${ls2.length ? `<ul class="list">${ls2.map(l => `<li style="align-items:flex-start"><div style="min-width:74px"><b>${esc(md(l.date))}</b><div class="small muted">${esc(dayName(l.date).split(',')[0])}${l.date > '' && ddk(l.date) > ddk(H.today) ? ' · next' : ''}</div></div>
-    <div style="flex:1;min-width:0">${l.unit ? `<span class="pill">${esc(l.unit)}</span> ` : ''}<b>${esc(l.topic)}</b>${l.homework ? `<div class="small" style="margin-top:4px"><span class="muted">Homework:</span> ${esc(l.homework)}</div>` : ''}</div></li>`).join('')}</ul>` : '<p class="muted" style="margin:0">Nothing yet.</p>'}</div>`;
+  $('#view').innerHTML = `<div class="card"><h2>Darslar va uy vazifalari</h2>${ls2.length ? `<ul class="list">${ls2.map(l => `<li style="align-items:flex-start"><div style="min-width:74px"><b>${esc(md(l.date))}</b><div class="small muted">${esc(dayName(l.date).split(',')[0])}${l.date > '' && ddk(l.date) > ddk(H.today) ? ' · keyingi' : ''}</div></div>
+    <div style="flex:1;min-width:0">${l.unit ? `<span class="pill">${esc(l.unit)}</span> ` : ''}<b>${esc(l.topic)}</b>${l.homework ? `<div class="small" style="margin-top:4px"><span class="muted">Uy vazifasi:</span> ${esc(l.homework)}</div>` : ''}</div></li>`).join('')}</ul>` : '<p class="muted" style="margin:0">Hozircha hech narsa yo\'q.</p>'}</div>`;
 }
 function tQuizzes() {
   const r = H.results, wrong = r.filter(x => !x.missed && x.total).reduce((a, x) => a + (x.total - x.right), 0);
-  $('#view').innerHTML = `${quizBox()}${wrong ? `<div class="card"><h2>Practice my mistakes</h2><p class="small muted" style="margin:0 0 10px">Try again the questions you got wrong in class quizzes. No marks — just practice.</p>
-    <button class="btn primary block" id="pmgo0">🔁 Practise ${wrong} question${wrong === 1 ? '' : 's'}</button></div>` : ''}<div class="card"><h2>My quiz results</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(md(x.date)) + ' · ' : ''}${x.missed ? 'missed' : x.right + ' of ' + x.total + ' right'}${x.reviewable || x.missed ? ' · tap to see answers' : ' · answers after the quiz closes'}</div></div>
-    ${x.missed ? '<span class="pill gray">—</span>' : mk(x.score10)}</li>`).join('')}</ul>` : '<p class="muted" style="margin:0">No quizzes yet.</p>'}</div>`;
+  $('#view').innerHTML = `${quizBox()}${wrong ? `<div class="card"><h2>Xatolarim ustida ishlash</h2><p class="small muted" style="margin:0 0 10px">Darsdagi quizlarda xato qilgan savollaringizni qayta ishlang. Baho qo'yilmaydi — faqat mashq.</p>
+    <button class="btn primary block" id="pmgo0">🔁 ${wrong} ta savolni mashq qilish</button></div>` : ''}<div class="card"><h2>Quiz natijalarim</h2>${r.length ? `<ul class="list">${r.map(x => `<li ${x.reviewable || x.missed ? `data-rv="${esc(x.quiz_id)}" style="cursor:pointer"` : ''}><div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="small muted">${x.date ? esc(md(x.date)) + ' · ' : ''}${x.missed ? 'qatnashmagan' : x.total + ' tadan ' + x.right + ' ta to\'g\'ri'}${x.reviewable || x.missed ? ' · javoblarni ko\'rish uchun bosing' : ' · javoblar quiz yopilgach'}</div></div>
+    ${x.missed ? '<span class="pill gray">—</span>' : mk(x.score10)}</li>`).join('')}</ul>` : '<p class="muted" style="margin:0">Hozircha quiz yo\'q.</p>'}</div>`;
   if ($('#qgo')) $('#qgo').onclick = () => startQuiz(H.quiz.quiz_id);
   $$('[data-rv]').forEach(li => li.onclick = () => review(li.dataset.rv));
   if ($('#pmgo0')) $('#pmgo0').onclick = () => practice(false);
@@ -354,50 +357,48 @@ function tQuizzes() {
 
 
 /* ===================== coins, bonus shop, cards (15.11.2026) ===================== */
-const BST = { requested: ['warn', 'waiting for your teacher'], approved: ['', 'approved · take the test'], started: ['warn', 'test started'], done: ['', 'done ✓'],
-  failed1: ['bad', 'not passed · 1 more try from tomorrow'], failed: ['bad', 'not passed'], rejected: ['gray', 'not approved'] };
+const BST = { requested: ['warn', 'o\'qituvchi javobini kutmoqda'], approved: ['', 'ruxsat berildi · testni ishlang'], started: ['warn', 'test boshlangan'], done: ['', 'bajarildi ✓'],
+  failed1: ['bad', 'o\'tmadi · ertadan yana 1 urinish'], failed: ['bad', 'o\'tmadi'], rejected: ['gray', 'rad etildi'] };
 function coinMini() {
   const c = H.coins; if (!c) return '';
   const ready = (H.shop && H.shop.requests || []).filter(r => r.canStart);
-  return ready.map(r => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Bonus test · only for you</div><div class="t">${esc(r.title)}</div>
-      <p class="small muted" style="margin:4px 0 12px">${H.shop.test.count} questions · ${H.shop.test.minutes} min · you need ${H.shop.test.pass}% · do not leave the page</p>
-      <button class="btn primary block" data-bt="${esc(r.id)}">${r.status === 'started' ? 'Continue the test' : 'Start the test'}</button></div>`).join('') +
+  return ready.map(r => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Bonus test · faqat siz uchun</div><div class="t">${esc(uzS(r.title))}</div>
+      <p class="small muted" style="margin:4px 0 12px">${H.shop.test.count} ta savol · ${H.shop.test.minutes} daqiqa · kamida ${H.shop.test.pass}% kerak · sahifadan chiqmang</p>
+      <button class="btn primary block" data-bt="${esc(r.id)}">${r.status === 'started' ? 'Testni davom ettirish' : 'Testni boshlash'}</button></div>`).join('') +
     `<div class="card coinmini" data-go="coins" style="cursor:pointer"><div class="row" style="display:flex;align-items:center;gap:10px"><span style="font-size:28px">🪙</span>
-      <div style="flex:1"><b style="font-size:20px">${c.balance}</b> coins<div class="small muted">${c.rank ? ord(c.rank) + ' of ' + c.of + ' in the group' : ''}${c.cards.yellow ? ' · ' + (c.frozen ? '🟥 red card: coins frozen' : '🟨 yellow card') : ''}</div></div>
-      <span class="small" style="color:var(--accent);font-weight:600">Shop ›</span></div></div>`;
+      <div style="flex:1"><b style="font-size:20px">${c.balance}</b> tanga<div class="small muted">${c.rank && c.balance > 0 ? 'guruhda ' + ord(c.rank) + ' (' + c.of + ' kishidan)' : 'Tanga qanday yig\'iladi? Bosing'}${c.cards.yellow ? ' · ' + (c.frozen ? '🟥 qizil karta: tangalar muzlatilgan' : '🟨 sariq karta') : ''}</div></div>
+      <span class="small" style="color:var(--accent);font-weight:600">Do'kon ›</span></div></div>`;
 }
 function tCoins() {
   const c = H.coins, s = H.shop;
-  if (!c || !s) { $('#view').innerHTML = '<div class="card"><p class="muted" style="margin:0">Coins are not available now.</p></div>'; return; }
-  const items = s.items.map(b => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${esc(b.title)}</b><div class="small muted">${esc(b.note)}${b.limit ? ' · ' + b.used + '/' + b.limit + ' this semester' : ''}</div>
-      ${b.ok ? '' : `<div class="small" style="color:var(--warn);margin-top:3px">${esc(b.why)}</div>`}</div>
-      <div style="text-align:right"><div style="font-weight:800;margin-bottom:6px">${b.price} 🪙</div><button class="btn ${b.ok ? 'primary' : ''}" data-buy="${esc(b.key)}" ${b.ok ? '' : 'disabled'}>Get</button></div></li>`).join('');
-  const cards = s.cards.map(x => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>🟨 Yellow card</b><div class="small muted">${esc(x.reason)} · ${esc(x.at)}</div>
-      ${x.ok ? '' : x.why ? `<div class="small" style="color:var(--warn)">${esc(x.why)}</div>` : ''}</div><button class="btn ${x.ok ? 'primary' : ''}" data-cardtest="${esc(x.card)}" ${x.ok ? '' : 'disabled'}>Remove with a test</button></li>`).join('');
-  const reqs = s.requests.map(r => `<li style="flex-wrap:wrap"><div style="flex:1 1 100%;min-width:0"><b>${esc(r.title)}</b><div class="small muted">${esc(r.created_at)}${r.kind !== 'card' && r.target ? ' · lesson ' + esc(md(r.target)) : ''}${r.score !== '' && r.score != null ? ' · test ' + esc(r.score) + '%' : ''}</div></div>
-      <div style="display:flex;gap:8px;align-items:center;width:100%;margin-top:6px"><span class="pill ${(BST[r.status] || ['gray'])[0]}" style="margin-right:auto">${esc((BST[r.status] || [, r.status])[1])}</span>${r.canStart ? `<button class="btn sm primary" data-bt="${esc(r.id)}">Take the test</button>` : ''}
-      ${['requested', 'approved', 'failed1'].includes(r.status) ? `<button class="btn sm" data-bc="${esc(r.id)}" title="Cancel">✕</button>` : ''}</div></li>`).join('');
+  if (!c || !s) { $('#view').innerHTML = '<div class="card"><p class="muted" style="margin:0">Tangalar hozircha mavjud emas.</p></div>'; return; }
+  const items = s.items.map(b => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${esc(uzT(b.key, b.title, 0))}</b><div class="small muted">${esc(uzT(b.key, b.note, 1))}${b.limit ? ' · semestrda ' + b.used + '/' + b.limit : ''}</div>
+      ${b.ok ? '' : `<div class="small" style="color:var(--warn);margin-top:3px">${esc(uzS(b.why))}</div>`}</div>
+      <div style="text-align:right"><div style="font-weight:800;margin-bottom:6px">${b.price} 🪙</div><button class="btn ${b.ok ? 'primary' : ''}" data-buy="${esc(b.key)}" ${b.ok ? '' : 'disabled'}>Olish</button></div></li>`).join('');
+  const cards = s.cards.map(x => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>🟨 Sariq karta</b><div class="small muted">${esc(uzS(x.reason))} · ${esc(x.at)}</div>
+      ${x.ok ? '' : x.why ? `<div class="small" style="color:var(--warn)">${esc(uzS(x.why))}</div>` : ''}</div><button class="btn ${x.ok ? 'primary' : ''}" data-cardtest="${esc(x.card)}" ${x.ok ? '' : 'disabled'}>Test bilan olib tashlash</button></li>`).join('');
+  const reqs = s.requests.map(r => `<li style="flex-wrap:wrap"><div style="flex:1 1 100%;min-width:0"><b>${esc(uzS(r.title))}</b><div class="small muted">${esc(r.created_at)}${r.kind !== 'card' && r.target ? ' · dars: ' + esc(md(r.target)) : ''}${r.score !== '' && r.score != null ? ' · test: ' + esc(r.score) + '%' : ''}</div></div>
+      <div style="display:flex;gap:8px;align-items:center;width:100%;margin-top:6px"><span class="pill ${(BST[r.status] || ['gray'])[0]}" style="margin-right:auto">${esc((BST[r.status] || [, r.status])[1])}</span>${r.canStart ? `<button class="btn sm primary" data-bt="${esc(r.id)}">Testni boshlash</button>` : ''}
+      ${['requested', 'approved', 'failed1'].includes(r.status) ? `<button class="btn sm" data-bc="${esc(r.id)}" title="Bekor qilish">✕</button>` : ''}</div></li>`).join('');
   const board = c.board.map(x => `<li style="${x.me ? 'background:var(--accent-soft);border-radius:10px;padding-left:8px;padding-right:8px' : ''}"><span style="min-width:26px" class="muted">${x.rank}</span>
-      <span style="flex:1;min-width:0">${esc(x.name)}${x.yellow ? ' ' + '🟨'.repeat(Math.min(2, x.yellow)) : ''}${x.me ? ' <span class="small muted">(you)</span>' : ''}</span><b>${x.balance}</b></li>`).join('');
-  const hist = c.history.map(h => `<li><span style="flex:1;min-width:0"><span class="small muted">${esc(h.time.slice(5))}</span> · ${esc(h.reason)}</span>
+      <span style="flex:1;min-width:0">${esc(x.name)}${x.yellow ? ' ' + '🟨'.repeat(Math.min(2, x.yellow)) : ''}${x.me ? ' <span class="small muted">(siz)</span>' : ''}</span><b>${x.balance}</b></li>`).join('');
+  const hist = c.history.map(h => `<li><span style="flex:1;min-width:0"><span class="small muted">${esc(h.time.slice(5))}</span> · ${esc(uzS(h.reason))}</span>
       <b style="color:${h.amount < 0 ? 'var(--bad)' : 'var(--good)'}">${h.amount > 0 ? '+' : ''}${h.amount}</b></li>`).join('');
   $('#view').innerHTML = `<div class="card" style="text-align:center"><div style="font-size:40px;line-height:1">🪙</div><div class="big" style="margin:6px 0 2px">${c.balance}</div>
-      <div class="muted">coins${c.rank ? ' · ' + ord(c.rank) + ' of ' + c.of + ' in the group' : ''}</div>
-      ${c.frozen ? '<p style="color:var(--bad);font-weight:700;margin:10px 0 0">🟥 Red card (2 yellow cards): you cannot earn or spend coins. Remove a card with a test.</p>'
-        : c.cards.yellow ? '<p style="color:var(--warn);font-weight:600;margin:10px 0 0">🟨 You have a yellow card: the shop is closed until you remove it.</p>' : ''}</div>
-    <button class="btn" data-cguide style="width:100%;margin-bottom:12px">❓ Tangalar qanday ishlaydi? (qo'llanma)</button>
+      <div class="muted">tanga${c.rank && c.balance > 0 ? ' · guruhda ' + ord(c.rank) + ' (' + c.of + ' kishidan)' : ''}</div>
+      ${c.frozen ? '<p style="color:var(--bad);font-weight:700;margin:10px 0 0">🟥 Qizil karta (2 ta sariq): tanga yig\'a olmaysiz ham, sarflay olmaysiz ham. Kartani test bilan olib tashlang.</p>'
+        : c.cards.yellow ? '<p style="color:var(--warn);font-weight:600;margin:10px 0 0">🟨 Sizda sariq karta bor: uni olib tashlamaguncha do\'kon yopiq.</p>' : ''}</div>
+    <div class="card" id="earncard"><h2>🪙 Tangani qanday yig'asiz</h2>${["Darsdagi quiz yoki Live game: <b>10</b> → <b>+3</b>, <b>8–9.9</b> → <b>+2</b>, <b>6–7.9</b> → <b>+1</b>", "Live game'da eng yaxshi 3 talik → yana <b>+1</b>", "Darsda faol bo'lsangiz, o'qituvchi beradi → <b>+1 / +2 / +3</b>", "<b>Quizlar → Xatolarim ustida ishlash</b>: kuniga 5 ta to'g'ri javob → <b>+1</b>", "🟨 Sariq karta do'konni yopadi. 2 ta sariq = 🟥 qizil: tangalar muzlaydi."].map(x => `<div class="small" style="padding:7px 0;border-bottom:1px solid var(--line)">${x}</div>`).join('')}<button class="btn" data-cguide style="width:100%;margin-top:12px">❓ To'liq qo'llanma: tangani nimaga sarflash, bonus, kartalar</button></div>
     ${coinMini().replace(/<div class="card coinmini"[\s\S]*$/, '')}
-    ${cards ? `<div class="card"><h2>My cards</h2><ul class="list">${cards}</ul></div>` : ''}
-    <div class="card"><h2>Bonus shop</h2>${s.free && s.free.per ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:14px">🎟 Free tests this week: <b>${s.free.left} of ${s.free.per}</b> left — you start them at once. ${s.free.left ? '' : 'Now your teacher must approve each new test.'}</div>` : ''}
-      <p class="small muted" style="margin:0 0 8px">Choose a bonus → a ${s.test.count}-question test (${s.test.minutes} min) from past topics${s.free && s.free.per ? ` (${s.free.per} a week without asking; after that your teacher approves)` : ' (after your teacher approves)'}. With ${s.test.pass}% or more you get the bonus and the coins are spent. If you do not pass, you keep your coins.</p>
+    ${cards ? `<div class="card"><h2>Kartalarim</h2><ul class="list">${cards}</ul></div>` : ''}
+    <div class="card"><h2>Bonus do'koni</h2>${s.free && s.free.per ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:14px">🎟 Bu hafta bepul testlar: <b>${s.free.left} / ${s.free.per}</b> qoldi — darhol boshlanadi. ${s.free.left ? '' : 'Endi har bir yangi testga o\'qituvchi ruxsat beradi.'}</div>` : ''}
+      <p class="small muted" style="margin:0 0 8px">Bonusni tanlang → o'tgan mavzulardan ${s.test.count} ta savollik test (${s.test.minutes} daqiqa)${s.free && s.free.per ? ` (haftasiga ${s.free.per} tasi so'rovsiz; keyin o'qituvchi ruxsat beradi)` : ' (o\'qituvchi ruxsatidan keyin)'}. ${s.test.pass}% va undan ko'p olsangiz, bonus beriladi va tangalar yechiladi. O'tmasangiz, tangalaringiz qoladi.</p>
       <ul class="list">${items}</ul></div>
-    ${reqs ? `<div class="card"><h2>My requests</h2><ul class="list">${reqs}</ul></div>` : ''}
-    <div class="card"><h2>Group leaderboard</h2><ul class="list">${board}</ul></div>
-    <div class="card"><h2>My coins</h2>${hist ? `<ul class="list">${hist}</ul>` : '<p class="muted" style="margin:0">No coins yet.</p>'}</div>
-    <div class="card"><h2>How to earn coins</h2>${['Quiz or Live game: 10 → <b>+3</b>, 8–9.9 → <b>+2</b>, 6–7.9 → <b>+1</b>', 'Live game top 3 → <b>+1</b> more',
-      'Being active in class → <b>+1 / +2 / +3</b> from your teacher', '"Practise my mistakes" (5 right answers a day) → <b>+1</b>',
-      '🟨 A yellow card closes the shop. Two yellow cards = 🟥 red: coins are frozen.'].map(x => `<div class="small" style="padding:7px 0;border-bottom:1px solid var(--line)">${x}</div>`).join('')}</div>`;
+    ${reqs ? `<div class="card"><h2>So'rovlarim</h2><ul class="list">${reqs}</ul></div>` : ''}
+    <div class="card"><h2>Guruh reytingi (tangalar)</h2><ul class="list">${board}</ul></div>
+    <div class="card"><h2>Tangalar tarixi</h2>${hist ? `<ul class="list">${hist}</ul>` : '<p class="muted" style="margin:0">Hozircha tanga yo\'q.</p>'}</div>`;
   bindCoinBtns();
+  if (!ls.get('ds_cg_seen')) { ls.set('ds_cg_seen', '1'); setTimeout(showCoinGuide, 400); }
 }
 
 /* ===== coin guide (15.11.2026): simple Uzbek explanation, opens over the page ===== */
@@ -405,6 +406,65 @@ const BONUS_UZ = { makeup: ['Qoldirilgan darsni qoplash', "Jurnaldagi bitta 0 o'
   on2: ['Oraliq nazoratga +2 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."],
   pw: ['Loyiha ishidan ozod', "Loyiha ishi (PW) bahoingiz 10 bo'ladi."],
   on3: ['Oraliq nazoratga +3 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."] };
+/* Server texts are English (one server for many teachers): the student page shows them in Uzbek (15.11.2026). */
+const BONUS_EN = { 'Make up a missed lesson': 'makeup', '+2 points on the midterm (ON)': 'on2', 'Free from the Project work': 'pw', '+3 extra points on the midterm (ON)': 'on3' };
+const uzT = (key, text, i) => BONUS_UZ[key] ? BONUS_UZ[key][i] : uzS(text);
+const UZS = [
+  [/^(.*) \(undone, was -?\d+\)$/, (m, a) => uzS(a) + ' (bekor qilindi)'],
+  [/^Red card: coins are frozen\.$/, 'Qizil karta: tangalar muzlatilgan.'],
+  [/^You have a yellow card\. Remove it first\.$/, "Sizda sariq karta bor. Avval uni olib tashlang."],
+  [/^Used (\d+) of (\d+) this semester\.$/, (m, a, b) => `Bu semestrda ${b} tadan ${a} tasi ishlatilgan.`],
+  [/^You need (\d+) more coins?\.$/, (m, a) => `Yana ${a} ta tanga kerak.`],
+  [/^Finish your open request first\.$/, "Avval ochiq so'rovingizni yakunlang."],
+  [/^You can ask again in (\d+) days?\.$/, (m, a) => `${a} kundan keyin yana so'rashingiz mumkin.`],
+  [/^Not enough quizzes yet for the test\.$/, "Test uchun hali quizlar yetarli emas."],
+  [/^You have no missed lessons \(0\) to make up\.$/, "Qoplanadigan qoldirilgan dars (0) yo'q."],
+  [/^Request sent\.$/, "So'rov yuborildi."],
+  [/^Remove a yellow card \((.*)\)$/, (m, a) => `Sariq kartani olib tashlash (${uzS(a)})`],
+  [/^Bonus test · (.*)$/, (m, a) => 'Bonus test · ' + uzS(a)],
+  [/^Bonus: (.*)$/, (m, a) => 'Bonus: ' + uzS(a)],
+  [/^Live top 3 \((\d)\) · (.*)$/, (m, a, b) => `Live: top-3 (${a}-o'rin) · ${b}`],
+  [/^Practice: (\d+) mistakes fixed$/, (m, a) => `Xatolar ustida ishlash: ${a} ta tuzatildi`],
+  [/^Active in class(.*)$/, (m, a) => 'Darsda faollik' + a],
+  [/^Left the quiz twice: (.*)$/, (m, a) => 'Quizdan 2 marta chiqib ketgan: ' + a],
+  [/^Left the bonus test twice$/, 'Bonus testdan 2 marta chiqib ketgan'],
+  [/^Left the test twice: (.*)$/, (m, a) => 'Testdan 2 marta chiqib ketgan: ' + a],
+  [/^Yellow card$/, 'Sariq karta'],
+  [/^This request was not found\.$/, "So'rov topilmadi."],
+  [/^This card was not found\.$/, 'Karta topilmadi.'],
+  [/^This bonus is not available for your group\.$/, 'Bu bonus guruhingiz uchun mavjud emas.'],
+  [/^Choose one of your missed lessons\.$/, 'Qoldirilgan darslaringizdan birini tanlang.'],
+  [/^This request is not yours\.$/, "Bu so'rov sizniki emas."],
+  [/^This request cannot be cancelled now\.$/, "Bu so'rovni hozir bekor qilib bo'lmaydi."],
+  [/^This test is not for you\.$/, 'Bu test siz uchun emas.'],
+  [/^You have already passed this test\.$/, "Siz bu testdan allaqachon o'tgansiz."],
+  [/^.*closed because you left it twice.*$/, "2 marta chiqib ketganingiz uchun yopilgan. Uni faqat o'qituvchi qayta ochadi."],
+  [/^Time is up for this test\. Your saved answers were sent\.$/, 'Test vaqti tugadi. Saqlangan javoblaringiz yuborildi.'],
+  [/^This test was not found\.$/, 'Test topilmadi.'],
+  [/^You have already done this test\.$/, 'Siz bu testni allaqachon ishlagansiz.'],
+  [/^This test is closed\.$/, 'Bu test yopilgan.'],
+  [/^The deadline for this test has passed\.$/, "Bu testning muddati o'tgan."],
+  [/^Open the test again from your page\.$/, 'Testni sahifangizdan qayta oching.'],
+  [/^This quiz is not for your group\.$/, 'Bu quiz guruhingiz uchun emas.'],
+  [/^This quiz is closed\.$/, 'Bu quiz yopilgan.'],
+  [/^You have already done this quiz\. Only one attempt is allowed\.$/, 'Siz bu quizni ishlagansiz. Faqat bitta urinish beriladi.'],
+  [/^Time is up for this quiz\.$/, 'Quiz vaqti tugadi.'],
+  [/^You can see the answers when the quiz is closed\.$/, "Javoblarni quiz yopilgandan keyin ko'rasiz."],
+  [/^Your name is not in the gradebook of group (.*)\. Please tell your teacher\.$/, (m, a) => `${a}-guruh jurnalida ismingiz yo'q. O'qituvchiga ayting.`],
+  [/^Answers are too long\.$/, 'Javoblar juda uzun.'],
+  [/^Start the test first\.$/, 'Avval testni boshlang.'],
+  [/^Current mark · block (\d)$/, (m, a) => `Joriy baho · ${a}-blok`],
+  [/^Rating (\d)$/, (m, a) => `${a}-reyting`],
+  [/^Independent work$/, "Mustaqil ta'lim"],
+  [/^Total$/, 'Jami'],
+  [/Failed to fetch|Load failed|NetworkError/i, "Internet aloqasi yo'q. Qayta urinib ko'ring."]
+];
+function uzS(t) {
+  t = String(t == null ? '' : t);
+  if (BONUS_EN[t]) return BONUS_UZ[BONUS_EN[t]][0];
+  for (const [re, to] of UZS) if (re.test(t)) return t.replace(re, to);
+  return t;
+}
 function showCoinGuide() {
   const s = H.shop || {}, t = s.test || { count: 15, minutes: 8, pass: 80 }, free = s.free && s.free.per != null ? s.free.per : 2;
   const li = a => '<ul style="margin:6px 0 0;padding-left:20px">' + a.map(x => `<li style="margin:6px 0">${x}</li>`).join('') + '</ul>';
@@ -419,12 +479,12 @@ function showCoinGuide() {
       'Darsdagi quiz yoki Live game: <b>10</b> ball → <b>+3</b> 🪙, <b>8–9.9</b> → <b>+2</b>, <b>6–7.9</b> → <b>+1</b>',
       'Live game\'da eng yaxshi 3 talik → yana <b>+1</b>',
       'Darsda faol bo\'lsangiz, o\'qituvchi <b>+1 / +2 / +3</b> beradi',
-      '<b>Quizzes → Practise my mistakes</b>: kuniga 5 ta to\'g\'ri javob → <b>+1</b>',
+      '<b>Quizlar → Xatolarim ustida ishlash</b>: kuniga 5 ta to\'g\'ri javob → <b>+1</b>',
       'Test paytida boshqa ilovaga o\'tsangiz, o\'sha test uchun tanga berilmaydi'])}
     <h3 style="margin:14px 0 4px">2. Tangani nimaga sarflaysiz</h3><ul class="list">${rows}</ul>
     <h3 style="margin:14px 0 4px">3. Bonusni qanday olasiz</h3>
     <ol style="margin:6px 0 0;padding-left:22px">
-      <li style="margin:6px 0"><b>Bonus shop</b>da kerakli bonus yonidagi <b>Get</b> tugmasini bosing.</li>
+      <li style="margin:6px 0"><b>Bonus do'koni</b>da kerakli bonus yonidagi <b>Olish</b> tugmasini bosing.</li>
       <li style="margin:6px 0">Haftasiga <b>${free} ta</b> test darhol boshlanadi. Undan ko'pi uchun o'qituvchi ruxsat beradi.</li>
       <li style="margin:6px 0">O'tgan mavzulardan <b>${t.count} ta savol</b>, <b>${t.minutes} daqiqa</b>. Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi.</li>
       <li style="margin:6px 0"><b>${t.pass}%</b> va undan ko'p → bonus jurnalga yoziladi, tangalar yechiladi.</li>
@@ -433,7 +493,7 @@ function showCoinGuide() {
     <h3 style="margin:14px 0 4px">4. Kartalar</h3>${li([
       '🟨 <b>Sariq karta</b> — bonus do\'koni yopiladi. Testdan 2 marta chiqib ketsangiz, avtomatik beriladi.',
       '🟥 <b>2 ta sariq = qizil</b> — tangalar muzlaydi: yig\'ilmaydi ham, sarflanmaydi ham.',
-      'Kartani test bilan olib tashlaysiz: <b>Remove with a test</b>.'])}
+      'Kartani test bilan olib tashlaysiz: <b>Test bilan olib tashlash</b> tugmasi.'])}
     <h3 style="margin:14px 0 4px">5. Yodda tuting</h3>${li([
       'Reytingda faqat ism va tangalar ko\'rinadi, baholaringiz ko\'rinmaydi.',
       'Har juma haftalik <b>Top-5</b> e\'lon qilinadi.',
@@ -452,21 +512,21 @@ function bindCoinBtns() {
   $$('[data-buy]').forEach(b => b.onclick = () => {
     const it = H.shop.items.find(x => x.key === b.dataset.buy);
     if (it.key === 'makeup') return pickMakeup(it);
-    if (!confirm(freeLeft() ? `"${it.title}" (${it.price} coins)\n\nThe test starts NOW: ${H.shop.test.count} questions, ${H.shop.test.minutes} minutes, you need ${H.shop.test.pass}%. Do not leave the page.\nCoins are spent only if you pass. Start?`
-      : `Ask your teacher for "${it.title}" (${it.price} coins)?\nYour free tests of this week are used. After your teacher approves, you take the test.`)) return;
+    if (!confirm(freeLeft() ? `"${uzT(it.key, it.title, 0)}" (${it.price} tanga)\n\nTest HOZIR boshlanadi: ${H.shop.test.count} ta savol, ${H.shop.test.minutes} daqiqa, kamida ${H.shop.test.pass}% kerak. Sahifadan chiqmang.\nTangalar faqat testdan o'tsangiz yechiladi. Boshlaymizmi?`
+      : `O'qituvchidan "${uzT(it.key, it.title, 0)}" (${it.price} tanga) so'raysizmi?\nBu haftaning bepul testlari tugadi. O'qituvchi ruxsat bergach, testni ishlaysiz.`)) return;
     shopReq(b, it.key, '');
   });
-  $$('[data-cardtest]').forEach(b => b.onclick = () => { if (confirm(freeLeft() ? `Remove this yellow card with a test?\nThe test starts NOW: ${H.shop.test.count} questions, ${H.shop.test.minutes} min, ${H.shop.test.pass}%.` : 'Ask your teacher to remove this yellow card with a test?')) shopReq(b, 'card', b.dataset.cardtest); });
-  $$('[data-bc]').forEach(b => b.onclick = async () => { if (!confirm('Cancel this request?')) return; b.disabled = true; try { H.shop = await api('stBonusCancel', b.dataset.bc); render(); } catch (e) { fail(e); b.disabled = false; } });
+  $$('[data-cardtest]').forEach(b => b.onclick = () => { if (confirm(freeLeft() ? `Bu sariq kartani test bilan olib tashlaysizmi?\nTest HOZIR boshlanadi: ${H.shop.test.count} ta savol, ${H.shop.test.minutes} daqiqa, ${H.shop.test.pass}%.` : "O'qituvchidan sariq kartani test bilan olib tashlashni so'raysizmi?")) shopReq(b, 'card', b.dataset.cardtest); });
+  $$('[data-bc]').forEach(b => b.onclick = async () => { if (!confirm("Bu so'rovni bekor qilasizmi?")) return; b.disabled = true; try { H.shop = await api('stBonusCancel', b.dataset.bc); render(); } catch (e) { fail(e); b.disabled = false; } });
 }
 function pickMakeup(it) {
   const d = document.createElement('div'); d.className = 'gwarn';
-  d.innerHTML = `<div class="box" style="border-color:var(--accent)"><h3 style="color:var(--ink)">${esc(it.title)}</h3><p class="small muted">Choose the missed lesson (0). It will get your average daily mark.</p>
+  d.innerHTML = `<div class="box" style="border-color:var(--accent)"><h3 style="color:var(--ink)">${esc(uzT(it.key, it.title, 0))}</h3><p class="small muted">Qoldirilgan darsni (0) tanlang. Unga kunlik o'rtacha bahoingiz qo'yiladi.</p>
     <select id="mkd" style="width:100%;padding:10px;font-size:16px;margin-bottom:12px">${H.shop.makeup.map(x => `<option value="${esc(x)}">${esc(dayName(x))}</option>`).join('')}</select>
-    <button class="btn primary block" id="mkok">${freeLeft() ? 'Take the test' : 'Ask for it'} · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Cancel</button></div>`;
+    <button class="btn primary block" id="mkok">${freeLeft() ? 'Testni boshlash' : 'So\'rash'} · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Bekor qilish</button></div>`;
   document.body.appendChild(d);
   $('#mkno').onclick = () => d.remove();
-  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); if (freeLeft() && !confirm(`The test starts NOW: ${H.shop.test.count} questions, ${H.shop.test.minutes} minutes, you need ${H.shop.test.pass}%. Do not leave the page. Start?`)) return; shopReq(null, 'makeup', v); };
+  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); if (freeLeft() && !confirm(`Test HOZIR boshlanadi: ${H.shop.test.count} ta savol, ${H.shop.test.minutes} daqiqa, kamida ${H.shop.test.pass}% kerak. Sahifadan chiqmang. Boshlaymizmi?`)) return; shopReq(null, 'makeup', v); };
 }
 const freeLeft = () => !!(H.shop && H.shop.free && H.shop.free.left > 0);
 async function shopReq(b, key, target) {
@@ -475,7 +535,7 @@ async function shopReq(b, key, target) {
     H.shop = await api('stBonusRequest', key, target);
     const r = (H.shop.requests || [])[0];
     if (r && r.mode === 'auto' && r.canStart) return startQuiz(r.id);   // free test of the week: start at once
-    toast('Sent to your teacher'); render();
+    toast("O'qituvchiga yuborildi"); render();
   } catch (e) { fail(e); if (b) b.disabled = false; }
 }
 
@@ -484,7 +544,7 @@ let PM = null;
 const pmKey = () => 'ds_pm_' + String(KEY || '').slice(0, 12);
 const pmDone = () => { try { return JSON.parse(ls.get(pmKey()) || '{}'); } catch (e) { return {}; } };
 async function practice(all) {
-  $('#view').innerHTML = '<div class="card loading">Loading…</div>';
+  $('#view').innerHTML = '<div class="card loading">Yuklanmoqda…</div>';
   try {
     const list = await api('stPractice'), done = pmDone();
     const todo = all ? list : list.filter(x => !done[x.key]);
@@ -493,39 +553,39 @@ async function practice(all) {
   } catch (e) { fail(e); tQuizzes(); }
 }
 function pmDraw() {
-  const v = $('#view'), back = '<button class="btn" id="pmback" style="margin-bottom:12px">← Back</button>';
+  const v = $('#view'), back = '<button class="btn" id="pmback" style="margin-bottom:12px">← Orqaga</button>';
   const bind = () => { $('#pmback').onclick = () => { tab = 'quizzes'; buildTabs(); render(); }; };
   if (!PM.list.length) {
-    v.innerHTML = back + `<div class="card"><h2>Nothing to practise 🎉</h2><p class="muted">You have already practised all your mistakes.</p>${PM.all ? '<button class="btn block" id="pmall">Practise all of them again</button>' : ''}</div>`;
+    v.innerHTML = back + `<div class="card"><h2>Mashq qiladigan savol qolmadi 🎉</h2><p class="muted">Barcha xatolaringizni ishlab bo'ldingiz.</p>${PM.all ? '<button class="btn block" id="pmall">Hammasini qayta mashq qilish</button>' : ''}</div>`;
     bind(); if ($('#pmall')) $('#pmall').onclick = () => practice(true); return;
   }
   if (PM.i >= PM.list.length) {
-    v.innerHTML = back + `<div class="card"><h2>Well done!</h2><p>You got <b>${PM.right} of ${PM.list.length}</b> right this time.</p>
-      ${PM.wrong.length ? `<button class="btn primary block" id="pmagain">Try the ${PM.wrong.length} wrong one${PM.wrong.length === 1 ? '' : 's'} again</button>` : ''}</div>`;
+    v.innerHTML = back + `<div class="card"><h2>Barakalla!</h2><p>Bu safar <b>${PM.list.length} tadan ${PM.right} ta</b> to'g'ri.</p>
+      ${PM.wrong.length ? `<button class="btn primary block" id="pmagain">${PM.wrong.length} ta xatoni qayta ishlash</button>` : ''}</div>`;
     bind(); if ($('#pmagain')) $('#pmagain').onclick = () => { PM = { list: PM.wrong, all: PM.all, i: 0, a: undefined, res: null, right: 0, wrong: [] }; pmDraw(); };
     return;
   }
   const it = PM.list[PM.i], q = it.q, r = PM.res, L = 'ABCDEF';
-  v.innerHTML = back + `<div class="card"><div class="small muted">Question ${PM.i + 1} of ${PM.list.length} · ${esc(it.title)}</div>
+  v.innerHTML = back + `<div class="card"><div class="small muted">Savol ${PM.i + 1} / ${PM.list.length} · ${esc(it.title)}</div>
     <div class="qprog" style="margin:8px 0 12px;background:var(--line);border-radius:3px"><i style="width:${PM.i / PM.list.length * 100}%"></i></div>
     <b style="font-size:17px">${esc(q.prompt)}</b><div class="body" id="pmb" style="margin-top:10px"></div>
-    ${r ? `<div class="rv ${r.score >= 1 ? 'ok' : ''}" style="margin-top:6px"><b>${r.score >= 1 ? '✓ Right!' : r.score > 0 ? '◐ Partly right' : '✗ Not yet'}</b>${r.score >= 1 ? '' : `<div class="small r">Right answer: ${esc(r.right)}</div>`}${r.explain ? `<div class="small muted">${esc(r.explain)}</div>` : ''}</div>` : ''}
-    <button class="btn primary block" id="pmnext" style="margin-top:12px">${r ? (PM.i + 1 < PM.list.length ? 'Next →' : 'Finish') : 'Check'}</button></div>`;
+    ${r ? `<div class="rv ${r.score >= 1 ? 'ok' : ''}" style="margin-top:6px"><b>${r.score >= 1 ? '✓ To\'g\'ri!' : r.score > 0 ? '◐ Qisman to\'g\'ri' : '✗ Hali emas'}</b>${r.score >= 1 ? '' : `<div class="small r">To'g'ri javob: ${esc(r.right)}</div>`}${r.explain ? `<div class="small muted">${esc(r.explain)}</div>` : ''}</div>` : ''}
+    <button class="btn primary block" id="pmnext" style="margin-top:12px">${r ? (PM.i + 1 < PM.list.length ? 'Keyingi →' : 'Tugatish') : 'Tekshirish'}</button></div>`;
   bind();
   const box = $('#pmb'), a = PM.a, lock = !!r;
   if (q.type === 'mc' || q.type === 'tf') {
     box.innerHTML = q.options.map((o, k) => `<button class="opt ${a !== undefined && +a === o.i ? 'on' : ''}" data-i="${o.i}" ${lock ? 'disabled' : ''}><span class="k">${q.type === 'tf' ? (o.i ? 'T' : 'F') : L[k]}</span><span>${esc(o.t)}</span></button>`).join('');
     $$('.opt', box).forEach(b => b.onclick = () => { PM.a = +b.dataset.i; pmDraw(); });
   } else if (q.type === 'gap') {
-    box.innerHTML = `<input class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer" value="${esc(a || '')}" ${lock ? 'disabled' : ''}>`;
+    box.innerHTML = `<input class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Javobingizni yozing" value="${esc(a || '')}" ${lock ? 'disabled' : ''}>`;
     $('input', box).oninput = e => { PM.a = e.target.value; };
   } else if (q.type === 'match') {
     const cur = a || {};
-    box.innerHTML = q.left.map(l => `<div class="mrow"><div class="l">${esc(l.t)}</div><select data-l="${l.i}" ${lock ? 'disabled' : ''}><option value="">Choose…</option>${q.right.map(x => `<option value="${x.i}" ${cur[l.i] !== undefined && cur[l.i] !== '' && +cur[l.i] === x.i ? 'selected' : ''}>${esc(x.t)}</option>`).join('')}</select></div>`).join('');
+    box.innerHTML = q.left.map(l => `<div class="mrow"><div class="l">${esc(l.t)}</div><select data-l="${l.i}" ${lock ? 'disabled' : ''}><option value="">Tanlang…</option>${q.right.map(x => `<option value="${x.i}" ${cur[l.i] !== undefined && cur[l.i] !== '' && +cur[l.i] === x.i ? 'selected' : ''}>${esc(x.t)}</option>`).join('')}</select></div>`).join('');
     $$('select', box).forEach(sel => sel.onchange = () => { const m2 = Object.assign({}, PM.a || {}); m2[sel.dataset.l] = sel.value === '' ? '' : +sel.value; PM.a = m2; });
   } else if (q.type === 'order') {
     const seq = Array.isArray(a) ? a : q.items.map(x => x.i), txt = i => (q.items.find(x => x.i === i) || {}).t;
-    box.innerHTML = `<div class="small muted" style="margin-bottom:8px">Use ↑ ↓ to move the items.</div>` + seq.map((i, k) => `<div class="ord"><span class="small muted" style="min-width:18px">${k + 1}</span><span class="tx">${esc(txt(i))}</span>
+    box.innerHTML = `<div class="small muted" style="margin-bottom:8px">Tartibni ↑ ↓ tugmalari bilan o'zgartiring.</div>` + seq.map((i, k) => `<div class="ord"><span class="small muted" style="min-width:18px">${k + 1}</span><span class="tx">${esc(txt(i))}</span>
       <button data-up="${k}" ${k === 0 || lock ? 'disabled' : ''} aria-label="Up">↑</button><button data-dn="${k}" ${k === seq.length - 1 || lock ? 'disabled' : ''} aria-label="Down">↓</button></div>`).join('');
     const mv = (k, d) => { const s2 = seq.slice(); [s2[k], s2[k + d]] = [s2[k + d], s2[k]]; PM.a = s2; pmDraw(); };
     $$('[data-up]', box).forEach(b => b.onclick = () => mv(+b.dataset.up, -1));
@@ -534,24 +594,24 @@ function pmDraw() {
   }
   $('#pmnext').onclick = async () => {
     if (PM.res) { PM.i++; PM.a = undefined; PM.res = null; pmDraw(); window.scrollTo(0, 0); return; }
-    if (PM.a === undefined || PM.a === '') return toast('Choose or type an answer first.');
+    if (PM.a === undefined || PM.a === '') return toast("Avval javobni tanlang yoki yozing.");
     const b = $('#pmnext'); b.disabled = true;
     try {
       PM.res = await api('stPracticeCheck', it.key, PM.a);
-      if (PM.res.coin) toast('+' + PM.res.coin + ' 🪙 for practising today!');
+      if (PM.res.coin) toast('+' + PM.res.coin + ' 🪙 — bugungi mashq uchun!');
       if (PM.res.score >= 1) { PM.right++; const d = pmDone(); d[it.key] = 1; ls.set(pmKey(), JSON.stringify(d)); } else PM.wrong.push(it);
       pmDraw();
     } catch (e) { b.disabled = false; fail(e); }
   };
 }
 async function review(id) {
-  $('#view').innerHTML = '<div class="card loading">Loading…</div>';
+  $('#view').innerHTML = '<div class="card loading">Yuklanmoqda…</div>';
   try {
     const r = await api('stQuizReview', id);
-    $('#view').innerHTML = `<button class="btn" id="rb" style="margin-bottom:12px">← Back</button>
-      <div class="card"><h2 style="margin-bottom:2px">${esc(r.title)}</h2><div class="small muted">${r.missed ? 'You did not take this quiz. Here are the right answers.' : 'Your mark: <b>' + r.score10 + '</b> / 10'}</div></div>
-      <div class="card">${r.items.map((x, i) => { const ok = x.score >= 1; return `<div class="rv ${ok ? 'ok' : ''}"><div class="small muted">${i + 1}. ${ok ? '✓ right' : x.score > 0 ? '◐ partly right' : '✗ wrong'}</div><b>${esc(x.prompt)}</b>
-        ${r.missed ? '' : `<div class="small y">Your answer: ${esc(x.your)}</div>`}${ok ? '' : `<div class="small r">Right answer: ${esc(x.right)}</div>`}${x.explain && !ok ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`; }).join('')}</div>`;
+    $('#view').innerHTML = `<button class="btn" id="rb" style="margin-bottom:12px">← Orqaga</button>
+      <div class="card"><h2 style="margin-bottom:2px">${esc(r.title)}</h2><div class="small muted">${r.missed ? "Siz bu quizda qatnashmagansiz. Mana to'g'ri javoblar." : 'Bahoingiz: <b>' + r.score10 + '</b> / 10'}</div></div>
+      <div class="card">${r.items.map((x, i) => { const ok = x.score >= 1; return `<div class="rv ${ok ? 'ok' : ''}"><div class="small muted">${i + 1}. ${ok ? '✓ to\'g\'ri' : x.score > 0 ? '◐ qisman to\'g\'ri' : '✗ xato'}</div><b>${esc(x.prompt)}</b>
+        ${r.missed ? '' : `<div class="small y">Javobingiz: ${esc(x.your)}</div>`}${ok ? '' : `<div class="small r">To'g'ri javob: ${esc(x.right)}</div>`}${x.explain && !ok ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`; }).join('')}</div>`;
     $('#rb').onclick = () => { tab = 'quizzes'; buildTabs(); render(); };
   } catch (e) { fail(e); tQuizzes(); }
 }
@@ -563,7 +623,7 @@ let Q = null, A = {}, touched = {}, off = 0, qTimer = null, saveT = null, dirty 
 function setClose(c) {
   if (!Q || !c || isNaN(Date.parse(c))) return;
   const more = Date.parse(c) > Date.parse(Q.closes_at) + 1000;
-  if (Date.parse(c) !== Date.parse(Q.closes_at)) { Q.closes_at = c; if (more) toast('Your teacher added more time'); }
+  if (Date.parse(c) !== Date.parse(Q.closes_at)) { Q.closes_at = c; if (more) toast("O'qituvchi vaqt qo'shdi"); }
 }
 async function syncClose() {
   if (!Q || PREVIEW) return;
@@ -594,11 +654,11 @@ function isAnswered(q) {
 }
 function drawQuiz() {
   const L = 'ABCDEF';
-  $('#quiz').innerHTML = `${PREVIEW ? '' : wmHtml()}<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5" id="qcount"></div></div><div class="timer" id="tmr">--:--</div></div></div>
+  $('#quiz').innerHTML = `${PREVIEW ? '' : wmHtml()}<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(uzS(Q.title))}</div><div class="small" style="color:#9cc3b5" id="qcount"></div></div><div class="timer" id="tmr">--:--</div></div></div>
     <div class="qprog"><i id="qpi" style="width:0"></i></div><div id="gbar"></div>
-    <div class="qwrap nocopy">${Q.questions.map((q, n) => `<div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${n + 1} of ${Q.questions.length}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>`).join('')}
-      <p class="small muted" style="text-align:center">Your answers are saved as you go. When you finish, press <b>Finish</b>.</p></div>
-    <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1">Saved</span><button class="btn primary" id="qfin" style="min-width:140px">Finish</button></div></div>`;
+    <div class="qwrap nocopy">${Q.questions.map((q, n) => `<div class="card q" data-q="${esc(q.id)}"><div class="n">Savol ${n + 1} / ${Q.questions.length}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>`).join('')}
+      <p class="small muted" style="text-align:center">Javoblaringiz avtomatik saqlanadi. Tugatgach, <b>Tugatish</b> tugmasini bosing.</p></div>
+    <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1">Saqlandi</span><button class="btn primary" id="qfin" style="min-width:140px">Tugatish</button></div></div>`;
   Q.questions.forEach(q => drawQ(q, L));
   $('#qfin').onclick = () => finish(false);
   progress();
@@ -609,36 +669,36 @@ function drawQ(q, L) {
     box.innerHTML = q.options.map((o, k) => `<button class="opt ${a !== undefined && +a === o.i ? 'on' : ''}" data-i="${o.i}"><span class="k">${q.type === 'tf' ? (o.i ? 'T' : 'F') : L[k]}</span><span>${esc(o.t)}</span></button>`).join('');
     $$('.opt', box).forEach(b => b.onclick = () => { A[q.id] = +b.dataset.i; changed(q); drawQ(q, L); });
   } else if (q.type === 'gap') {
-    box.innerHTML = `<input class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer" value="${esc(a || '')}">`;
+    box.innerHTML = `<input class="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Javobingizni yozing" value="${esc(a || '')}">`;
     $('input', box).oninput = e => { A[q.id] = e.target.value; changed(q, true); };
   } else if (q.type === 'match') {
     const cur = a || {};
-    box.innerHTML = q.left.map(l => `<div class="mrow"><div class="l">${esc(l.t)}</div><select data-l="${l.i}"><option value="">Choose…</option>${q.right.map(r => `<option value="${r.i}" ${cur[l.i] !== undefined && cur[l.i] !== '' && +cur[l.i] === r.i ? 'selected' : ''}>${esc(r.t)}</option>`).join('')}</select></div>`).join('');
+    box.innerHTML = q.left.map(l => `<div class="mrow"><div class="l">${esc(l.t)}</div><select data-l="${l.i}"><option value="">Tanlang…</option>${q.right.map(r => `<option value="${r.i}" ${cur[l.i] !== undefined && cur[l.i] !== '' && +cur[l.i] === r.i ? 'selected' : ''}>${esc(r.t)}</option>`).join('')}</select></div>`).join('');
     $$('select', box).forEach(s => s.onchange = () => { const m2 = Object.assign({}, A[q.id] || {}); m2[s.dataset.l] = s.value === '' ? '' : +s.value; A[q.id] = m2; changed(q); });
   } else if (q.type === 'order') {
     const seq = Array.isArray(a) ? a : q.items.map(x => x.i);
     const txt = i => (q.items.find(x => x.i === i) || {}).t;
-    box.innerHTML = `<div class="small muted" style="margin-bottom:8px">Use ↑ ↓ to move the items.</div>` + seq.map((i, k) => `<div class="ord"><span class="small muted" style="min-width:18px">${k + 1}</span><span class="tx">${esc(txt(i))}</span>
+    box.innerHTML = `<div class="small muted" style="margin-bottom:8px">Tartibni ↑ ↓ tugmalari bilan o'zgartiring.</div>` + seq.map((i, k) => `<div class="ord"><span class="small muted" style="min-width:18px">${k + 1}</span><span class="tx">${esc(txt(i))}</span>
       <button data-up="${k}" ${k === 0 ? 'disabled' : ''} aria-label="Up">↑</button><button data-dn="${k}" ${k === seq.length - 1 ? 'disabled' : ''} aria-label="Down">↓</button></div>`).join('');
     const mv = (k, d) => { const s2 = seq.slice(); [s2[k], s2[k + d]] = [s2[k + d], s2[k]]; A[q.id] = s2; changed(q); drawQ(q, L); };
     $$('[data-up]', box).forEach(b => b.onclick = () => mv(+b.dataset.up, -1));
     $$('[data-dn]', box).forEach(b => b.onclick = () => mv(+b.dataset.dn, 1));
   }
 }
-function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); if (Q && Q.seq) return; $('#qsave').textContent = 'Saving…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 5000 : 3000); }
-function progress() { if (Q && Q.seq) return; const n = answered(); $('#qcount').textContent = n + ' of ' + Q.questions.length + ' answered'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
+function changed(q, typing) { touched[q.id] = true; dirty = true; progress(); if (Q && Q.seq) return; $('#qsave').textContent = 'Saqlanmoqda…'; clearTimeout(saveT); saveT = setTimeout(save, typing ? 5000 : 3000); }
+function progress() { if (Q && Q.seq) return; const n = answered(); $('#qcount').textContent = Q.questions.length + ' tadan ' + n + ' tasiga javob berildi'; $('#qpi').style.width = (n / Q.questions.length * 100) + '%'; }
 async function save() {
-  if (PREVIEW) { dirty = false; if ($('#qsave')) $('#qsave').textContent = 'Saved (preview)'; return; }
+  if (PREVIEW) { dirty = false; if ($('#qsave')) $('#qsave').textContent = 'Saqlandi (namuna)'; return; }
   if (Q && Q.seq) { dirty = false; return; }   // one-question tests are saved on every answer (stQuizStep)
   if (!dirty || !Q) return; dirty = false;
-  try { const r = await api('stQuizSave', Q.quiz_id, A); if (r.closes) { setClose(r.closes); lastSync = Date.now(); } $('#qsave').textContent = r.ok ? 'Saved' : 'Time is over'; }
-  catch (e) { dirty = true; $('#qsave').textContent = 'Not saved — check the internet'; }
+  try { const r = await api('stQuizSave', Q.quiz_id, A); if (r.closes) { setClose(r.closes); lastSync = Date.now(); } $('#qsave').textContent = r.ok ? 'Saqlandi' : 'Vaqt tugadi'; }
+  catch (e) { dirty = true; $('#qsave').textContent = 'Saqlanmadi — internetni tekshiring'; }
 }
 function tickQ() {
   if (!Q) return;
   const left = Math.max(0, Math.round((Date.parse(Q.closes_at) - Date.now() - off) / 1000));
   const el = $('#tmr'); el.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); el.classList.toggle('low', left <= 60);
-  if (left === 60) toast('1 minute left');
+  if (left === 60) toast('1 daqiqa qoldi');
   if (!PREVIEW && left > 0 && Date.now() - lastSync > 20000 + Math.random() * 5000) syncClose();
   if (left === 0 && !endCheck) {
     if (PREVIEW) return finish(true);
@@ -652,17 +712,17 @@ function tickQ() {
 async function finish(auto) {
   if (submitting || !Q) return;
   const n = answered();
-  if (!auto && n < Q.questions.length && !confirm(`You answered ${n} of ${Q.questions.length}. Finish anyway?`)) return;
+  if (!auto && n < Q.questions.length && !confirm(`${Q.questions.length} ta savoldan ${n} tasiga javob berdingiz. Baribir tugatasizmi?`)) return;
   if (PREVIEW) return finishPreview(auto);
   submitting = true; clearInterval(qTimer); clearTimeout(saveT);
-  $('#qfin').disabled = true; $('#qsave').textContent = 'Sending…';
+  $('#qfin').disabled = true; $('#qsave').textContent = 'Yuborilmoqda…';
   let tries = 0;
   while (true) {
     try {
       const r = await api('stQuizSubmit', Q.quiz_id, A);
       return showQuizResult(r, auto);
     } catch (e) {
-      if (++tries >= 4) { submitting = false; $('#qfin').disabled = false; $('#qsave').textContent = 'Not sent. Press Finish again.'; return fail(e); }
+      if (++tries >= 4) { submitting = false; $('#qfin').disabled = false; $('#qsave').textContent = 'Yuborilmadi. «Tugatish»ni yana bosing.'; return fail(e); }
       await new Promise(r => setTimeout(r, 1500 * tries));
     }
   }
@@ -676,12 +736,12 @@ function wmHtml() {
 function drawSeq() {
   const q = Q.question, L = 'ABCDEF';
   Q.questions = [q];   // drawQ / answered() work on the current question only
-  $('#quiz').innerHTML = `${wmHtml()}<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(Q.title)}</div><div class="small" style="color:#9cc3b5">Question ${Q.index + 1} of ${Q.total} · no going back</div></div><div class="timer" id="tmr">--</div></div></div>
+  $('#quiz').innerHTML = `${wmHtml()}<div class="qtop"><div class="in"><div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(uzS(Q.title))}</div><div class="small" style="color:#9cc3b5">Savol ${Q.index + 1} / ${Q.total} · orqaga qaytib bo'lmaydi</div></div><div class="timer" id="tmr">--</div></div></div>
     <div class="qprog"><i id="qpi" style="width:${(Q.index / Q.total * 100).toFixed(1)}%"></i></div><div id="gbar"></div>
-    <div class="qwrap nocopy"><div class="card q" data-q="${esc(q.id)}"><div class="n">Question ${Q.index + 1} of ${Q.total}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>
+    <div class="qwrap nocopy"><div class="card q" data-q="${esc(q.id)}"><div class="n">Savol ${Q.index + 1} / ${Q.total}</div><div class="p">${esc(q.prompt)}</div><div class="body"></div></div>
       <div class="seqbar"><i id="sqb" style="width:100%"></i></div>
-      <p class="small muted" style="text-align:center">You have <b>${Q.q_secs} seconds</b> for this question. When the time is over, your answer is sent as it is.</p></div>
-    <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1"></span><button class="btn primary" id="qfin" style="min-width:140px">${Q.index + 1 < Q.total ? 'Next →' : 'Finish'}</button></div></div>`;
+      <p class="small muted" style="text-align:center">Bu savolga <b>${Q.q_secs} soniya</b> beriladi. Vaqt tugasa, javobingiz qanday bo'lsa, shunday yuboriladi.</p></div>
+    <div class="qbar"><div class="in"><span class="small muted" id="qsave" style="flex:1"></span><button class="btn primary" id="qfin" style="min-width:140px">${Q.index + 1 < Q.total ? 'Keyingi →' : 'Tugatish'}</button></div></div>`;
   drawQ(q, L);
   $('#qfin').onclick = () => seqSend(false);
   drawGuardBar(Q.guard);
@@ -697,9 +757,9 @@ function tickSeq() {
 async function seqSend(auto, done) {
   if (!Q || submitting) return;
   const q = Q.question;
-  if (!auto && !done && !isAnswered(q) && !confirm('No answer yet. Go to the next question anyway?')) return;
+  if (!auto && !done && !isAnswered(q) && !confirm("Hali javob yo'q. Baribir keyingi savolga o'tasizmi?")) return;
   submitting = true;
-  if ($('#qfin')) $('#qfin').disabled = true; if ($('#qsave')) $('#qsave').textContent = auto ? 'Time is over…' : 'Sending…';
+  if ($('#qfin')) $('#qfin').disabled = true; if ($('#qsave')) $('#qsave').textContent = auto ? 'Vaqt tugadi…' : 'Yuborilmoqda…';
   let tries = 0;
   while (true) {
     try {
@@ -715,7 +775,7 @@ async function seqSend(auto, done) {
         try { const r = await api('stQuizSubmit', Q.quiz_id, {}); submitting = false; return showQuizResult(r, true); } catch (x) {}
         submitting = false; fail(e); Q = null; return backHome();
       }
-      if (++tries >= 4) { submitting = false; if ($('#qfin')) $('#qfin').disabled = false; if ($('#qsave')) $('#qsave').textContent = 'Not sent. Press again.'; return fail(e); }
+      if (++tries >= 4) { submitting = false; if ($('#qfin')) $('#qfin').disabled = false; if ($('#qsave')) $('#qsave').textContent = 'Yuborilmadi. Yana bosing.'; return fail(e); }
       await new Promise(r => setTimeout(r, 1200 * tries));
     }
   }
@@ -726,24 +786,24 @@ document.addEventListener('selectstart', e => { if (Q && !PREVIEW && !(e.target 
 function showQuizResult(r, auto) {
   clearInterval(qTimer); clearTimeout(saveT); $$('.gwarn').forEach(x => x.remove());
     if (r.bonus) {
-      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.passed ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-      <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div><div class="muted">you needed ${r.pass}%</div>
-      ${r.passed ? `<p style="font-size:18px;font-weight:700;color:var(--good)">🎉 Passed!</p><p class="small muted">${esc(r.written || 'Your bonus is done.')}</p>`
-        : `<p style="font-size:18px;font-weight:700;color:var(--bad)">Not passed</p><p class="small muted">Your coins were not spent. ${r.status === 'failed1' ? 'You can try once more from tomorrow.' : 'You can ask again in a week.'} Practise your mistakes in Quizzes.</p>`}
-      <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.passed ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
+      <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div><div class="muted">kerak edi: ${r.pass}%</div>
+      ${r.passed ? `<p style="font-size:18px;font-weight:700;color:var(--good)">🎉 O'tdingiz!</p><p class="small muted">${/^pending/.test(r.written || '') ? 'Bonus oraliq nazorat bahosi kiritilgach qo\'shiladi.' : 'Bonusingiz berildi.'}</p>`
+        : `<p style="font-size:18px;font-weight:700;color:var(--bad)">O'tmadingiz</p><p class="small muted">Tangalaringiz yechilmadi. ${r.status === 'failed1' ? 'Ertadan yana bir marta urinishingiz mumkin.' : 'Bir haftadan keyin yana so\'rashingiz mumkin.'} Quizlar bo'limida xatolaringiz ustida ishlang.</p>`}
+      <button class="btn primary block" id="qdone">Sahifamga qaytish</button></div></div>`;
       $('#qdone').onclick = () => { tab = 'coins'; backHome(); setTimeout(() => { tab = 'coins'; }, 0); }; Q = null; submitting = false; return;
     }
     if (r.personal) {
-      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-      ${r.hidden ? `<div class="big" style="margin:12px 0 4px">✓</div><div class="muted">Your answers were sent.</div><p class="small muted">${auto ? 'Time is over. ' : ''}Your teacher will tell you the result.</p>`
-        : `<div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of ${r.max} · ${r.right} of ${r.total} fully right</div><p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook.</p>`}
-      <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
+      ${r.hidden ? `<div class="big" style="margin:12px 0 4px">✓</div><div class="muted">Javoblaringiz yuborildi.</div><p class="small muted">${auto ? 'Vaqt tugadi. ' : ''}Natijani o'qituvchi aytadi.</p>`
+        : `<div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">${r.max} balldan · ${r.total} tadan ${r.right} ta to'liq to'g'ri</div><p class="small muted">${auto ? 'Vaqt tugadi, javoblaringiz yuborildi. ' : ''}Bahoingiz jurnalga yoziladi.</p>`}
+      <button class="btn primary block" id="qdone">Sahifamga qaytish</button></div></div>`;
       $('#qdone').onclick = backHome; Q = null; submitting = false; return;
     }
-    $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-      <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
-      <p class="small muted">${auto ? 'Time is over, your answers were sent. ' : ''}Your mark goes to the gradebook. You will see the right answers when your teacher closes the quiz.</p>
-      <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+    $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
+      <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">10 balldan · ${r.total} tadan ${r.right} ta to'liq to'g'ri</div>
+      <p class="small muted">${auto ? 'Vaqt tugadi, javoblaringiz yuborildi. ' : ''}Bahoingiz jurnalga yoziladi. To'g'ri javoblarni o'qituvchi quizni yopgach ko'rasiz.</p>
+      <button class="btn primary block" id="qdone">Sahifamga qaytish</button></div></div>`;
     $('#qdone').onclick = backHome; Q = null; submitting = false; return;
 }
 function backHome() { $('#quiz').classList.add('hidden'); $('#quiz').innerHTML = ''; $('#main').classList.remove('hidden'); tab = 'home'; load(true); startPing(); }
@@ -786,25 +846,25 @@ function applyGuard(g) {
 }
 function drawGuardBar(g) {
   const el = $('#gbar'); if (!el) return;
-  el.innerHTML = g && g.count ? `<div class="gbar">⚠ Warning used (${esc(g.times.join(', '))}). If you leave the quiz again, it will be closed.</div>` : '';
+  el.innerHTML = g && g.count ? `<div class="gbar">⚠ Ogohlantirish berilgan (${esc(g.times.join(', '))}). Yana chiqib ketsangiz, quiz yopiladi.</div>` : '';
 }
 function showWarn(g) {
   $$('.gwarn').forEach(x => x.remove());
   const d = document.createElement('div'); d.className = 'gwarn';
-  d.innerHTML = `<div class="box"><div class="ic">⚠</div><h3>Warning ${g.count}/${g.limit - 1}</h3>
-    <p>You left the quiz${g.times.length ? ' at ' + esc(g.times[g.times.length - 1]) : ''}.</p>
-    <p><b>If you leave it again, the quiz will be closed</b> with the answers you have now, and you will get a yellow card.</p>
-    <p class="small muted">Your teacher can see this.</p><button class="btn primary block" id="gok">I understand</button></div>`;
+  d.innerHTML = `<div class="box"><div class="ic">⚠</div><h3>Ogohlantirish ${g.count}/${g.limit - 1}</h3>
+    <p>Siz quizdan chiqib ketdingiz${g.times.length ? ' (soat ' + esc(g.times[g.times.length - 1]) + ')' : ''}.</p>
+    <p><b>Yana chiqib ketsangiz, quiz yopiladi</b> — hozirgi javoblaringiz yuboriladi va sizga sariq karta beriladi.</p>
+    <p class="small muted">O'qituvchi buni ko'radi.</p><button class="btn primary block" id="gok">Tushundim</button></div>`;
   document.body.appendChild(d); $('#gok').onclick = () => d.remove();
 }
 function showLeftClosed(title, g) {
   $$('.gwarn').forEach(x => x.remove());
   const r = (g && g.result) || {};
   $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card gclosed" style="text-align:center;padding:28px 18px"><div class="ic">⚠</div>
-    <h2 style="color:#d32f2f;margin:10px 0 6px">Quiz closed</h2><div class="small muted">${esc(title || '')}</div>
-    <p><b>You left the quiz ${g ? g.count : 2} times</b>${g && g.times.length ? ' (' + esc(g.times.join(', ')) + ')' : ''}.<br>Your answers until then were sent${r.score != null ? ': <b>' + esc(r.score) + ' / ' + esc(r.max) + '</b>' : ''}.</p>
-    <p>🟨 You got a <b>yellow card</b>.</p><p class="small muted">Only your teacher can reopen the quiz (for example, if you had a phone call).</p>
-    <button class="btn primary block" id="qdone">Back to my page</button></div></div>`;
+    <h2 style="color:#d32f2f;margin:10px 0 6px">Quiz yopildi</h2><div class="small muted">${esc(title || '')}</div>
+    <p><b>Siz quizdan ${g ? g.count : 2} marta chiqib ketdingiz</b>${g && g.times.length ? ' (' + esc(g.times.join(', ')) + ')' : ''}.<br>Shu paytgacha bergan javoblaringiz yuborildi${r.score != null ? ': <b>' + esc(r.score) + ' / ' + esc(r.max) + '</b>' : ''}.</p>
+    <p>🟨 Sizga <b>sariq karta</b> berildi.</p><p class="small muted">Quizni faqat o'qituvchi qayta ochishi mumkin (masalan, sizga qo'ng'iroq kelgan bo'lsa).</p>
+    <button class="btn primary block" id="qdone">Sahifamga qaytish</button></div></div>`;
   $('#qdone').onclick = backHome;
 }
 /* After the quiz screen opens: warnings already used, and a leave the page could not report (it was closed). */
@@ -840,35 +900,35 @@ function startPing() {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) sigClose(); else if (H && !Q && !SL && !PREVIEW) { sigOpen(); checkNow(); } });
 async function startPreview() {
-  $('#hi').textContent = 'Teacher preview'; $('#who').textContent = 'Student view'; $('#sub').textContent = '';
+  $('#hi').textContent = "O'qituvchi ko'rinishi"; $('#who').textContent = "Talaba ko'rinishi"; $('#sub').textContent = '';
   $('#main').classList.remove('hidden'); $('#quiz').classList.add('hidden');
-  if (!KEY) { $('#view').innerHTML = '<div class="card"><h2>Sign in first</h2><p class="muted">Open the teacher site, sign in, then press <b>Student view</b> on a quiz.</p></div>'; return; }
-  $('#view').innerHTML = '<div class="card loading">Loading…</div>';
+  if (!KEY) { $('#view').innerHTML = '<div class="card"><h2>Avval tizimga kiring</h2><p class="muted">O\'qituvchi saytini oching, kiring, so\'ng quizda <b>Talaba ko\'rinishi</b>ni bosing.</p></div>'; return; }
+  $('#view').innerHTML = '<div class="card loading">Yuklanmoqda…</div>';
   try {
     const p = await api('quizPreview', PREVIEW);
     Q = { quiz_id: PREVIEW, title: p.title, questions: p.questions, closes_at: new Date(Date.now() + p.duration_min * 60000).toISOString() };
     off = 0; A = {}; touched = {}; dirty = false; submitting = false;
     $('#main').classList.add('hidden'); $('#quiz').classList.remove('hidden'); window.scrollTo(0, 0);
     drawQuiz();
-    $('#quiz').insertAdjacentHTML('afterbegin', '<div class="pvbar">Preview: this is exactly what students see. Nothing is saved.</div>');
+    $('#quiz').insertAdjacentHTML('afterbegin', '<div class="pvbar">Namuna: talabalar aynan shuni ko\'radi. Hech narsa saqlanmaydi.</div>');
     clearInterval(qTimer); qTimer = setInterval(tickQ, 1000); tickQ();
-  } catch (e) { $('#view').innerHTML = `<div class="card"><h2>Could not open the quiz</h2><p class="muted">${esc(e.message || e)}</p><button class="btn primary" onclick="startPreview()">Try again</button></div>`; }
+  } catch (e) { $('#view').innerHTML = `<div class="card"><h2>Quizni ochib bo'lmadi</h2><p class="muted">${esc(e.message || e)}</p><button class="btn primary" onclick="startPreview()">Qayta urinish</button></div>`; }
 }
 async function finishPreview(auto) {
   submitting = true; clearInterval(qTimer); clearTimeout(saveT);
-  $('#qfin').disabled = true; $('#qsave').textContent = 'Checking…';
+  $('#qfin').disabled = true; $('#qsave').textContent = 'Tekshirilmoqda…';
   try {
     const r = await api('quizPreviewCheck', PREVIEW, A);
-    $('#quiz').innerHTML = `<div class="pvbar">Preview: nothing was written to the gradebook.</div>
-      <div class="qwrap" style="padding-top:24px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(Q.title)}</div>
-        <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">out of 10 · ${r.right} of ${r.total} fully right</div>
-        <p class="small muted">${auto ? 'Time is over, the answers were sent. ' : ''}A real student sees this screen. The answers below appear on their page after you close the quiz.</p>
-        <button class="btn primary block" id="pvagain">Try again</button></div>
-      <div class="card"><h2>Answers (what the student sees after the quiz)</h2>${r.items.map((x, i) => { const ok = x.score >= 1; return `<div class="rv ${ok ? 'ok' : ''}"><div class="small muted">${i + 1}. ${ok ? '✓ right' : x.score > 0 ? '◐ partly right' : '✗ wrong'}</div><b>${esc(x.prompt)}</b>
-        <div class="small y">Your answer: ${esc(x.your)}</div>${ok ? '' : `<div class="small r">Right answer: ${esc(x.right)}</div>`}${x.explain && !ok ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`; }).join('')}</div></div>`;
+    $('#quiz').innerHTML = `<div class="pvbar">Namuna: jurnalga hech narsa yozilmadi.</div>
+      <div class="qwrap" style="padding-top:24px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
+        <div class="big" style="margin:12px 0 4px">${r.score10}</div><div class="muted">10 balldan · ${r.total} tadan ${r.right} ta to'liq to'g'ri</div>
+        <p class="small muted">${auto ? 'Vaqt tugadi, javoblar yuborildi. ' : ''}Haqiqiy talaba shu ekranni ko'radi. Quizni yopganingizdan keyin pastdagi javoblar uning sahifasida chiqadi.</p>
+        <button class="btn primary block" id="pvagain">Qayta urinish</button></div>
+      <div class="card"><h2>Javoblar (talaba quizdan keyin ko'radi)</h2>${r.items.map((x, i) => { const ok = x.score >= 1; return `<div class="rv ${ok ? 'ok' : ''}"><div class="small muted">${i + 1}. ${ok ? '✓ to\'g\'ri' : x.score > 0 ? '◐ qisman to\'g\'ri' : '✗ xato'}</div><b>${esc(x.prompt)}</b>
+        <div class="small y">Javobingiz: ${esc(x.your)}</div>${ok ? '' : `<div class="small r">To'g'ri javob: ${esc(x.right)}</div>`}${x.explain && !ok ? `<div class="small muted">${esc(x.explain)}</div>` : ''}</div>`; }).join('')}</div></div>`;
     $('#pvagain').onclick = startPreview; window.scrollTo(0, 0);
     Q = null;
-  } catch (e) { $('#qfin').disabled = false; $('#qsave').textContent = 'Not checked. Press Finish again.'; fail(e); }
+  } catch (e) { $('#qfin').disabled = false; $('#qsave').textContent = 'Tekshirilmadi. «Tugatish»ni yana bosing.'; fail(e); }
   submitting = false;
 }
 
@@ -878,7 +938,7 @@ const FBV = '10.12.2', LCOL = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], LSH 
 function loadScript(src) {
   return new Promise((ok, no) => {
     if (Array.from(document.scripts).some(x => x.src === src)) return ok();
-    const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => { el.remove(); no(new Error('Could not load the game. Check the internet.')); }; document.head.appendChild(el);
+    const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => { el.remove(); no(new Error("O'yinni yuklab bo'lmadi. Internetni tekshiring.")); }; document.head.appendChild(el);
   });
 }
 async function fbApp(name) {
@@ -897,46 +957,46 @@ const slBox = h => `<div class="lvs">${h}</div>`;
 async function joinLive(playGid) {
   clearInterval(pingT); if (typeof playGid !== 'string') playGid = null;
   $('#main').classList.add('hidden'); const el = $('#live'); el.classList.remove('hidden'); window.scrollTo(0, 0);
-  el.innerHTML = slBox('<div class="lvs-big">Connecting…</div>');
+  el.innerHTML = slBox('<div class="lvs-big">Ulanmoqda…</div>');
   try {
     let j = null;
     if (KEY) { try { j = await api('stLiveJoin'); } catch (e) { j = null; } if (j && playGid && j.gid !== playGid) j = null; }
-    if (!j && !playGid) throw new Error('There is no live game for your group now.');
+    if (!j && !playGid) throw new Error("Hozir guruhingiz uchun Live o'yin yo'q.");
     if (!j) j = { gid: playGid, title: '', ticket: null, guest: true };   // not on the group list: play as a guest, no mark
     if (!H && !IS_MAIN_API && !FB_PICKED) { try { const c = await api('pubCfg'); if (c && c.fb && c.fb.databaseURL) FB_CFG = c.fb; } catch (e) {} FB_PICKED = true; }
     const fb = await fbApp('student');
     SL = { j, fb, g: fb.db.ref('games/' + j.gid), state: undefined, rt: 0, my: {}, qi: -1, qd: null, sent: null, rev: {}, tick: null, n: 0 };
     if (j.guest) {
       const meta = (await SL.g.child('meta').once('value')).val();
-      if (!meta) throw new Error('This game is over, or the QR code is old.');
+      if (!meta) throw new Error("Bu o'yin tugagan yoki QR kod eskirgan.");
       j.title = meta.title || 'Live game';
     }
     if ((await SL.g.child('kicked/' + fb.uid).once('value')).val()) await slNewUser();
     const me = (await SL.g.child('players/' + SL.fb.uid).once('value')).val();
     if (me && me.nick) slListen(); else slNick();
-  } catch (e) { SL = null; el.innerHTML = slBox(`<div class="lvs-big">Could not join</div><p class="lvs-dim" style="text-align:center">${esc(e.message || e)}</p><button class="btn block" onclick="joinLive(PLAY)">Try again</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Back</button>' : ''}`); }
+  } catch (e) { SL = null; el.innerHTML = slBox(`<div class="lvs-big">Qo'shilib bo'lmadi</div><p class="lvs-dim" style="text-align:center">${esc(e.message || e)}</p><button class="btn block" onclick="joinLive(PLAY)">Qayta urinish</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Orqaga</button>' : ''}`); }
 }
 async function slNewUser() { await SL.fb.auth.signOut(); await SL.fb.auth.signInAnonymously(); SL.fb.uid = SL.fb.auth.currentUser.uid; }
 const SL_AV = ['🦊', '🐼', '🐯', '🦁', '🐸', '🐵', '🐨', '🐰', '🐶', '🐱', '🐧', '🦉', '🐙', '🦄', '🐢', '🐬', '🦖', '🐝', '🦋', '🐳', '🐲', '🦜', '🐻', '🐹'];
-const SL_TEAMS = [['Red Foxes', '#e21b3c', '🦊'], ['Blue Sharks', '#1368ce', '🦈'], ['Gold Lions', '#c58a00', '🦁'], ['Green Frogs', '#26890c', '🐸'], ['Purple Owls', '#7c3aed', '🦉'], ['Orange Tigers', '#ea580c', '🐯']];
+const SL_TEAMS = [['Qizil tulkilar', '#e21b3c', '🦊'], ['Ko\'k akulalar', '#1368ce', '🦈'], ['Oltin sherlar', '#c58a00', '🦁'], ['Yashil qurbaqalar', '#26890c', '🐸'], ['Binafsha boyqushlar', '#7c3aed', '🦉'], ['To\'q sariq yo\'lbarslar', '#ea580c', '🐯']];
 const SL_REACT = ['👍', '😂', '😮', '🔥', '❤️', '👏', '🎉', '😢'];
 function slNick(msg) {
   const G = SL.j.guest;
   let av = SL_AV.includes(ls.get('ds_av')) ? ls.get('ds_av') : SL_AV[Math.floor(Math.random() * SL_AV.length)];
   $('#live').innerHTML = slBox(`<div class="lvs-dim">${esc(SL.j.title)}</div>${msg ? `<p style="color:#fde68a;margin:0">${esc(msg)}</p>` : ''}
-    ${G ? `<div class="lvs-card" style="text-align:left;font-size:15px">You are joining as a <b style="display:inline;font-size:inherit">guest</b>: you can play, but your result does not go to the gradebook. Students of this group: open your page from the bot to get a mark.</div>
-    <h2 class="lvs-h">Your first and last name</h2><input id="lvname" maxlength="60" autocomplete="name" placeholder="e.g. Aziza Karimova" value="${esc(ls.get('ds_gname') || '')}">` : ''}
-    <h2 class="lvs-h">Choose a nickname</h2>
-    <input id="lvnick" maxlength="20" autocomplete="off" placeholder="e.g. Tiger" value="${esc(ls.get('ds_nick') || '')}">
-    <p class="small lvs-dim" style="margin:0">Everyone sees it on the screen. Your teacher knows who you are, so choose a polite one.</p>
-    <h2 class="lvs-h">Choose your avatar</h2><div class="lvs-avs">${SL_AV.map(a => `<button type="button" data-av="${a}" class="${a === av ? 'on' : ''}">${a}</button>`).join('')}</div>
-    <button class="btn block lvs-go" id="lvgo">Join</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Back</button>' : ''}`);
+    ${G ? `<div class="lvs-card" style="text-align:left;font-size:15px">Siz <b style="display:inline;font-size:inherit">mehmon</b> sifatida qo'shilyapsiz: o'ynashingiz mumkin, lekin natija jurnalga yozilmaydi. Shu guruh talabalari: baho olish uchun sahifangizni botdan oching.</div>
+    <h2 class="lvs-h">Ism va familiyangiz</h2><input id="lvname" maxlength="60" autocomplete="name" placeholder="masalan, Aziza Karimova" value="${esc(ls.get('ds_gname') || '')}">` : ''}
+    <h2 class="lvs-h">Taxallus tanlang</h2>
+    <input id="lvnick" maxlength="20" autocomplete="off" placeholder="masalan, Burgut" value="${esc(ls.get('ds_nick') || '')}">
+    <p class="small lvs-dim" style="margin:0">Uni hamma ekranda ko'radi. O'qituvchi kimligingizni biladi — odobli taxallus tanlang.</p>
+    <h2 class="lvs-h">Avatar tanlang</h2><div class="lvs-avs">${SL_AV.map(a => `<button type="button" data-av="${a}" class="${a === av ? 'on' : ''}">${a}</button>`).join('')}</div>
+    <button class="btn block lvs-go" id="lvgo">Qo'shilish</button>${KEY ? '<button class="btn block" onclick="leaveLive()">Orqaga</button>' : ''}`);
   $$('[data-av]').forEach(b => b.onclick = () => { av = b.dataset.av; $$('[data-av]').forEach(x => x.classList.toggle('on', x === b)); });
   const go = async () => {
     const nick = $('#lvnick').value.trim().replace(/\s+/g, ' ').slice(0, 20);
     const gname = G ? $('#lvname').value.trim().replace(/\s+/g, ' ').slice(0, 60) : '';
-    if (G && gname.length < 2) return toast('Type your first and last name', true);
-    if (!nick) return toast('Type a nickname', true);
+    if (G && gname.length < 2) return toast('Ism va familiyangizni yozing', true);
+    if (!nick) return toast('Taxallus yozing', true);
     $('#lvgo').disabled = true;
     try {
       ls.set('ds_nick', nick); ls.set('ds_av', av); if (G) ls.set('ds_gname', gname);
@@ -944,7 +1004,7 @@ function slNick(msg) {
       if (G) me.guest = gname; else await SL.g.child('tickets/' + SL.fb.uid).set(SL.j.ticket);
       await SL.g.child('players/' + SL.fb.uid).set(me);
       slListen();
-    } catch (e) { $('#lvgo').disabled = false; toast(/permission/i.test(e.message || '') ? 'The game is closed or you were removed.' : 'Could not join: ' + e.message, true); }
+    } catch (e) { $('#lvgo').disabled = false; toast(/permission/i.test(e.message || '') ? "O'yin yopilgan yoki siz chiqarib yuborilgansiz." : "Qo'shilib bo'lmadi: " + e.message, true); }
   };
   $('#lvgo').onclick = go; $('#lvnick').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
@@ -963,7 +1023,7 @@ function slListen() {
   SL.g.child('zc').on('value', x => { SL.zc = x.val(); slZoneDraw(); });
   SL.g.child('kicked/' + uid).on('value', x => {
     if (!x.val()) return;
-    slOff(); slNewUser().then(() => slNick('Your teacher removed your nickname. Choose another one.')).catch(fail);
+    slOff(); slNewUser().then(() => slNick("O'qituvchi taxallusingizni o'chirdi. Boshqasini tanlang.")).catch(fail);
   });
 }
 function slOff() {
@@ -972,13 +1032,13 @@ function slOff() {
   if (SL.revRef) SL.revRef.off(); clearInterval(SL.tick); clearInterval(SL.walkT); SL.walkT = null;
 }
 function leaveLive() {
-  if (!KEY) { slOff(); SL = null; $('#live').innerHTML = slBox('<div class="lvs-big">Thanks for playing!</div><p class="lvs-dim" style="text-align:center">You can close this page.</p>'); return; }
+  if (!KEY) { slOff(); SL = null; $('#live').innerHTML = slBox('<div class="lvs-big">O\'ynaganingiz uchun rahmat!</div><p class="lvs-dim" style="text-align:center">Bu sahifani yopishingiz mumkin.</p>'); return; }
   slOff(); SL = null; $('#live').classList.add('hidden'); $('#live').innerHTML = ''; $('#main').classList.remove('hidden'); load(true); startPing(); }
 const slCoop = () => SL.meta && SL.meta.mode === 'coop';
 function slMission() {
   const m = SL.mission; if (!m) return '';
   const pct = Math.min(100, Math.round(m.fuel / Math.max(1, m.goal) * 100));
-  return `<div class="lvs-card" style="font-size:16px">🚀 Class Mission: <b style="display:inline;font-size:inherit">${m.fuel} / ${m.goal}</b> right answers ${m.fuel >= m.goal ? '✅' : ''}
+  return `<div class="lvs-card" style="font-size:16px">🚀 Sinf missiyasi: <b style="display:inline;font-size:inherit">${m.fuel} / ${m.goal}</b> to'g'ri javob ${m.fuel >= m.goal ? '✅' : ''}
     <div class="lvs-mbar"><i style="width:${pct}%"></i><span style="left:calc(22px + (100% - 44px) * ${pct / 100})">🚀</span></div></div>`;
 }
 function slTeam() {
@@ -986,7 +1046,7 @@ function slTeam() {
   const r = (SL.tb || []).find(x => x && x.k === SL.team);
   return `<span class="lvs-team" style="background:${t[1]}">${t[2]} ${esc(t[0])}${r && r.rank ? ' · ' + ord(r.rank) : ''}</span>`;
 }
-const slRank = () => slCoop() ? slMission() : SL.my && SL.my.rank ? `<div class="lvs-card"><span class="lvs-dim">${esc(((SL.av || '') + ' ' + (SL.my.nick || '')).trim())}</span><b>${ord(SL.my.rank)} place</b>${(SL.my.score || 0).toLocaleString('en-US')} points${slTeam() ? '<div style="margin-top:8px">' + slTeam() + '</div>' : ''}</div>` : '';
+const slRank = () => slCoop() ? slMission() : SL.my && SL.my.rank ? `<div class="lvs-card"><span class="lvs-dim">${esc(((SL.av || '') + ' ' + (SL.my.nick || '')).trim())}</span><b>${ord(SL.my.rank)}</b>${(SL.my.score || 0).toLocaleString('en-US')} ball${slTeam() ? '<div style="margin-top:8px">' + slTeam() + '</div>' : ''}</div>` : '';
 function slReact() {
   return `<div class="lvs-react">${SL_REACT.map(e => `<button type="button" data-re="${e}">${e}</button>`).join('')}</div>`;
 }
@@ -1000,12 +1060,12 @@ function slReactBind() {
 }
 function slFeedback() {
   const f = SL.fbf || (SL.fbf = {});
-  if (SL.fbSent) return '<div class="lvs-card">Thanks for your feedback! 💚</div>';
-  return `<div class="lvs-card lvs-fb"><span>How did you like this game?</span>
+  if (SL.fbSent) return '<div class="lvs-card">Fikringiz uchun rahmat! 💚</div>';
+  return `<div class="lvs-card lvs-fb"><span>O'yin sizga yoqdimi?</span>
     <div class="row2">${[1, 2, 3, 4, 5].map(k => `<button type="button" data-fr="${k}" class="${f.r >= k ? 'on' : ''}">${f.r >= k ? '★' : '☆'}</button>`).join('')}</div>
-    <span>Did you learn something?</span><div class="row2"><button type="button" class="txt ${f.l === true ? 'on' : ''}" data-fl="1">👍 Yes</button><button type="button" class="txt ${f.l === false ? 'on' : ''}" data-fl="0">👎 No</button></div>
-    <span>How do you feel?</span><div class="row2">${['😃', '😐', '😞'].map((e, k) => `<button type="button" data-ff="${k}" class="${f.f === k ? 'on' : ''}">${e}</button>`).join('')}</div>
-    <button type="button" class="btn block lvs-go" id="slfbgo" ${f.r ? '' : 'disabled'}>Send</button></div>`;
+    <span>Biror narsa o'rgandingizmi?</span><div class="row2"><button type="button" class="txt ${f.l === true ? 'on' : ''}" data-fl="1">👍 Ha</button><button type="button" class="txt ${f.l === false ? 'on' : ''}" data-fl="0">👎 Yo'q</button></div>
+    <span>Kayfiyatingiz qanday?</span><div class="row2">${['😃', '😐', '😞'].map((e, k) => `<button type="button" data-ff="${k}" class="${f.f === k ? 'on' : ''}">${e}</button>`).join('')}</div>
+    <button type="button" class="btn block lvs-go" id="slfbgo" ${f.r ? '' : 'disabled'}>Yuborish</button></div>`;
 }
 function slFeedbackBind() {
   const f = SL.fbf || (SL.fbf = {}), re = () => { const b = $('#slfb'); if (b) { b.innerHTML = slFeedback(); slFeedbackBind(); } };
@@ -1014,7 +1074,7 @@ function slFeedbackBind() {
   $$('[data-ff]').forEach(b => b.onclick = () => { f.f = +b.dataset.ff; re(); });
   const go = $('#slfbgo'); if (go) go.onclick = async () => {
     go.disabled = true; const v = { r: f.r }; if (f.l != null) v.l = f.l; if (f.f != null) v.f = f.f;
-    try { await SL.g.child('fb/' + SL.fb.uid).set(v); SL.fbSent = true; re(); } catch (e) { go.disabled = false; toast('Could not send. The game may be closed.', true); }
+    try { await SL.g.child('fb/' + SL.fb.uid).set(v); SL.fbSent = true; re(); } catch (e) { go.disabled = false; toast("Yuborib bo'lmadi. O'yin yopilgan bo'lishi mumkin.", true); }
   };
 }
 async function slRender() {
@@ -1022,12 +1082,12 @@ async function slRender() {
   const st = SL.state, el = $('#live'), my = ++SL.rt;
   clearInterval(SL.tick);
   if (st === undefined) return;
-  if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">The game is over</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`); return; }
+  if (st === null) { el.innerHTML = slBox(`<div class="lvs-big">O'yin tugadi</div>${slRank()}<button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Sahifamga qaytish' : 'Yopish'}</button>`); return; }
   if (st.phase === 'lobby') {
-    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: answer questions with your crew and run from the robot.' + (md.zones ? ' Then walk into the green safe zones together — everyone must be safe to reach the next level!' : ' Enough right answers together → next level!') : md.mode === 'coop' ? '🚀 Class Mission: work together — every right answer helps the whole group.'
-      : md.scoring === 'confidence' ? '😎 Confidence: after each answer, say how sure you are. Sure and right = more points, sure and wrong = minus points.' : md.scoring === 'accuracy' ? '🎯 Accuracy: only right answers count, take your time.' : '⚡ Right and fast answers get more points.';
-    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">You're in!</div><div class="lvs-card"><span class="lvs-dim">Your nickname</span><b><span style="font-size:44px">${esc(SL.av || '')}</span><br>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Look at the screen. The game starts soon.</div>
-      <div class="lvs-card" style="font-size:16px">${how}${md.teams ? `<br>👥 You will play in a team (${md.teams} teams).` : ''}</div>${slReact()}`);
+    const md = SL.meta || {}, how = md.mode === 'robot' ? '🤖 Robot Run: jamoangiz bilan savollarga javob bering va robotdan qoching.' + (md.zones ? " Keyin hammangiz yashil xavfsiz zonalarga kiring — keyingi bosqichga o'tish uchun hamma xavfsiz bo'lishi kerak!" : " Birgalikda yetarli to'g'ri javob → keyingi bosqich!") : md.mode === 'coop' ? "🚀 Sinf missiyasi: birga ishlang — har bir to'g'ri javob butun guruhga yordam beradi."
+      : md.scoring === 'confidence' ? "😎 Ishonch: har javobdan keyin qanchalik ishonchingiz borligini belgilang. Ishonib to'g'ri topsangiz — ko'proq ball, ishonib xato qilsangiz — minus ball." : md.scoring === 'accuracy' ? "🎯 Aniqlik: faqat to'g'ri javoblar hisoblanadi, shoshilmang." : "⚡ To'g'ri va tez javob ko'proq ball beradi.";
+    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:12vh">Siz o'yindasiz!</div><div class="lvs-card"><span class="lvs-dim">Taxallusingiz</span><b><span style="font-size:44px">${esc(SL.av || '')}</span><br>${esc((SL.my && SL.my.nick) || ls.get('ds_nick') || '')}</b>Ekranga qarang. O'yin tez orada boshlanadi.</div>
+      <div class="lvs-card" style="font-size:16px">${how}${md.teams ? `<br>👥 Jamoada o'ynaysiz (${md.teams} ta jamoa).` : ''}</div>${slReact()}`);
     slReactBind(); return;
   }
   if (SL_RR.includes(st.phase)) {
@@ -1045,14 +1105,14 @@ async function slRender() {
     }
     const q = SL.qd; if (!q) return;
     const conf = SL.meta && SL.meta.scoring === 'confidence' && SL.meta.mode === 'classic', pk = SL.sent ? SL.sent.a : SL.pick;
-    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1} of ${q.total}</span><span id="slteam">${slTeam()}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
+    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Savol ${st.q + 1} / ${q.total}</span><span id="slteam">${slTeam()}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
       <div class="lvs-q">${esc(q.prompt)}</div>
       ${conf && SL.pick != null && !SL.sent && !SL.late ? `<div class="lvs-opts"><button class="lvs-opt pick" style="background:${LCOL[pk]}" disabled><span class="sh">${LSH[pk]}</span><span>${esc(q.options[pk])}</span></button></div>
-        <h2 class="lvs-h" style="text-align:center">How sure are you?</h2>
-        <div class="lvs-conf"><button data-c="1">🙂 Not sure ×1<small>right +500 · wrong 0</small></button><button data-c="2">😊 Sure ×2<small>right +1000 · wrong −500</small></button><button data-c="3">😎 Very sure ×3<small>right +1500 · wrong −1000</small></button></div>
-        <button class="btn block" id="slback">← Change my answer</button>`
+        <h2 class="lvs-h" style="text-align:center">Qanchalik ishonchingiz bor?</h2>
+        <div class="lvs-conf"><button data-c="1">🙂 Ishonchim yo'q ×1<small>to'g'ri +500 · xato 0</small></button><button data-c="2">😊 Ishonaman ×2<small>to'g'ri +1000 · xato −500</small></button><button data-c="3">😎 Juda ishonaman ×3<small>to'g'ri +1500 · xato −1000</small></button></div>
+        <button class="btn block" id="slback">← Javobni o'zgartirish</button>`
       : `<div class="lvs-opts">${q.options.map((o, k) => `<button class="lvs-opt ${SL.sent ? (SL.sent.a === k ? 'pick' : 'dim') : ''}" data-k="${k}" style="background:${LCOL[k]}" ${SL.sent || SL.late ? 'disabled' : ''}><span class="sh">${LSH[k]}</span><span>${esc(o)}</span></button>`).join('')}</div>
-      ${SL.sent ? `<div class="lvs-card">Answer sent ✓${SL.sent.c ? ` · ${['', '🙂 not sure', '😊 sure', '😎 very sure'][SL.sent.c]}` : ''}<br><span class="lvs-dim">Wait for the others.</span></div>` : SL.late ? '<div class="lvs-card">Too late for this question.</div>' : ''}`}`);
+      ${SL.sent ? `<div class="lvs-card">Javob yuborildi ✓${SL.sent.c ? ` · ${['', '🙂 ishonchsiz', '😊 ishonaman', '😎 juda ishonaman'][SL.sent.c]}` : ''}<br><span class="lvs-dim">Boshqalarni kuting.</span></div>` : SL.late ? '<div class="lvs-card">Bu savolga kech qoldingiz.</div>' : ''}`}`);
     $$('[data-k]', el).forEach(b => b.onclick = () => { if (conf) { SL.pick = +b.dataset.k; slRender(); } else slAnswer(+b.dataset.k); });
     $$('[data-c]', el).forEach(b => b.onclick = () => slAnswer(SL.pick, +b.dataset.c));
     const bk = $('#slback'); if (bk) bk.onclick = () => { SL.pick = null; slRender(); };
@@ -1065,7 +1125,7 @@ async function slRender() {
   }
   if (st.phase === 'reveal' || st.phase === 'board') {
     if (!SL.rev[st.q]) {
-      el.innerHTML = slBox('<div class="lvs-big">Time is up!</div>');
+      el.innerHTML = slBox('<div class="lvs-big">Vaqt tugadi!</div>');
       if (SL.revRef) SL.revRef.off();
       SL.revRef = SL.g.child('reveal/' + st.q);
       SL.revRef.on('value', x => { if (x.val()) { SL.rev[st.q] = x.val(); SL.revRef.off(); slRender(); } });
@@ -1077,20 +1137,20 @@ async function slRender() {
     const ok = !!(SL.my && SL.my.lastOk);
     const right = q ? `${LSH[rv.correct]} ${esc(q.options[rv.correct])}` : '';
     const last = (SL.my && SL.my.last) || 0, coop = slCoop();
-    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Question ${st.q + 1}${q ? ' of ' + q.total : ''}</span><span id="slteam">${slTeam()}</span></div>
-      ${!mine ? `<div class="lvs-res na">No answer<small>Right answer: ${right}</small></div>` : ok ? `<div class="lvs-res ok">✓ Correct<small>${coop ? '+1 fuel for the class rocket 🚀' : '+' + last.toLocaleString('en-US') + ' points'}</small></div>` : `<div class="lvs-res no">✗ Wrong<small>${last < 0 ? last.toLocaleString('en-US') + ' points · ' : ''}Right answer: ${right}</small></div>`}
-      ${slRank()}${st.phase === 'board' ? `<p class="lvs-dim" style="text-align:center">${coop ? 'Look at the screen: how far is our rocket?' : SL.meta && SL.meta.teams ? 'Look at the screen for the teams.' : 'Look at the screen for the top 5.'}</p>` : ''}${slReact()}`);
+    el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">Savol ${st.q + 1}${q ? ' / ' + q.total : ''}</span><span id="slteam">${slTeam()}</span></div>
+      ${!mine ? `<div class="lvs-res na">Javob yo'q<small>To'g'ri javob: ${right}</small></div>` : ok ? `<div class="lvs-res ok">✓ To'g'ri<small>${coop ? '+1 yoqilg\'i — sinf raketasiga 🚀' : '+' + last.toLocaleString('en-US') + ' ball'}</small></div>` : `<div class="lvs-res no">✗ Xato<small>${last < 0 ? last.toLocaleString('en-US') + ' ball · ' : ''}To'g'ri javob: ${right}</small></div>`}
+      ${slRank()}${st.phase === 'board' ? `<p class="lvs-dim" style="text-align:center">${coop ? 'Ekranga qarang: raketamiz qayergacha yetdi?' : SL.meta && SL.meta.teams ? 'Jamoalar natijasi ekranda.' : 'Top-5 ekranda.'}</p>` : ''}${slReact()}`);
     slReactBind();
     return;
   }
   if (st.phase === 'end') {
     if (SL.fbSent == null) { SL.fbSent = false; SL.g.child('fb/' + SL.fb.uid).once('value').then(x => { if (x.val() && SL) { SL.fbSent = true; slRender(); } }).catch(() => {}); }
     const m = SL.mission, coop = slCoop();
-    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:6vh">${coop ? (m && m.fuel >= m.goal ? '🌕 Mission complete!' : '🚀 So close!') : 'Game over!'}</div>${slRank()}
-      ${SL.meta && SL.meta.mode === 'robot' ? `<div class="lvs-card">🤖 Your crew completed <b style="display:inline;font-size:inherit">${st.best || 0}</b> level${st.best === 1 ? '' : 's'}.</div>` : ''}
-      ${SL.my && (SL.my.rank || coop) ? `<div class="lvs-card">You got <b>${SL.my.right || 0} of ${SL.n}</b> right. ${SL.j.guest ? 'You played as a guest, so there is no mark in the gradebook.' : 'Your mark goes to the gradebook.'}</div>` : ''}
+    el.innerHTML = slBox(`<div class="lvs-big" style="margin-top:6vh">${coop ? (m && m.fuel >= m.goal ? '🌕 Missiya bajarildi!' : '🚀 Juda oz qoldi!') : 'O\'yin tugadi!'}</div>${slRank()}
+      ${SL.meta && SL.meta.mode === 'robot' ? `<div class="lvs-card">🤖 Jamoangiz <b style="display:inline;font-size:inherit">${st.best || 0}</b> ta bosqichni bajardi.</div>` : ''}
+      ${SL.my && (SL.my.rank || coop) ? `<div class="lvs-card"><b>${SL.n} tadan ${SL.my.right || 0} ta</b> to'g'ri javob. ${SL.j.guest ? 'Siz mehmon sifatida o\'ynadingiz, jurnalga baho qo\'yilmaydi.' : 'Bahoingiz jurnalga yoziladi.'}</div>` : ''}
       <div id="slfb">${slFeedback()}</div>${slReact()}
-      <button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Back to my page' : 'Close'}</button>`);
+      <button class="btn block lvs-go" onclick="leaveLive()">${KEY ? 'Sahifamga qaytish' : 'Yopish'}</button>`);
     slFeedbackBind(); slReactBind();
   }
 }
@@ -1142,7 +1202,7 @@ function slRaceShow() {
   const el = $('#live'), st = SL.state, i = slNextQ(), q = SL.rq[i];
   clearInterval(SL.tick);
   const first = !SL.rdone[i];
-  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🤖 Level ${st.lvl || 1} · ${first ? `question ${Object.keys(SL.rdone).length + 1} of ${SL.rq.length}` : '🔁 again'}</span><span id="slteam">${slTeam()}</span><span class="lvs-timer" id="slt">${slClock(st)}</span></div>
+  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🤖 ${st.lvl || 1}-bosqich · ${first ? `savol ${Object.keys(SL.rdone).length + 1} / ${SL.rq.length}` : '🔁 yana'}</span><span id="slteam">${slTeam()}</span><span class="lvs-timer" id="slt">${slClock(st)}</span></div>
     <div id="slrs"></div><div id="slboost"></div><div class="lvs-q">${esc(q.prompt)}</div>
     <div class="lvs-opts">${q.options.map((o, k) => `<button class="lvs-opt" data-k="${k}" style="background:${LCOL[k]}"><span class="sh">${LSH[k]}</span><span>${esc(o)}</span></button>`).join('')}</div>`);
   $$('[data-k]', el).forEach(b => b.onclick = () => slRaceAnswer(i, +b.dataset.k));
@@ -1163,14 +1223,14 @@ function slRrStatus() {
   const el = SL.fb.now() - st.startedAt, crew = Math.min(1, have / target), rob = Math.min(1, -0.25 + 1.25 * el / ((st.T || 30) * 1000)), near = el > 3000 && rob > crew - 0.12;
   const X = f => Math.max(0, 10 + f * 78).toFixed(1) + '%';
   const lk = SL.lastKey, lv = lk != null ? v[lk] : undefined;
-  b.innerHTML = `<div class="lvs-card" style="padding:10px 12px;font-size:16px${near ? ';background:rgba(226,27,60,.45)' : ''}">${lk == null ? '🏃 Run! Every right answer pushes the crew forward.' : lv == null ? '⏳ …' : lv ? '<b style="display:inline;font-size:inherit;color:#86efac">✓ Right!</b>' : '<b style="display:inline;font-size:inherit;color:#fca5a5">✗ Wrong</b> — it will come back'} · you: ${p.att || 0} right
+  b.innerHTML = `<div class="lvs-card" style="padding:10px 12px;font-size:16px${near ? ';background:rgba(226,27,60,.45)' : ''}">${lk == null ? "🏃 Yuguring! Har bir to'g'ri javob jamoani oldinga suradi." : lv == null ? '⏳ …' : lv ? '<b style="display:inline;font-size:inherit;color:#86efac">✓ To\'g\'ri!</b>' : '<b style="display:inline;font-size:inherit;color:#fca5a5">✗ Xato</b> — bu savol yana chiqadi'} · siz: ${p.att || 0} ta to'g'ri
     <div class="lvs-crew"><i style="width:${X(crew)}"></i><span class="door">🛡️</span><span class="bot" style="left:${X(rob)}">🤖</span><span class="me" style="left:${X(crew)}">${esc(SL.av || '🏃')}</span></div>
-    <small class="lvs-dim">Crew: ${have} / ${target} right answers${near ? ' · ⚠️ the robot is close!' : ''}</small></div>`;
+    <small class="lvs-dim">Jamoa: ${have} / ${target} to'g'ri javob${near ? ' · ⚠️ robot yaqin!' : ''}</small></div>`;
 }
 function slBoost() {
   const b = $('#slboost'); if (!b || !SL) return;
   const p = SL.prog || {}, pend = Math.max(0, (SL.bN || 0) - (p.bAll || 0)), ch = Math.max(0, (p.ch || 0) - pend);
-  const h = ch && SL.state && SL.state.phase === 'race' ? `<button class="lvs-boost" id="slbo">⚡ BOOST ×${ch} — tap to push the crew!</button>` : '';
+  const h = ch && SL.state && SL.state.phase === 'race' ? `<button class="lvs-boost" id="slbo">⚡ TEZLATISH ×${ch} — jamoani oldinga surish uchun bosing!</button>` : '';
   if (b.dataset.h === h) return; b.dataset.h = h; b.innerHTML = h;
   const bo = $('#slbo'); if (bo) bo.onclick = () => {
     if (!SL.state || SL.state.phase !== 'race') return;
@@ -1183,11 +1243,11 @@ function slZoneShow() {
   clearInterval(SL.tick); clearInterval(SL.walkT); SL.walkT = null; SL.walkTo = null;
   if (!SL.pos) { const r = slRand(SL.fb.uid + st.startedAt); for (let t = 0; t < 60; t++) { SL.pos = { x: Math.floor(r() * RRC), y: Math.floor(r() * RRR) }; if (!zs.some(z => slIn(z, SL.pos))) break; } }
   slPosSend();
-  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🛡️ Level ${st.lvl} · wave ${st.wave} of ${st.waves}</span><span>${'❤️'.repeat(Math.max(0, st.lives))}${'🖤'.repeat(Math.max(0, 3 - st.lives))}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
+  el.innerHTML = slBox(`<div class="lvs-top"><span class="lvs-dim">🛡️ ${st.lvl}-bosqich · to'lqin ${st.wave} / ${st.waves}</span><span>${'❤️'.repeat(Math.max(0, st.lives))}${'🖤'.repeat(Math.max(0, 3 - st.lives))}</span><span class="lvs-timer" id="slt">${st.dur}</span></div>
     <div class="lvs-zbar"><i id="slzt"></i></div>
     <div class="lvs-map" id="slmap"></div><div class="lvs-card" id="slzs" style="padding:8px 10px;font-size:16px"></div>
     <div class="lvs-pad"><button data-d="0,-1" aria-label="Up">▲</button><button data-d="-1,0" aria-label="Left">◀</button><button data-d="0,1" aria-label="Down">▼</button><button data-d="1,0" aria-label="Right">▶</button></div>
-    <p class="lvs-dim small" style="text-align:center;margin:0">Tap the map or hold the arrows. Look at the big screen and talk to your crew!</p>`);
+    <p class="lvs-dim small" style="text-align:center;margin:0">Xaritani bosing yoki strelkalarni bosib turing. Katta ekranga qarang va jamoangiz bilan gaplashing!</p>`);
   $$('[data-d]', el).forEach(b => {
     const [dx, dy] = b.dataset.d.split(',').map(Number), stop = () => { clearInterval(b._t); b._t = null; };
     b.onpointerdown = e => { e.preventDefault(); SL.walkTo = null; slMove(dx, dy); stop(); b._t = setInterval(() => slMove(dx, dy), 170); };
@@ -1232,21 +1292,21 @@ function slZoneDraw() {
     + (me ? `<div class="lvs-me" style="left:${(me.x + 0.5) / RRC * 100}%;top:${(me.y + 0.5) / RRR * 100}%">${esc(SL.av || '🙂')}</div>` : '');
   const s = $('#slzs'); if (!s) return;
   const z = zs[mk], n = z && cnt ? cnt[mk] || 0 : 0, out = zc ? zc.out || 0 : null;
-  s.innerHTML = mk < 0 ? '🚶 You are outside. Walk into a green zone!' : n > z.cap ? `⚠️ Zone ${RR_ZL[mk]} is too full (${n}/${z.cap})! Someone must move.` : `✅ You are in zone ${RR_ZL[mk]}${cnt ? ` (${n}/${z.cap})` : ''}. Stay there!${out ? ` · ${out} still outside` : ''}`;
+  s.innerHTML = mk < 0 ? '🚶 Siz tashqaridasiz. Yashil zonaga kiring!' : n > z.cap ? `⚠️ ${RR_ZL[mk]} zona to'lib ketdi (${n}/${z.cap})! Kimdir chiqishi kerak.` : `✅ Siz ${RR_ZL[mk]} zonadasiz${cnt ? ` (${n}/${z.cap})` : ''}. Shu yerda turing!${out ? ` · ${out} kishi hali tashqarida` : ''}`;
   s.style.background = mk < 0 ? 'rgba(226,27,60,.4)' : n > z.cap ? 'rgba(216,158,0,.5)' : 'rgba(38,137,12,.45)';
 }
 function slRrMsg() {
   const st = SL.state, el = $('#live'); clearInterval(SL.walkT); SL.walkT = null; SL.walkTo = null;
   let h;
-  if (st.phase === 'caught') h = `<div class="lvs-big" style="margin-top:12vh">${st.why === 'lives' ? '💔 No lives left!' : '🤖 The robot caught the crew!'}</div><div class="lvs-card">Level ${st.lvl} starts again. Answer faster and use your ⚡ boosts!</div>`;
-  else if (st.phase === 'lvlup') h = `<div class="lvs-big" style="margin-top:12vh">🎉 Level ${st.lvl} complete!</div><div class="lvs-card">Great teamwork! Level ${st.lvl + 1} is harder.</div>`;
+  if (st.phase === 'caught') h = `<div class="lvs-big" style="margin-top:12vh">${st.why === 'lives' ? '💔 Jon qolmadi!' : '🤖 Robot jamoani ushlab oldi!'}</div><div class="lvs-card">${st.lvl}-bosqich qaytadan boshlanadi. Tezroq javob bering va ⚡ tezlatishdan foydalaning!</div>`;
+  else if (st.phase === 'lvlup') h = `<div class="lvs-big" style="margin-top:12vh">🎉 ${st.lvl}-bosqich bajarildi!</div><div class="lvs-card">Zo'r jamoaviy ish! ${st.lvl + 1}-bosqich qiyinroq.</div>`;
   else {
     const me = SL.pos, zs = st.zones || [], k = me ? zs.findIndex(z => slIn(z, me)) : -1, over = k >= 0 && (st.over || []).includes(k);
-    h = `<div class="lvs-big" style="margin-top:6vh">${st.ok ? '✅ Everyone is safe!' : '❌ Not everyone is safe'}</div>
-      <div class="lvs-card">${k < 0 ? 'You were outside the zones.' : over ? `Zone ${RR_ZL[k]} had too many players.` : `You were safe in zone ${RR_ZL[k]} 👍`}<br><span class="lvs-dim">${st.ok ? (st.wave < st.waves ? 'Next wave…' : 'Level complete!') : st.lives > 0 ? `${st.lives} ${st.lives === 1 ? 'life' : 'lives'} left — try again!` : 'No lives left — the level starts again.'}</span></div>
+    h = `<div class="lvs-big" style="margin-top:6vh">${st.ok ? '✅ Hamma xavfsiz!' : '❌ Hamma ham xavfsiz emas'}</div>
+      <div class="lvs-card">${k < 0 ? 'Siz zonalardan tashqarida edingiz.' : over ? `${RR_ZL[k]} zonada o'yinchilar juda ko'p edi.` : `Siz ${RR_ZL[k]} zonada xavfsiz edingiz 👍`}<br><span class="lvs-dim">${st.ok ? (st.wave < st.waves ? 'Keyingi to\'lqin…' : 'Bosqich bajarildi!') : st.lives > 0 ? `${st.lives} ta jon qoldi — yana urinib ko'ring!` : 'Jon qolmadi — bosqich qaytadan boshlanadi.'}</span></div>
       <div class="lvs-map" id="slmap"></div>`;
   }
-  el.innerHTML = slBox(h + '<p class="lvs-dim" style="text-align:center">Look at the screen.</p>');
+  el.innerHTML = slBox(h + '<p class="lvs-dim" style="text-align:center">Ekranga qarang.</p>');
   slZoneDraw();
 }
 async function slAnswer(k, c) {
