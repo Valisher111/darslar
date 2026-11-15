@@ -346,7 +346,16 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .steps{margin:0 0 14px;padding-left:20px}.steps li{margin-bottom:8px}
 .gcard .top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .gcard .kv{margin-bottom:12px}
-.slist{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+div.slist{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.content.full{max-width:none}
+.stwrap{overflow-x:auto}
+table.stab{width:100%;font-size:14px}
+table.stab td,table.stab th{padding:9px 10px}
+table.stab .stn{position:sticky;left:0;background:var(--panel);z-index:1;text-align:left;white-space:nowrap}
+table.stab thead .stn{background:var(--soft);z-index:3}
+table.stab tbody tr{cursor:pointer}
+table.stab tbody tr:hover td{background:var(--accent-soft)}
+table.stab tr.hidden{display:none}
 .srow{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:0}.srow .nm{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px}.srow .btn.sm{padding:4px 9px}
 .modal.wide{max-width:640px;width:100%}
@@ -632,6 +641,7 @@ function route() {
   document.body.classList.remove('drawer');
   $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.p === S.page));
   $('#title').textContent = PAGES.find(p => p[0] === S.page)[1];
+  view().classList.toggle('full', S.page === 'students');   // Students: the whole page width
   renderChips();
   ({ today: pageToday, grades: pageGrades, lessons: pageLessons, students: pageStudents,
      deadlines: pageDeadlines, quizzes: pageQuizzes, coins: () => pageCoins(), groups: pageGroups, settings: pageSettings })[S.page]();
@@ -1096,11 +1106,17 @@ async function pageStudents() {
         <button class="btn sm primary" data-ap="${esc(p.tg_id)}">Approve</button><button class="btn sm danger" data-rj="${esc(p.tg_id)}">Reject</button></div>`).join('')}</div>` : '';
     const botHtml = !acc ? '' : !acc.botSet ? `<div class="card small muted" style="margin-bottom:14px">Student accounts: connect the student bot in <a href="#/settings">Settings</a> first.</div>`
       : `<div class="small muted" style="margin:0 0 10px">Telegram: <b>${linked}/${d.students.length}</b> linked · students press /start in <a href="https://t.me/${esc(acc.botUsername)}" target="_blank" rel="noopener">@${esc(acc.botUsername)}</a></div>`;
-    view().innerHTML = `${pendHtml}${botHtml}<div class="card"><div class="row" style="margin-bottom:8px"><input type="text" id="q" placeholder="Search a student…" style="max-width:320px"><span class="spacer"></span><span class="small muted">avg · absences</span></div>
-      <ul class="slist">${d.students.map(s => `<li data-r="${s.row}" data-n="${esc(s.name.toLowerCase())}"><span class="muted" style="min-width:26px">${esc(s.no)}</span><span style="flex:1">${esc(s.name)} ${tgPill(s)}</span>
-        <b>${avgOf(s)}</b><span class="pill ${nbOf(s) ? 'bad' : 'gray'}">${nbOf(s)} absent</span></li>`).join('')}</ul></div>`;
-    $('#q').oninput = e => { const q = e.target.value.toLowerCase(); $$('.slist li').forEach(li => li.classList.toggle('hidden', !li.dataset.n.includes(q))); };
-    $$('.slist li').forEach(li => li.onclick = () => showProfile(+li.dataset.r));
+    // 15.11: full-page table — every student and every gradebook total visible at once (no inner scroll)
+    const seen = {}, sumCols = d.cols.filter(c => c.kind !== 'day' && c.kind !== 'id' && c.kind !== 'empty' && c.kind !== 'team' && c.h);
+    sumCols.forEach(c => { seen[c.h] = (seen[c.h] || 0) + 1; });
+    const colLab = c => esc(c.h) + (seen[c.h] > 1 && c.block ? ` <span class="muted">· B${esc(c.block)}</span>` : '');
+    const cell = (s, c) => { const v = String(s.v[c.c - 1] == null ? '' : s.v[c.c - 1]).trim(); return v === '' ? '<span class="muted">—</span>' : esc(v); };
+    view().innerHTML = `${pendHtml}${botHtml}<div class="card"><div class="row" style="margin-bottom:10px"><input type="text" id="q" placeholder="Search a student…" style="max-width:320px"><span class="spacer"></span><span class="small muted">${d.students.length} students · click a row for the profile</span></div>
+      <div class="stwrap"><table class="g stab"><thead><tr><th>№</th><th class="stn">F.I.Sh.</th><th>Avg</th><th>Absent</th>${sumCols.map(c => `<th>${colLab(c)}</th>`).join('')}</tr></thead>
+      <tbody>${d.students.map(s => `<tr data-r="${s.row}" data-n="${esc(s.name.toLowerCase())}"><td class="muted">${esc(s.no)}</td><td class="stn">${esc(s.name)} ${tgPill(s)}</td>
+        <td><b>${avgOf(s)}</b></td><td><span class="pill ${nbOf(s) ? 'bad' : 'gray'}">${nbOf(s)}</span></td>${sumCols.map(c => `<td>${cell(s, c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+    $('#q').oninput = e => { const q = e.target.value.toLowerCase(); $$('.stab tbody tr').forEach(tr => tr.classList.toggle('hidden', !tr.dataset.n.includes(q))); };
+    $$('.stab tbody tr').forEach(tr => tr.onclick = () => showProfile(+tr.dataset.r));
     const doAcc = (attr, action, msg) => $$('[' + attr + ']').forEach(b => b.onclick = async () => {
       b.disabled = true; try { await api(action, b.getAttribute(attr), S.group); toast(msg); pageStudents(); } catch (e) { b.disabled = false; fail(e); } });
     doAcc('data-ap', 'approve', 'Approved — the student got the link in Telegram');
