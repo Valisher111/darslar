@@ -382,7 +382,8 @@ function tCoins() {
         : c.cards.yellow ? '<p style="color:var(--warn);font-weight:600;margin:10px 0 0">🟨 You have a yellow card: the shop is closed until you remove it.</p>' : ''}</div>
     ${coinMini().replace(/<div class="card coinmini"[\s\S]*$/, '')}
     ${cards ? `<div class="card"><h2>My cards</h2><ul class="list">${cards}</ul></div>` : ''}
-    <div class="card"><h2>Bonus shop</h2><p class="small muted" style="margin:0 0 8px">Ask for a bonus → your teacher approves → you take a ${s.test.count}-question test (${s.test.minutes} min) from past topics. With ${s.test.pass}% or more you get the bonus and the coins are spent. If you do not pass, you keep your coins.</p>
+    <div class="card"><h2>Bonus shop</h2>${s.free && s.free.per ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:14px">🎟 Free tests this week: <b>${s.free.left} of ${s.free.per}</b> left — you start them at once. ${s.free.left ? '' : 'Now your teacher must approve each new test.'}</div>` : ''}
+      <p class="small muted" style="margin:0 0 8px">Choose a bonus → a ${s.test.count}-question test (${s.test.minutes} min) from past topics${s.free && s.free.per ? ` (${s.free.per} a week without asking; after that your teacher approves)` : ' (after your teacher approves)'}. With ${s.test.pass}% or more you get the bonus and the coins are spent. If you do not pass, you keep your coins.</p>
       <ul class="list">${items}</ul></div>
     ${reqs ? `<div class="card"><h2>My requests</h2><ul class="list">${reqs}</ul></div>` : ''}
     <div class="card"><h2>Group leaderboard</h2><ul class="list">${board}</ul></div>
@@ -398,25 +399,31 @@ function bindCoinBtns() {
   $$('[data-buy]').forEach(b => b.onclick = () => {
     const it = H.shop.items.find(x => x.key === b.dataset.buy);
     if (it.key === 'makeup') return pickMakeup(it);
-    if (!confirm(`Ask for "${it.title}" (${it.price} coins)?\nAfter your teacher approves, you take the test. Coins are spent only if you pass.`)) return;
+    if (!confirm(freeLeft() ? `"${it.title}" (${it.price} coins)\n\nThe test starts NOW: ${H.shop.test.count} questions, ${H.shop.test.minutes} minutes, you need ${H.shop.test.pass}%. Do not leave the page.\nCoins are spent only if you pass. Start?`
+      : `Ask your teacher for "${it.title}" (${it.price} coins)?\nYour free tests of this week are used. After your teacher approves, you take the test.`)) return;
     shopReq(b, it.key, '');
   });
-  $$('[data-cardtest]').forEach(b => b.onclick = () => { if (confirm('Ask to remove this yellow card with a test?')) shopReq(b, 'card', b.dataset.cardtest); });
+  $$('[data-cardtest]').forEach(b => b.onclick = () => { if (confirm(freeLeft() ? `Remove this yellow card with a test?\nThe test starts NOW: ${H.shop.test.count} questions, ${H.shop.test.minutes} min, ${H.shop.test.pass}%.` : 'Ask your teacher to remove this yellow card with a test?')) shopReq(b, 'card', b.dataset.cardtest); });
   $$('[data-bc]').forEach(b => b.onclick = async () => { if (!confirm('Cancel this request?')) return; b.disabled = true; try { H.shop = await api('stBonusCancel', b.dataset.bc); render(); } catch (e) { fail(e); b.disabled = false; } });
 }
 function pickMakeup(it) {
   const d = document.createElement('div'); d.className = 'gwarn';
   d.innerHTML = `<div class="box" style="border-color:var(--accent)"><h3 style="color:var(--ink)">${esc(it.title)}</h3><p class="small muted">Choose the missed lesson (0). It will get your average daily mark.</p>
     <select id="mkd" style="width:100%;padding:10px;font-size:16px;margin-bottom:12px">${H.shop.makeup.map(x => `<option value="${esc(x)}">${esc(dayName(x))}</option>`).join('')}</select>
-    <button class="btn primary block" id="mkok">Ask for it · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Cancel</button></div>`;
+    <button class="btn primary block" id="mkok">${freeLeft() ? 'Take the test' : 'Ask for it'} · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Cancel</button></div>`;
   document.body.appendChild(d);
   $('#mkno').onclick = () => d.remove();
-  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); shopReq(null, 'makeup', v); };
+  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); if (freeLeft() && !confirm(`The test starts NOW: ${H.shop.test.count} questions, ${H.shop.test.minutes} minutes, you need ${H.shop.test.pass}%. Do not leave the page. Start?`)) return; shopReq(null, 'makeup', v); };
 }
+const freeLeft = () => !!(H.shop && H.shop.free && H.shop.free.left > 0);
 async function shopReq(b, key, target) {
   if (b) b.disabled = true;
-  try { H.shop = await api('stBonusRequest', key, target); toast('Sent to your teacher'); render(); }
-  catch (e) { fail(e); if (b) b.disabled = false; }
+  try {
+    H.shop = await api('stBonusRequest', key, target);
+    const r = (H.shop.requests || [])[0];
+    if (r && r.mode === 'auto' && r.canStart) return startQuiz(r.id);   // free test of the week: start at once
+    toast('Sent to your teacher'); render();
+  } catch (e) { fail(e); if (b) b.disabled = false; }
 }
 
 /* ===================== practice my mistakes (nothing goes to the gradebook) ===================== */
