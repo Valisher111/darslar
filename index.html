@@ -480,7 +480,7 @@ const GROUP_PAGES = ['grades', 'lessons', 'students', 'deadlines', 'quizzes', 'c
 /* ===================== helpers ===================== */
 const $ = (q, el) => (el || document).querySelector(q);
 const $$ = (q, el) => Array.from((el || document).querySelectorAll(q));
-const shortName = n => String(n || '').trim().split(/\s+/).slice(0, 2).join(' ');
+const shortName = n => String(n || '').trim().replace(/\s+(['ʻʼ‘’`])/g, '$1').split(/\s+/).slice(0, 2).join(' ');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = {
   get(k) { try { return localStorage.getItem(k) || sessionStorage.getItem(k); } catch (e) { return null; } },
