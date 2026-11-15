@@ -2692,6 +2692,8 @@ async function pageSettings() {
         <div class="row"><button class="btn" id="so">Sign out</button><button class="btn danger" id="soa">Sign out everywhere</button></div></div>
       <div class="card"><h2>Minimum mark for quiz takers</h2><p class="muted">When on, a student who takes an in-class quiz gets at least 5.</p>
         <div class="seg"><button data-m="off" class="${s.minAttendScore !== 'on' ? 'on' : ''}">Off</button><button data-m="on" class="${s.minAttendScore === 'on' ? 'on' : ''}">On</button></div></div>
+      <div class="card"><h2>One question at a time (class quizzes)</h2><p class="muted">"Start as test": students see one question, with its own time (25 s / 40 s / 60 s), and cannot go back — harder to photograph the whole quiz for AI. Bonus and personal tests always work this way. Turn it off if the class quiz feels slow.</p>
+        <div class="seg"><button data-sq="off" class="${s.seqClass === 'off' ? 'on' : ''}">Off</button><button data-sq="on" class="${s.seqClass !== 'off' ? 'on' : ''}">On</button></div></div>
       <div class="card"><h2>Deadline reminders</h2><p class="muted">Every evening (after 18:00) the student bot reminds linked students privately: 3 days before and 1 day before a deadline of their group.</p>
         <div class="seg"><button data-rm="off" class="${s.reminders !== 'on' ? 'on' : ''}">Off</button><button data-rm="on" class="${s.reminders === 'on' ? 'on' : ''}">On</button></div></div>
       <div class="card"><h2>Separate bot for group chats <span class="pill gray">optional</span></h2>
@@ -2722,6 +2724,7 @@ async function pageSettings() {
     $('#cpw').onclick = async () => { try { await api('changePassword', $('#op').value, $('#np').value); $('#op').value = $('#np').value = ''; toast('Password changed'); } catch (e) { fail(e); } };
     $('#so').onclick = () => signOut();
     $('#soa').onclick = async () => { if (!confirm('Sign out on all devices?')) return; try { await api('logoutAll'); signOut(); } catch (e) { fail(e); } };
+    $$('[data-sq]').forEach(b => b.onclick = async () => { try { await api('setSeqClass', b.dataset.sq); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
     $$('[data-m]').forEach(b => b.onclick = async () => { try { await api('setMinAttend', b.dataset.m === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
     $('#gbts').onclick = async () => { $('#gbts').disabled = true; try { await api('setGroupBot', $('#gbt').value); toast('Saved'); pageSettings(); } catch (e) { $('#gbts').disabled = false; fail(e); } };
     $$('[data-rm]').forEach(b => b.onclick = async () => { try { await api('setReminders', b.dataset.rm === 'on'); toast('Saved'); pageSettings(); } catch (e) { fail(e); } });
