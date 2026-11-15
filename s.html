@@ -385,6 +385,7 @@ function tCoins() {
       <div class="muted">coins${c.rank ? ' · ' + ord(c.rank) + ' of ' + c.of + ' in the group' : ''}</div>
       ${c.frozen ? '<p style="color:var(--bad);font-weight:700;margin:10px 0 0">🟥 Red card (2 yellow cards): you cannot earn or spend coins. Remove a card with a test.</p>'
         : c.cards.yellow ? '<p style="color:var(--warn);font-weight:600;margin:10px 0 0">🟨 You have a yellow card: the shop is closed until you remove it.</p>' : ''}</div>
+    <button class="btn" data-cguide style="width:100%;margin-bottom:12px">❓ Tangalar qanday ishlaydi? (qo'llanma)</button>
     ${coinMini().replace(/<div class="card coinmini"[\s\S]*$/, '')}
     ${cards ? `<div class="card"><h2>My cards</h2><ul class="list">${cards}</ul></div>` : ''}
     <div class="card"><h2>Bonus shop</h2>${s.free && s.free.per ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:14px">🎟 Free tests this week: <b>${s.free.left} of ${s.free.per}</b> left — you start them at once. ${s.free.left ? '' : 'Now your teacher must approve each new test.'}</div>` : ''}
@@ -398,7 +399,54 @@ function tCoins() {
       '🟨 A yellow card closes the shop. Two yellow cards = 🟥 red: coins are frozen.'].map(x => `<div class="small" style="padding:7px 0;border-bottom:1px solid var(--line)">${x}</div>`).join('')}</div>`;
   bindCoinBtns();
 }
+
+/* ===== coin guide (15.11.2026): simple Uzbek explanation, opens over the page ===== */
+const BONUS_UZ = { makeup: ['Qoldirilgan darsni qoplash', "Jurnaldagi bitta 0 o'rniga kunlik o'rtacha bahoingiz qo'yiladi."],
+  on2: ['Oraliq nazoratga +2 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."],
+  pw: ['Loyiha ishidan ozod', "Loyiha ishi (PW) bahoingiz 10 bo'ladi."],
+  on3: ['Oraliq nazoratga +3 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."] };
+function showCoinGuide() {
+  const s = H.shop || {}, t = s.test || { count: 15, minutes: 8, pass: 80 }, free = s.free && s.free.per != null ? s.free.per : 2;
+  const li = a => '<ul style="margin:6px 0 0;padding-left:20px">' + a.map(x => `<li style="margin:6px 0">${x}</li>`).join('') + '</ul>';
+  const rows = (s.items || []).map(b => { const u = BONUS_UZ[b.key] || [b.title, b.note || ''];
+    return `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${esc(u[0])}</b><div class="small muted">${esc(u[1])}${b.limit ? ' · semestrda ' + b.limit + ' marta' : ''}</div></div><b style="white-space:nowrap">${b.price} 🪙</b></li>`; }).join('');
+  const el = document.createElement('div');
+  el.id = 'cgbox';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:flex-end;justify-content:center';
+  el.innerHTML = `<div class="card" style="width:100%;max-width:560px;max-height:88vh;overflow:auto;margin:0;border-radius:18px 18px 0 0;padding:18px 18px 24px">
+    <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;flex:1">🪙 Tangalar qanday ishlaydi?</h2><button class="btn" id="cgx" aria-label="Yopish">✕</button></div>
+    <h3 style="margin:14px 0 4px">1. Tangani qanday yig'asiz</h3>${li([
+      'Darsdagi quiz yoki Live game: <b>10</b> ball → <b>+3</b> 🪙, <b>8–9.9</b> → <b>+2</b>, <b>6–7.9</b> → <b>+1</b>',
+      'Live game\'da eng yaxshi 3 talik → yana <b>+1</b>',
+      'Darsda faol bo\'lsangiz, o\'qituvchi <b>+1 / +2 / +3</b> beradi',
+      '<b>Quizzes → Practise my mistakes</b>: kuniga 5 ta to\'g\'ri javob → <b>+1</b>',
+      'Test paytida boshqa ilovaga o\'tsangiz, o\'sha test uchun tanga berilmaydi'])}
+    <h3 style="margin:14px 0 4px">2. Tangani nimaga sarflaysiz</h3><ul class="list">${rows}</ul>
+    <h3 style="margin:14px 0 4px">3. Bonusni qanday olasiz</h3>
+    <ol style="margin:6px 0 0;padding-left:22px">
+      <li style="margin:6px 0"><b>Bonus shop</b>da kerakli bonus yonidagi <b>Get</b> tugmasini bosing.</li>
+      <li style="margin:6px 0">Haftasiga <b>${free} ta</b> test darhol boshlanadi. Undan ko'pi uchun o'qituvchi ruxsat beradi.</li>
+      <li style="margin:6px 0">O'tgan mavzulardan <b>${t.count} ta savol</b>, <b>${t.minutes} daqiqa</b>. Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi.</li>
+      <li style="margin:6px 0"><b>${t.pass}%</b> va undan ko'p → bonus jurnalga yoziladi, tangalar yechiladi.</li>
+      <li style="margin:6px 0">O'tmasangiz — <b>tangalaringiz yechilmaydi</b>. Ertasi kuni yana bir marta urinasiz; yana o'tmasangiz, 7 kun kutasiz.</li>
+    </ol>
+    <h3 style="margin:14px 0 4px">4. Kartalar</h3>${li([
+      '🟨 <b>Sariq karta</b> — bonus do\'koni yopiladi. Testdan 2 marta chiqib ketsangiz, avtomatik beriladi.',
+      '🟥 <b>2 ta sariq = qizil</b> — tangalar muzlaydi: yig\'ilmaydi ham, sarflanmaydi ham.',
+      'Kartani test bilan olib tashlaysiz: <b>Remove with a test</b>.'])}
+    <h3 style="margin:14px 0 4px">5. Yodda tuting</h3>${li([
+      'Reytingda faqat ism va tangalar ko\'rinadi, baholaringiz ko\'rinmaydi.',
+      'Har juma haftalik <b>Top-5</b> e\'lon qilinadi.',
+      'Semestr oxirida tangalar <b>kuyadi</b> — semestr davomida sarflang.'])}
+    <button class="btn primary" id="cgok" style="width:100%;margin-top:16px">Tushunarli</button></div>`;
+  const close = () => el.remove();
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  document.body.appendChild(el);
+  el.querySelector('#cgx').onclick = close; el.querySelector('#cgok').onclick = close;
+}
+
 function bindCoinBtns() {
+  $$('[data-cguide]').forEach(b => b.onclick = showCoinGuide);
   $$('[data-bt]').forEach(b => b.onclick = () => { b.disabled = true; startQuiz(b.dataset.bt); });
   $$('[data-go]').forEach(b => b.onclick = () => { tab = b.dataset.go; buildTabs(); render(); window.scrollTo(0, 0); });
   $$('[data-buy]').forEach(b => b.onclick = () => {
