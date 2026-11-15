@@ -2605,7 +2605,7 @@ async function pageCoins(c) {
       : '<div class="empty">No new requests.</div>';
     const other = c.requests.filter(r => r.status !== 'requested').slice(0, 12);
     const otherHtml = other.length ? other.map(r => `<div class="row small" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(r.name)} · ${esc(r.title)}</span>
-        ${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}%</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
+        ${r.mode === 'auto' ? '<span class="pill gray" title="Free test of the week (no approval)">free</span>' : ''}${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}%</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
     const cards = {}; c.cards.forEach(x => (cards[x.name] = cards[x.name] || []).push(x));
     const classHtml = c.board.slice().sort((a, b) => a.row - b.row).map(s => {
       const g = given[s.name] || 0, left = max - g;
@@ -2624,7 +2624,7 @@ async function pageCoins(c) {
         ${h.amount > 0 && h.source !== 'bonus' ? `<button class="btn sm" data-undo="${esc(h.id)}" title="Undo">↶</button>` : '<span style="width:34px"></span>'}</div>`).join('') : '<div class="empty">No coins yet.</div>';
     view().innerHTML = `
       ${req.length ? `<div class="card" style="border:2px solid var(--warn,#e6a700)"><h2>🪙 Bonus requests</h2>${reqHtml}
-        <div class="small muted" style="margin-top:6px">After you approve, the student takes a ${c.rules.test.count}-question test (${c.rules.test.minutes} min) and needs ${c.rules.test.pass}%. Coins are paid and the bonus is written only after a pass.</div></div>` : ''}
+        <div class="small muted" style="margin-top:6px">These students used their ${c.rules.autoPerWeek || 0} free tests of the week. After you approve, the student takes a ${c.rules.test.count}-question test (${c.rules.test.minutes} min) and needs ${c.rules.test.pass}%. Coins are paid and the bonus is written only after a pass. You can also approve in the bot.</div></div>` : ''}
       <div class="grid g2">
         <div class="card"><div class="row"><h2 style="flex:1">In class · ${esc(md(today))}</h2><span class="small muted">max ${max} a lesson</span></div>${classHtml}</div>
         <div>
@@ -2705,6 +2705,7 @@ async function pageSettings() {
         ${s.coinRules ? `<p class="small muted">Price in coins and how many times a semester (0 = no limit).</p>
         ${s.coinRules.bonuses.map(b => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:160px">${esc(b.title)}<br><span class="small muted">${b.groups === 'all' ? 'all groups' : 'groups ' + esc(b.groups.join(', '))}</span></span>
           <span style="white-space:nowrap"><input type="number" min="1" max="500" value="${b.price}" data-bp="${esc(b.key)}" style="width:70px" aria-label="price"> 🪙 × <input type="number" min="0" max="20" value="${b.limit}" data-bl="${esc(b.key)}" style="width:56px" aria-label="limit"></span></div>`).join('')}
+        <div class="row" style="margin-bottom:8px"><span style="flex:1">Free bonus tests a week (no approval)</span><input type="number" id="cap" min="0" max="7" value="${s.coinRules.autoPerWeek == null ? 2 : s.coinRules.autoPerWeek}" style="width:64px"></div>
         <div class="row" style="margin-bottom:8px"><span style="flex:1">Bonus test: questions · minutes · pass %</span>
           <input type="number" id="ctn" min="5" max="30" value="${s.coinRules.test.count}" style="width:64px"><input type="number" id="ctm" min="3" max="30" value="${s.coinRules.test.minutes}" style="width:64px"><input type="number" id="ctp" min="50" max="100" value="${s.coinRules.test.pass}" style="width:64px"></div>
         <div class="row"><button class="btn primary" id="crs">Save</button><span class="spacer"></span><button class="btn danger" id="cns">New semester…</button></div>
@@ -2725,7 +2726,7 @@ async function pageSettings() {
     $('#bts').onclick = async () => { $('#bts').disabled = true; try { await api('setBotToken', $('#bt').value); toast('Bot connected'); pageSettings(); } catch (e) { $('#bts').disabled = false; fail(e); } };
     if ($('#crs')) $('#crs').onclick = async () => {
       const bonuses = $$('[data-bp]').map(i => ({ key: i.dataset.bp, price: +i.value, limit: +$(`[data-bl="${i.dataset.bp}"]`).value }));
-      try { await api('setCoinRules', { bonuses, test: { count: +$('#ctn').value, minutes: +$('#ctm').value, pass: +$('#ctp').value } }); toast('Saved'); pageSettings(); } catch (e) { fail(e); }
+      try { await api('setCoinRules', { bonuses, autoPerWeek: +$('#cap').value, test: { count: +$('#ctn').value, minutes: +$('#ctm').value, pass: +$('#ctp').value } }); toast('Saved'); pageSettings(); } catch (e) { fail(e); }
     };
     if ($('#cns')) $('#cns').onclick = async () => { if (!confirm('Start a new semester? Every student\'s coins go back to 0. The history stays.')) return; try { await api('coinNewSemester'); toast('Coins reset for the new semester'); } catch (e) { fail(e); } };
     $('#fbs').onclick = async () => { try { await api('setFirebase', $('#fbc').value); toast('Saved. Reload the page to use it.'); pageSettings(); } catch (e) { fail(e); } };
