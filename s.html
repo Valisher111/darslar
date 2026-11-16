@@ -362,23 +362,35 @@ const BST = { requested: ['warn', 'o\'qituvchi javobini kutmoqda'], approved: ['
 function coinMini() {
   const c = H.coins; if (!c) return '';
   const ready = (H.shop && H.shop.requests || []).filter(r => r.canStart);
-  return ready.map(r => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● Bonus test · faqat siz uchun</div><div class="t">${esc(uzS(r.title))}</div>
-      <p class="small muted" style="margin:4px 0 12px">${H.shop.test.count} ta savol · ${H.shop.test.minutes} daqiqa · kamida ${H.shop.test.pass}% kerak · sahifadan chiqmang</p>
+  return ready.map(r => `<div class="card quizcard"><div class="small" style="color:var(--accent);font-weight:600">● ${r.kind === 'earn' ? "Qo'shimcha tanga testi" : r.key === 'makeup' ? 'Darsni qoplash testi' : 'Bonus test'} · faqat siz uchun</div><div class="t">${esc(r.key === 'makeup' ? dayName(r.target) : uzS(r.title))}</div>
+      <p class="small muted" style="margin:4px 0 12px">${testInfo(r)} · sahifadan chiqmang</p>
       <button class="btn primary block" data-bt="${esc(r.id)}">${r.status === 'started' ? 'Testni davom ettirish' : 'Testni boshlash'}</button></div>`).join('') +
     `<div class="card coinmini" data-go="coins" style="cursor:pointer"><div class="row" style="display:flex;align-items:center;gap:10px"><span style="font-size:28px">🪙</span>
       <div style="flex:1"><b style="font-size:20px">${c.balance}</b> tanga<div class="small muted">${c.rank && c.balance > 0 ? 'guruhda ' + ord(c.rank) + ' (' + c.of + ' kishidan)' : 'Tanga qanday yig\'iladi? Bosing'}${c.cards.yellow ? ' · ' + (c.frozen ? '🟥 qizil karta: tangalar muzlatilgan' : '🟨 sariq karta') : ''}</div></div>
       <span class="small" style="color:var(--accent);font-weight:600">Do'kon ›</span></div></div>`;
+}
+/* What a test is like, in one line (16.11.2026 rules). */
+function testInfo(r) {
+  const s = H.shop || {}, t = s.test || { count: 15, minutes: 8, pass: 80 }, e = s.earn || { coins: [[100, 2], [80, 1]] };
+  if (r.kind === 'earn') return `${t.count} ta savol · ${e.coins.slice().reverse().map(c => c[0] + '% → +' + c[1]).join(', ')} tanga`;
+  if (r.key === 'makeup') return `${s.makeupCount || 10} ta savol · nechta to'g'ri bo'lsa, shu baho qo'yiladi`;
+  return `${t.count} ta savol · ${t.minutes} daqiqa · kamida ${t.pass}% kerak`;
 }
 function tCoins() {
   const c = H.coins, s = H.shop;
   if (!c || !s) { $('#view').innerHTML = '<div class="card"><p class="muted" style="margin:0">Tangalar hozircha mavjud emas.</p></div>'; return; }
   const items = s.items.map(b => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${esc(uzT(b.key, b.title, 0))}</b><div class="small muted">${esc(uzT(b.key, b.note, 1))}${b.limit ? ' · semestrda ' + b.used + '/' + b.limit : ''}</div>
       ${b.ok ? '' : `<div class="small" style="color:var(--warn);margin-top:3px">${esc(uzS(b.why))}</div>`}</div>
-      <div style="text-align:right"><div style="font-weight:800;margin-bottom:6px">${b.price} 🪙</div><button class="btn ${b.ok ? 'primary' : ''}" data-buy="${esc(b.key)}" ${b.ok ? '' : 'disabled'}>Olish</button></div></li>`).join('');
+      <div style="text-align:right"><div style="font-weight:800;margin-bottom:6px">${b.price} 🪙</div><button class="btn ${b.ok ? 'primary' : ''}" data-buy="${esc(b.key)}" ${b.ok ? '' : 'disabled'}>${b.key === 'makeup' ? 'Testni boshlash' : 'Sotib olish'}</button></div></li>`).join('');
+  const e = s.earn;
+  const earnCard = e && e.per ? `<div class="card"><h2>➕ Qo'shimcha tanga testi</h2>
+      <p class="small muted" style="margin:0 0 8px">O'tgan mavzulardan ${e.count} ta savol. ${e.coins.slice().reverse().map(c => `<b>${c[0]}%</b> → <b>+${c[1]}</b>`).join(', ')} tanga. Haftasiga ${e.per} ta. So'rov yuborasiz → o'qituvchi ruxsat beradi yoki ${e.autoMin} daqiqadan keyin test o'zi ochiladi.</p>
+      <div class="row" style="display:flex;align-items:center;gap:10px"><span class="small" style="flex:1">Bu hafta: <b>${e.left} / ${e.per}</b> qoldi${e.ok ? '' : `<br><span style="color:var(--warn)">${esc(uzS(e.why))}</span>`}</span>
+      <button class="btn ${e.ok ? 'primary' : ''}" data-earn ${e.ok ? '' : 'disabled'}>So'rash</button></div></div>` : '';
   const cards = s.cards.map(x => `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>🟨 Sariq karta</b><div class="small muted">${esc(uzS(x.reason))} · ${esc(x.at)}</div>
       ${x.ok ? '' : x.why ? `<div class="small" style="color:var(--warn)">${esc(uzS(x.why))}</div>` : ''}</div><button class="btn ${x.ok ? 'primary' : ''}" data-cardtest="${esc(x.card)}" ${x.ok ? '' : 'disabled'}>Test bilan olib tashlash</button></li>`).join('');
-  const reqs = s.requests.map(r => `<li style="flex-wrap:wrap"><div style="flex:1 1 100%;min-width:0"><b>${esc(uzS(r.title))}</b><div class="small muted">${esc(r.created_at)}${r.kind !== 'card' && r.target ? ' · dars: ' + esc(md(r.target)) : ''}${r.score !== '' && r.score != null ? ' · test: ' + esc(r.score) + '%' : ''}</div></div>
-      <div style="display:flex;gap:8px;align-items:center;width:100%;margin-top:6px"><span class="pill ${(BST[r.status] || ['gray'])[0]}" style="margin-right:auto">${esc((BST[r.status] || [, r.status])[1])}</span>${r.canStart ? `<button class="btn sm primary" data-bt="${esc(r.id)}">Testni boshlash</button>` : ''}
+  const reqs = s.requests.map(r => `<li style="flex-wrap:wrap"><div style="flex:1 1 100%;min-width:0"><b>${esc(uzS(r.title))}</b><div class="small muted">${esc(r.created_at)}${r.kind !== 'card' && r.target ? ' · dars: ' + esc(md(r.target)) : ''}${r.score !== '' && r.score != null ? ' · test: ' + esc(r.score) + (r.key === 'makeup' ? ' / 10' : '%') : ''}${r.kind === 'earn' && r.status === 'done' ? ' · ' + esc(uzS(r.written)) : ''}</div></div>
+      <div style="display:flex;gap:8px;align-items:center;width:100%;margin-top:6px"><span class="pill ${(BST[r.status] || ['gray'])[0]}" style="margin-right:auto">${esc(r.status === 'requested' && r.kind === 'earn' ? 'ruxsat kutilmoqda (' + ((s.earn && s.earn.autoMin) || 30) + ' daqiqada o\'zi ochiladi)' : r.status === 'approved' && r.kind !== 'card' && r.mode === 'instant' ? 'testni ishlang' : (BST[r.status] || [, r.status])[1])}</span>${r.canStart ? `<button class="btn sm primary" data-bt="${esc(r.id)}">Testni boshlash</button>` : ''}
       ${['requested', 'approved', 'failed1'].includes(r.status) ? `<button class="btn sm" data-bc="${esc(r.id)}" title="Bekor qilish">✕</button>` : ''}</div></li>`).join('');
   const board = c.board.map(x => `<li style="${x.me ? 'background:var(--accent-soft);border-radius:10px;padding-left:8px;padding-right:8px' : ''}"><span style="min-width:26px" class="muted">${x.rank}</span>
       <span style="flex:1;min-width:0">${esc(x.name)}${x.yellow ? ' ' + '🟨'.repeat(Math.min(2, x.yellow)) : ''}${x.me ? ' <span class="small muted">(siz)</span>' : ''}</span><b>${x.balance}</b></li>`).join('');
@@ -388,12 +400,13 @@ function tCoins() {
       <div class="muted">tanga${c.rank && c.balance > 0 ? ' · guruhda ' + ord(c.rank) + ' (' + c.of + ' kishidan)' : ''}</div>
       ${c.frozen ? '<p style="color:var(--bad);font-weight:700;margin:10px 0 0">🟥 Qizil karta (2 ta sariq): tanga yig\'a olmaysiz ham, sarflay olmaysiz ham. Kartani test bilan olib tashlang.</p>'
         : c.cards.yellow ? '<p style="color:var(--warn);font-weight:600;margin:10px 0 0">🟨 Sizda sariq karta bor: uni olib tashlamaguncha do\'kon yopiq.</p>' : ''}</div>
-    <div class="card" id="earncard"><h2>🪙 Tangani qanday yig'asiz</h2>${["Darsdagi quiz yoki Live game: <b>10</b> → <b>+3</b>, <b>8–9.9</b> → <b>+2</b>, <b>6–7.9</b> → <b>+1</b>", "Live game'da eng yaxshi 3 talik → yana <b>+1</b>", "Darsda faol bo'lsangiz, o'qituvchi beradi → <b>+1 / +2 / +3</b>", "<b>Quizlar → Xatolarim ustida ishlash</b>: kuniga 5 ta to'g'ri javob → <b>+1</b>", "🟨 Sariq karta do'konni yopadi. 2 ta sariq = 🟥 qizil: tangalar muzlaydi."].map(x => `<div class="small" style="padding:7px 0;border-bottom:1px solid var(--line)">${x}</div>`).join('')}<button class="btn" data-cguide style="width:100%;margin-top:12px">❓ To'liq qo'llanma: tangani nimaga sarflash, bonus, kartalar</button></div>
+    <div class="card" id="earncard"><h2>🪙 Tangani qanday yig'asiz</h2>${["Darsdagi quiz yoki Live game: <b>10</b> → <b>+3</b>, <b>8–9.9</b> → <b>+2</b>, <b>6–7.9</b> → <b>+1</b>", "Live game'da eng yaxshi 3 talik → yana <b>+1</b>", "Darsda faol bo'lsangiz, o'qituvchi beradi → <b>+1 / +2 / +3</b>", "<b>Quizlar → Xatolarim ustida ishlash</b>: kuniga 5 ta to'g'ri javob → <b>+1</b>", "<b>Qo'shimcha tanga testi</b> (pastda): <b>80%</b> → <b>+1</b>, <b>100%</b> → <b>+2</b>, haftasiga 2 ta", "🟨 Sariq karta do'konni yopadi. 2 ta sariq = 🟥 qizil: tangalar muzlaydi."].map(x => `<div class="small" style="padding:7px 0;border-bottom:1px solid var(--line)">${x}</div>`).join('')}<button class="btn" data-cguide style="width:100%;margin-top:12px">❓ To'liq qo'llanma: tangani nimaga sarflash, bonus, kartalar</button></div>
     ${coinMini().replace(/<div class="card coinmini"[\s\S]*$/, '')}
     ${cards ? `<div class="card"><h2>Kartalarim</h2><ul class="list">${cards}</ul></div>` : ''}
-    <div class="card"><h2>Bonus do'koni</h2>${s.free && s.free.per ? `<div style="background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:14px">🎟 Bu hafta bepul testlar: <b>${s.free.left} / ${s.free.per}</b> qoldi — darhol boshlanadi. ${s.free.left ? '' : 'Endi har bir yangi testga o\'qituvchi ruxsat beradi.'}</div>` : ''}
-      <p class="small muted" style="margin:0 0 8px">Bonusni tanlang → o'tgan mavzulardan ${s.test.count} ta savollik test (${s.test.minutes} daqiqa)${s.free && s.free.per ? ` (haftasiga ${s.free.per} tasi so'rovsiz; keyin o'qituvchi ruxsat beradi)` : ' (o\'qituvchi ruxsatidan keyin)'}. ${s.test.pass}% va undan ko'p olsangiz, bonus beriladi va tangalar yechiladi. O'tmasangiz, tangalaringiz qoladi.</p>
+    <div class="card"><h2>Bonus do'koni</h2>
+      <p class="small muted" style="margin:0 0 8px">Oraliq nazorat va loyiha ishi bonuslari darhol beriladi: tanga yechiladi, ball jurnalga yoziladi. Darsni qoplashda o'sha darsning quizidan ${s.makeupCount || 10} ta savollik test ochiladi — nechta to'g'ri ishlasangiz, o'sha darsga shu baho qo'yiladi.</p>
       <ul class="list">${items}</ul></div>
+    ${earnCard}
     ${reqs ? `<div class="card"><h2>So'rovlarim</h2><ul class="list">${reqs}</ul></div>` : ''}
     <div class="card"><h2>Guruh reytingi (tangalar)</h2><ul class="list">${board}</ul></div>
     <div class="card"><h2>Tangalar tarixi</h2>${hist ? `<ul class="list">${hist}</ul>` : '<p class="muted" style="margin:0">Hozircha tanga yo\'q.</p>'}</div>`;
@@ -402,12 +415,12 @@ function tCoins() {
 }
 
 /* ===== coin guide (15.11.2026): simple Uzbek explanation, opens over the page ===== */
-const BONUS_UZ = { makeup: ['Qoldirilgan darsni qoplash', "Jurnaldagi bitta 0 o'rniga kunlik o'rtacha bahoingiz qo'yiladi."],
-  on2: ['Oraliq nazoratga +2 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."],
-  pw: ['Loyiha ishidan ozod', "Loyiha ishi (PW) bahoingiz 10 bo'ladi."],
-  on3: ['Oraliq nazoratga +3 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."] };
+const BONUS_UZ = { makeup: ['Qoldirilgan darsni qoplash', "O'sha darsning quizidan 10 ta savol: nechta to'g'ri ishlasangiz, 0 o'rniga shu baho qo'yiladi."],
+  on2: ['Oraliq nazoratga +2 ball', "Darhol oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."],
+  pw: ["Loyiha ishiga +5 ball", "Darhol loyiha ishi (PW) bahoingizga qo'shiladi (10 dan oshmaydi). 2 marta olsangiz — to'liq 10."],
+  on3: ['Oraliq nazoratga +3 ball', "Darhol oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."] };
 /* Server texts are English (one server for many teachers): the student page shows them in Uzbek (15.11.2026). */
-const BONUS_EN = { 'Make up a missed lesson': 'makeup', '+2 points on the midterm (ON)': 'on2', 'Free from the Project work': 'pw', '+3 extra points on the midterm (ON)': 'on3' };
+const BONUS_EN = { 'Make up a missed lesson': 'makeup', '+2 points on the midterm (ON)': 'on2', 'Free from the Project work': 'pw', '+5 points on the Project work': 'pw', '+3 extra points on the midterm (ON)': 'on3' };
 const uzT = (key, text, i) => BONUS_UZ[key] ? BONUS_UZ[key][i] : uzS(text);
 const UZS = [
   [/^(.*) \(undone, was -?\d+\)$/, (m, a) => uzS(a) + ' (bekor qilindi)'],
@@ -422,7 +435,19 @@ const UZS = [
   [/^Request sent\.$/, "So'rov yuborildi."],
   [/^Remove a yellow card \((.*)\)$/, (m, a) => `Sariq kartani olib tashlash (${uzS(a)})`],
   [/^Bonus test · (.*)$/, (m, a) => 'Bonus test · ' + uzS(a)],
+  [/^Make-up test · (.*)$/, (m, a) => 'Darsni qoplash testi · ' + md(a)],
+  [/^Extra coin test$/, "Qo'shimcha tanga testi"],
+  [/^Extra test \((\d+)%\)$/, (m, a) => `Qo'shimcha test (${a}%)`],
+  [/^Bonus: (.*) · (\d\d\.\d\d)$/, (m, a, b) => 'Bonus: ' + uzS(a) + ' · ' + md(b)],
   [/^Bonus: (.*)$/, (m, a) => 'Bonus: ' + uzS(a)],
+  [/^\+(\d+) coins?$/, (m, a) => `+${a} tanga`],
+  [/^no coin \((\d+)%\)$/, (m, a) => `tanga berilmadi (${a}%)`],
+  [/^no coin: coins are frozen$/, 'tanga berilmadi: tangalar muzlatilgan'],
+  [/^Used (\d+) of (\d+) this week\.$/, (m, a, b) => `Bu hafta ${b} tadan ${a} tasi ishlatilgan.`],
+  [/^Extra tests are off\.$/, "Qo'shimcha testlar o'chirilgan."],
+  [/^Your Project work mark is already 10\.$/, "Loyiha ishi bahoingiz allaqachon 10."],
+  [/^There is no Project work column in your gradebook\.$/, "Jurnalingizda loyiha ishi ustuni yo'q."],
+  [/^The bonus could not be written: (.*)\. Your coins were not used\.$/, (m, a) => `Bonusni yozib bo'lmadi (${a}). Tangalaringiz yechilmadi.`],
   [/^Live top 3 \((\d)\) · (.*)$/, (m, a, b) => `Live: top-3 (${a}-o'rin) · ${b}`],
   [/^Practice: (\d+) mistakes fixed$/, (m, a) => `Xatolar ustida ishlash: ${a} ta tuzatildi`],
   [/^Active in class(.*)$/, (m, a) => 'Darsda faollik' + a],
@@ -466,7 +491,7 @@ function uzS(t) {
   return t;
 }
 function showCoinGuide() {
-  const s = H.shop || {}, t = s.test || { count: 15, minutes: 8, pass: 80 }, free = s.free && s.free.per != null ? s.free.per : 2;
+  const s = H.shop || {}, t = s.test || { count: 15, minutes: 8, pass: 80 }, e = s.earn || {};
   const li = a => '<ul style="margin:6px 0 0;padding-left:20px">' + a.map(x => `<li style="margin:6px 0">${x}</li>`).join('') + '</ul>';
   const rows = (s.items || []).map(b => { const u = BONUS_UZ[b.key] || [b.title, b.note || ''];
     return `<li style="align-items:flex-start"><div style="flex:1;min-width:0"><b>${esc(u[0])}</b><div class="small muted">${esc(u[1])}${b.limit ? ' · semestrda ' + b.limit + ' marta' : ''}</div></div><b style="white-space:nowrap">${b.price} 🪙</b></li>`; }).join('');
@@ -480,20 +505,20 @@ function showCoinGuide() {
       'Live game\'da eng yaxshi 3 talik → yana <b>+1</b>',
       'Darsda faol bo\'lsangiz, o\'qituvchi <b>+1 / +2 / +3</b> beradi',
       '<b>Quizlar → Xatolarim ustida ishlash</b>: kuniga 5 ta to\'g\'ri javob → <b>+1</b>',
+      `<b>Qo'shimcha tanga testi</b> (haftasiga ${e.per || 2} ta): o'tgan mavzulardan ${t.count} ta savol, ${(e.coins || [[100, 2], [80, 1]]).slice().reverse().map(c => '<b>' + c[0] + '%</b> → <b>+' + c[1] + '</b>').join(', ')}. So'rov yuborasiz — o'qituvchi ruxsat beradi yoki ${e.autoMin || 30} daqiqadan keyin test o'zi ochiladi`,
       'Test paytida boshqa ilovaga o\'tsangiz, o\'sha test uchun tanga berilmaydi'])}
     <h3 style="margin:14px 0 4px">2. Tangani nimaga sarflaysiz</h3><ul class="list">${rows}</ul>
     <h3 style="margin:14px 0 4px">3. Bonusni qanday olasiz</h3>
     <ol style="margin:6px 0 0;padding-left:22px">
-      <li style="margin:6px 0"><b>Bonus do'koni</b>da kerakli bonus yonidagi <b>Olish</b> tugmasini bosing.</li>
-      <li style="margin:6px 0">Haftasiga <b>${free} ta</b> test darhol boshlanadi. Undan ko'pi uchun o'qituvchi ruxsat beradi.</li>
-      <li style="margin:6px 0">O'tgan mavzulardan <b>${t.count} ta savol</b>, <b>${t.minutes} daqiqa</b>. Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi.</li>
-      <li style="margin:6px 0"><b>${t.pass}%</b> va undan ko'p → bonus jurnalga yoziladi, tangalar yechiladi.</li>
-      <li style="margin:6px 0">O'tmasangiz — <b>tangalaringiz yechilmaydi</b>. Ertasi kuni yana bir marta urinasiz; yana o'tmasangiz, 7 kun kutasiz.</li>
+      <li style="margin:6px 0"><b>Oraliq nazorat</b> va <b>loyiha ishi</b> bonuslari: <b>Sotib olish</b> → tanga yechiladi va ball darhol jurnalga yoziladi. Test yo'q.</li>
+      <li style="margin:6px 0">Oraliq nazorat bahosi hali qo'yilmagan bo'lsa, bonus u qo'yilgach o'zi qo'shiladi.</li>
+      <li style="margin:6px 0"><b>Darsni qoplash</b>: qoldirgan darsingizni tanlaysiz → o'sha darsning quizidan <b>${s.makeupCount || 10} ta savol</b> darhol ochiladi (tanga test boshlanganda yechiladi). Nechta to'g'ri ishlasangiz, o'sha darsga shu baho qo'yiladi.</li>
+      <li style="margin:6px 0">Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi. Sahifadan chiqmang.</li>
     </ol>
     <h3 style="margin:14px 0 4px">4. Kartalar</h3>${li([
       '🟨 <b>Sariq karta</b> — bonus do\'koni yopiladi. Testdan 2 marta chiqib ketsangiz, avtomatik beriladi.',
       '🟥 <b>2 ta sariq = qizil</b> — tangalar muzlaydi: yig\'ilmaydi ham, sarflanmaydi ham.',
-      'Kartani test bilan olib tashlaysiz: <b>Test bilan olib tashlash</b> tugmasi.'])}
+      `Kartani test bilan olib tashlaysiz: <b>Test bilan olib tashlash</b> (${t.count} ta savol, kamida ${t.pass}%).`])}
     <h3 style="margin:14px 0 4px">5. Yodda tuting</h3>${li([
       'Reytingda faqat ism va tangalar ko\'rinadi, baholaringiz ko\'rinmaydi.',
       'Har juma haftalik <b>Top-5</b> e\'lon qilinadi.',
@@ -512,21 +537,22 @@ function bindCoinBtns() {
   $$('[data-buy]').forEach(b => b.onclick = () => {
     const it = H.shop.items.find(x => x.key === b.dataset.buy);
     if (it.key === 'makeup') return pickMakeup(it);
-    if (!confirm(freeLeft() ? `"${uzT(it.key, it.title, 0)}" (${it.price} tanga)\n\nTest HOZIR boshlanadi: ${H.shop.test.count} ta savol, ${H.shop.test.minutes} daqiqa, kamida ${H.shop.test.pass}% kerak. Sahifadan chiqmang.\nTangalar faqat testdan o'tsangiz yechiladi. Boshlaymizmi?`
-      : `O'qituvchidan "${uzT(it.key, it.title, 0)}" (${it.price} tanga) so'raysizmi?\nBu haftaning bepul testlari tugadi. O'qituvchi ruxsat bergach, testni ishlaysiz.`)) return;
+    if (!confirm(`"${uzT(it.key, it.title, 0)}" — ${it.price} tanga.\n\nTangalar hozir yechiladi va ball darhol jurnalga yoziladi. Sotib olasizmi?`)) return;
     shopReq(b, it.key, '');
   });
+  $$('[data-earn]').forEach(b => b.onclick = () => { const e = H.shop.earn;
+    if (confirm(`Qo'shimcha tanga testini so'raysizmi?\n${e.count} ta savol: ${e.coins.slice().reverse().map(c => c[0] + '% → +' + c[1]).join(', ')} tanga.\nO'qituvchi ruxsat beradi yoki ${e.autoMin} daqiqadan keyin test o'zi ochiladi (botga xabar keladi).`)) shopReq(b, 'earn', ''); });
   $$('[data-cardtest]').forEach(b => b.onclick = () => { if (confirm(freeLeft() ? `Bu sariq kartani test bilan olib tashlaysizmi?\nTest HOZIR boshlanadi: ${H.shop.test.count} ta savol, ${H.shop.test.minutes} daqiqa, ${H.shop.test.pass}%.` : "O'qituvchidan sariq kartani test bilan olib tashlashni so'raysizmi?")) shopReq(b, 'card', b.dataset.cardtest); });
   $$('[data-bc]').forEach(b => b.onclick = async () => { if (!confirm("Bu so'rovni bekor qilasizmi?")) return; b.disabled = true; try { H.shop = await api('stBonusCancel', b.dataset.bc); render(); } catch (e) { fail(e); b.disabled = false; } });
 }
 function pickMakeup(it) {
   const d = document.createElement('div'); d.className = 'gwarn';
-  d.innerHTML = `<div class="box" style="border-color:var(--accent)"><h3 style="color:var(--ink)">${esc(uzT(it.key, it.title, 0))}</h3><p class="small muted">Qoldirilgan darsni (0) tanlang. Unga kunlik o'rtacha bahoingiz qo'yiladi.</p>
+  d.innerHTML = `<div class="box" style="border-color:var(--accent)"><h3 style="color:var(--ink)">${esc(uzT(it.key, it.title, 0))}</h3><p class="small muted">Qoldirilgan darsni tanlang. O'sha darsning quizidan ${H.shop.makeupCount || 10} ta savol chiqadi: nechta to'g'ri ishlasangiz, o'sha darsga shu baho qo'yiladi. ${it.price} tanga test boshlanganda yechiladi.</p>
     <select id="mkd" style="width:100%;padding:10px;font-size:16px;margin-bottom:12px">${H.shop.makeup.map(x => `<option value="${esc(x)}">${esc(dayName(x))}</option>`).join('')}</select>
-    <button class="btn primary block" id="mkok">${freeLeft() ? 'Testni boshlash' : 'So\'rash'} · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Bekor qilish</button></div>`;
+    <button class="btn primary block" id="mkok">Testni boshlash · ${it.price} 🪙</button><button class="btn block" id="mkno" style="margin-top:8px">Bekor qilish</button></div>`;
   document.body.appendChild(d);
   $('#mkno').onclick = () => d.remove();
-  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); if (freeLeft() && !confirm(`Test HOZIR boshlanadi: ${H.shop.test.count} ta savol, ${H.shop.test.minutes} daqiqa, kamida ${H.shop.test.pass}% kerak. Sahifadan chiqmang. Boshlaymizmi?`)) return; shopReq(null, 'makeup', v); };
+  $('#mkok').onclick = async () => { const v = $('#mkd').value; d.remove(); if (!confirm(`Test HOZIR boshlanadi: ${H.shop.makeupCount || 10} ta savol, bittadan. Sahifadan chiqmang. ${it.price} tanga yechiladi. Boshlaymizmi?`)) return; shopReq(null, 'makeup', v); };
 }
 const freeLeft = () => !!(H.shop && H.shop.free && H.shop.free.left > 0);
 async function shopReq(b, key, target) {
@@ -534,8 +560,9 @@ async function shopReq(b, key, target) {
   try {
     H.shop = await api('stBonusRequest', key, target);
     const r = (H.shop.requests || [])[0];
-    if (r && r.mode === 'auto' && r.canStart) return startQuiz(r.id);   // free test of the week: start at once
-    toast("O'qituvchiga yuborildi"); render();
+    if (r && (r.mode === 'auto' || r.mode === 'instant') && r.canStart) return startQuiz(r.id);   // free card test / make-up test: start at once
+    if (r && r.status === 'done') { toast(/^pending/.test(r.written || '') ? "Sotib olindi. Ball oraliq nazorat bahosi qo'yilgach qo'shiladi." : 'Sotib olindi. Ball jurnalga yozildi ✓'); render(); return; }
+    toast(r && r.kind === 'earn' ? `So'rov yuborildi. Ruxsat bo'lsa yoki ${(H.shop.earn && H.shop.earn.autoMin) || 30} daqiqadan keyin botga xabar keladi.` : "O'qituvchiga yuborildi"); render();
   } catch (e) { fail(e); if (b) b.disabled = false; }
 }
 
@@ -785,6 +812,20 @@ document.addEventListener('selectstart', e => { if (Q && !PREVIEW && !(e.target 
 
 function showQuizResult(r, auto) {
   clearInterval(qTimer); clearTimeout(saveT); $$('.gwarn').forEach(x => x.remove());
+    if (r.bonus && r.makeup) {
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
+      <div class="big" style="margin:12px 0 4px">${esc(r.score10)}</div><div class="muted">10 balldan</div>
+      <p class="small muted">${/→/.test(r.written || '') ? `Bahoingiz ${esc(md(r.target))} darsiga yozildi.` : r.status === 'done' ? 'Baho yozilmadi: bu katakda endi 0 yo\'q. O\'qituvchiga ayting.' : 'Test yopildi, baho yozilmadi. O\'qituvchiga murojaat qiling.'}</p>
+      <button class="btn primary block" id="qdone">Sahifamga qaytish</button></div></div>`;
+      $('#qdone').onclick = () => { tab = 'coins'; backHome(); setTimeout(() => { tab = 'coins'; }, 0); }; Q = null; submitting = false; return;
+    }
+    if (r.bonus && r.earn) {
+      $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.coins ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
+      <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div>
+      ${r.coins ? `<p style="font-size:18px;font-weight:700;color:var(--good)">🎉 +${r.coins} tanga!</p>` : `<p style="font-size:18px;font-weight:700;color:var(--bad)">Bu safar tanga yo'q</p><p class="small muted">Tanga uchun kamida ${r.pass}% kerak. Quizlar bo'limida xatolaringiz ustida ishlang.</p>`}
+      <button class="btn primary block" id="qdone">Sahifamga qaytish</button></div></div>`;
+      $('#qdone').onclick = () => { tab = 'coins'; backHome(); setTimeout(() => { tab = 'coins'; }, 0); }; Q = null; submitting = false; return;
+    }
     if (r.bonus) {
       $('#quiz').innerHTML = `<div class="qwrap" style="padding-top:40px"><div class="card ${r.passed ? '' : 'gclosed'}" style="text-align:center;padding:28px 18px"><div class="small muted">${esc(uzS(Q.title))}</div>
       <div class="big" style="margin:12px 0 4px">${esc(r.score10)}%</div><div class="muted">kerak edi: ${r.pass}%</div>
