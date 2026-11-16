@@ -1770,8 +1770,10 @@ async function lvOnState() {
   lvRender();
   if (st.phase === 'end' && !LV.saved && !LV.saving && !LV.saveErr) lvSave();
 }
+// 16.11.2026 (Valisher): a long question gets a little more time on top of the chosen seconds (reading load)
+function lvExtra(q) { const len = [q.prompt].concat(q.options || []).map(o => o && typeof o === 'object' ? (o.t || '') : (o || '')).join(' ').length; return Math.max(0, Math.min(15, Math.round((len - 80) / 12))); }
 async function lvAsk(i) {
-  const q = LV.P.questions[i], dur = LV.P.secs, TS = firebase.database.ServerValue.TIMESTAMP;
+  const q = LV.P.questions[i], dur = LV.P.secs + lvExtra(q), TS = firebase.database.ServerValue.TIMESTAMP;
   await LV.g.child('questions/' + i).set({ prompt: q.prompt, type: q.type, options: q.options, n: i, total: LV.P.questions.length, dur, startedAt: TS });
   LV.qmeta[i] = (await LV.g.child('questions/' + i).once('value')).val();
   await LV.g.child('state').set({ phase: 'question', q: i, startedAt: LV.qmeta[i].startedAt, dur });
@@ -2069,7 +2071,7 @@ function lvRender() {
       <div class="lv-right"><div class="lv-count"><b>${act.length}</b>o'yinchi qo'shildi${guests ? ` · ${guests} mehmon` : ''}</div>
       <div class="lv-chips">${act.map(p => `<button class="lv-chip ${p.guest ? 'g' : ''}" data-kick="${esc(p.uid)}" title="${esc(p.name)}${p.guest ? ' (mehmon)' : ''} · click to remove"><span class="av">${esc(lvAv(p.uid))}</span>${esc(p.nick)}</button>`).join('') || '<span class="lv-dim">O\'yinchilar kutilmoqda…</span>'}</div>
       <div class="lv-center"><button class="lv-btn big" id="lvgo" ${act.length ? '' : 'disabled'}>Boshlash ▶</button></div>
-      <div class="lv-center lv-dim small">${n} ta savol · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' daq' : 'har biriga ' + P.secs + ' s'}${P.teams ? ` · Boshlash bosilganda ${P.teams} ta jamoa tasodifiy tuziladi` : ''}${P.date ? ' · baholar ' + esc(md(P.date)) + ' kuniga yoziladi' : ' · baho yo\'q (mashq)'}</div></div></div>`;
+      <div class="lv-center lv-dim small">${n} ta savol · ${P.mode === 'robot' ? 'Robot Run · ' + P.minutes + ' daq' : 'har biriga ' + P.secs + ' s (uzun savolga ko\'proq)'}${P.teams ? ` · Boshlash bosilganda ${P.teams} ta jamoa tasodifiy tuziladi` : ''}${P.date ? ' · baholar ' + esc(md(P.date)) + ' kuniga yoziladi' : ' · baho yo\'q (mashq)'}</div></div></div>`;
   } else if (st.phase === 'question') {
     const q = P.questions[st.q];
     body = `<div class="lv-prompt">${esc(q.prompt)}</div>
