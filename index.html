@@ -2684,6 +2684,7 @@ function groupSettingsModal(g) {
 /* In class: +1/+2/+3 (max 5 a lesson), yellow cards; bonus requests (Approve / Reject); board; history; weekly Top 5. */
 const BSTAT = { requested: 'warn', approved: '', started: 'warn', done: '', failed1: 'bad', failed: 'bad', rejected: 'gray' };
 const BLABEL = { requested: 'sizni kutmoqda', approved: 'tasdiqlangan · test ishlanmagan', started: 'test ishlayapti', done: 'bajarildi', failed1: 'o\'tmadi · 1 urinish qoldi', failed: 'o\'tmadi', rejected: 'rad etildi' };
+const BTITLE = r => r.kind === 'earn' ? "Qo'shimcha tanga testi" : r.key === 'makeup' ? 'Darsni qoplash testi' : r.title;
 async function pageCoins(c) {
   if (!c) loading();
   try {
@@ -2695,12 +2696,12 @@ async function pageCoins(c) {
     const max = (c.rules && c.rules.manualMax) || 5;
     const req = c.requests.filter(r => r.status === 'requested');
     const reqHtml = req.length ? req.map(r => `<div class="up"><div style="flex:1;min-width:0"><b>${esc(r.name)}</b>
-        <div class="small">${esc(r.title)}${r.kind !== 'card' && r.target ? ' · ' + esc(md(r.target)) : ''}${r.price ? ' · ' + r.price + ' 🪙' : ''}</div><div class="small muted">${esc(r.created_at)}</div></div>
+        <div class="small">${esc(BTITLE(r))}${r.kind !== 'card' && r.target ? ' · ' + esc(md(r.target)) : ''}${r.price ? ' · ' + r.price + ' 🪙' : ''}</div><div class="small muted">${esc(r.created_at)}${r.kind === 'earn' ? ` · javob bermasangiz, ${(c.rules.earn && c.rules.earn.autoMin) || 30} daqiqadan keyin o'zi ochiladi` : ''}</div></div>
         <button class="btn sm primary" data-bok="${esc(r.id)}">Tasdiqlash</button><button class="btn sm" data-bno="${esc(r.id)}">Rad etish</button></div>`).join('')
       : '<div class="empty">Yangi so\'rov yo\'q.</div>';
     const other = c.requests.filter(r => r.status !== 'requested').slice(0, 12);
-    const otherHtml = other.length ? other.map(r => `<div class="row small" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(r.name)} · ${esc(r.title)}</span>
-        ${r.mode === 'auto' ? '<span class="pill gray" title="Haftaning bepul testi (tasdiqsiz)">bepul</span>' : ''}${unusualPill(r.note)}${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}%</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
+    const otherHtml = other.length ? other.map(r => `<div class="row small" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0">${esc(r.name)} · ${esc(BTITLE(r))}${r.kind !== 'card' && r.target ? ' · ' + esc(md(r.target)) : ''}</span>
+        ${r.mode === 'auto' ? '<span class="pill gray" title="Haftaning bepul testi (tasdiqsiz)">bepul</span>' : ''}${r.mode === 'instant' && r.key !== 'makeup' ? '<span class="pill gray" title="Testsiz, darhol yozildi">darhol</span>' : ''}${/automatically/.test(r.note || '') ? '<span class="pill gray" title="30 daqiqadan keyin o\'zi tasdiqlandi">avto</span>' : ''}${unusualPill(r.note)}${r.score !== '' && r.score != null ? `<span class="muted">${esc(r.score)}${r.key === 'makeup' ? '/10' : '%'}</span>` : ''}${r.kind === 'earn' && r.status === 'done' ? `<span class="muted">${esc(r.written)}</span>` : ''}<span class="pill ${BSTAT[r.status] || 'gray'}" title="${esc(r.written || r.note || '')}">${esc(BLABEL[r.status] || r.status)}</span></div>`).join('') : '';
     const cards = {}; c.cards.forEach(x => (cards[x.name] = cards[x.name] || []).push(x));
     const classHtml = c.board.slice().sort((a, b) => a.row - b.row).map(s => {
       const g = given[s.name] || 0, left = max - g;
@@ -2719,7 +2720,7 @@ async function pageCoins(c) {
         ${h.amount > 0 && h.source !== 'bonus' ? `<button class="btn sm" data-undo="${esc(h.id)}" title="Bekor qilish">↶</button>` : '<span style="width:34px"></span>'}</div>`).join('') : '<div class="empty">Hali tanga yo\'q.</div>';
     view().innerHTML = `<div class="row" style="margin-bottom:14px"><span class="muted" style="flex:1;min-width:200px">Tanga tizimi talabalarga qanday tushuntirilishini ko'ring yoki proyektorda ko'rsating.</span><button class="btn primary" id="cguide">📖 Talabalar uchun qo'llanma</button></div>
       ${req.length ? `<div class="card" style="border:2px solid var(--warn,#e6a700)"><h2>🪙 Bonus so'rovlari</h2>${reqHtml}
-        <div class="small muted" style="margin-top:6px">Bu talabalar haftalik ${c.rules.autoPerWeek || 0} ta bepul testini ishlatib bo'lgan. Siz tasdiqlagach, talaba ${c.rules.test.count} savollik testni (${c.rules.test.minutes} daq) ishlaydi, o'tish uchun ${c.rules.test.pass}% kerak. Tangalar faqat testdan o'tganda yechiladi va bonus yoziladi. Botda ham tasdiqlashingiz mumkin.</div></div>` : ''}
+        <div class="small muted" style="margin-top:6px">Qo'shimcha tanga testi: ${c.rules.test.count} savol, ${((c.rules.earn && c.rules.earn.coins) || [[100, 2], [80, 1]]).slice().reverse().map(x => x[0] + '% → +' + x[1]).join(', ')} tanga; javob bermasangiz ${(c.rules.earn && c.rules.earn.autoMin) || 30} daqiqadan keyin o'zi ochiladi. Sariq kartani olib tashlash testi: haftalik ${c.rules.autoPerWeek || 0} ta bepul testdan keyin sizning ruxsatingiz bilan, o'tish uchun ${c.rules.test.pass}%. Botda ham tasdiqlashingiz mumkin.</div></div>` : ''}
       <div class="grid g2">
         <div class="card"><div class="row"><h2 style="flex:1">Darsda · ${esc(md(today))}</h2><span class="small muted">max ${max} bir darsda</span></div>${classHtml}</div>
         <div>
@@ -2752,13 +2753,13 @@ async function pageCoins(c) {
 }
 
 /* ===================== coin guide (15.11.2026): simple Uzbek explanation for students ===================== */
-const BONUS_UZ = { makeup: ['Qoldirilgan darsni qoplash', "Jurnaldagi bitta 0 o'rniga kunlik o'rtacha bahoingiz qo'yiladi."],
-  on2: ['Oraliq nazoratga +2 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."],
-  pw: ['Loyiha ishidan ozod', "Loyiha ishi (PW) bahoingiz 10 bo'ladi."],
-  on3: ['Oraliq nazoratga +3 ball', "Oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."] };
-const BONUS_KEY = { 'Make up a missed lesson': 'makeup', '+2 points on the midterm (ON)': 'on2', 'Free from the Project work': 'pw', '+3 extra points on the midterm (ON)': 'on3' };
+const BONUS_UZ = { makeup: ['Qoldirilgan darsni qoplash', "O'sha darsning quizidan 10 ta savol: nechta to'g'ri ishlasangiz, 0 o'rniga shu baho qo'yiladi."],
+  on2: ['Oraliq nazoratga +2 ball', "Darhol oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."],
+  pw: ["Loyiha ishiga +5 ball", "Darhol loyiha ishi (PW) bahoingizga qo'shiladi (10 dan oshmaydi). 2 marta olsangiz — to'liq 10."],
+  on3: ['Oraliq nazoratga +3 ball', "Darhol oraliq nazorat bahoingizga qo'shiladi (maksimumdan oshmaydi)."] };
+const BONUS_KEY = { 'Make up a missed lesson': 'makeup', '+2 points on the midterm (ON)': 'on2', 'Free from the Project work': 'pw', '+5 points on the Project work': 'pw', '+3 extra points on the midterm (ON)': 'on3' };
 function coinGuideHtml(o) {
-  const t = o.test || { count: 15, minutes: 8, pass: 80 }, free = o.free == null ? 2 : o.free, max = o.max || 5;
+  const t = o.test || { count: 15, minutes: 8, pass: 80 }, e = o.earn || { perWeek: 2, autoMin: 30, coins: [[100, 2], [80, 1]] }, max = o.max || 5;
   const row = b => { const k = b.key || BONUS_KEY[b.title] || ''; const u = BONUS_UZ[k] || [b.title, b.note || ''];
     return `<tr><td><b>${esc(u[0])}</b><div class="small muted">${esc(u[1])}</div></td><td style="text-align:right;white-space:nowrap"><b>${b.price}</b> 🪙</td><td style="text-align:right;white-space:nowrap">${b.limit ? b.limit + ' marta' : 'cheksiz'}</td></tr>`; };
   const li = a => '<ul style="margin:6px 0 0;padding-left:20px">' + a.map(x => `<li style="margin:5px 0">${x}</li>`).join('') + '</ul>';
@@ -2769,16 +2770,16 @@ function coinGuideHtml(o) {
       'Jonli o\'yinda eng yaxshi 3 talik → yana <b>+1</b>',
       `Darsda faol bo'lsangiz, o'qituvchi <b>+1 / +2 / +3</b> beradi (bir darsda ko'pi bilan ${max})`,
       '"Practise my mistakes" bo\'limida kuniga 5 ta to\'g\'ri javob → <b>+1</b>',
+      `<b>Qo'shimcha tanga testi</b> (haftasiga ${e.perWeek} ta): ${t.count} ta savol, ${e.coins.slice().reverse().map(c => '<b>' + c[0] + '%</b> → <b>+' + c[1] + '</b>').join(', ')}. So'rov yuboriladi — o'qituvchi ruxsat beradi yoki ${e.autoMin} daqiqadan keyin o'zi ochiladi`,
       'Testdan chiqib ketsangiz (boshqa ilovaga o\'tsangiz) — o\'sha test uchun tanga berilmaydi'])}
     <h3 style="margin-top:14px">2. Tangani nimaga sarflaysiz (bonus do'koni)</h3>
     <table class="tbl" style="width:100%"><thead><tr><th>Bonus</th><th style="text-align:right">Narxi</th><th style="text-align:right">Semestrda</th></tr></thead><tbody>${(o.bonuses || []).map(row).join('')}</tbody></table>
     <h3 style="margin-top:14px">3. Bonusni qanday olasiz</h3>
     <ol style="margin:6px 0 0;padding-left:22px">
-      <li style="margin:5px 0">Botdagi shaxsiy sahifangizni oching → <b>Coins</b> → <b>Bonus shop</b> → kerakli bonus yonidagi <b>Get</b> tugmasini bosing.</li>
-      <li style="margin:5px 0">Haftasiga <b>${free} ta</b> test so'rovsiz darhol boshlanadi. Undan ko'pi uchun o'qituvchi ruxsat beradi.</li>
-      <li style="margin:5px 0">O'tgan mavzulardan <b>${t.count} ta savol</b>, <b>${t.minutes} daqiqa</b>. Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi.</li>
-      <li style="margin:5px 0"><b>${t.pass}%</b> va undan ko'p to'g'ri javob → bonus jurnalga yoziladi, tangalar yechiladi.</li>
-      <li style="margin:5px 0">O'tmasangiz — <b>tangalaringiz yechilmaydi</b>. Ertasi kuni yana bir marta urinasiz; yana o'tmasangiz, 7 kun kutasiz.</li>
+      <li style="margin:5px 0">Botdagi shaxsiy sahifangizni oching → <b>Tangalar</b> → <b>Bonus do'koni</b>.</li>
+      <li style="margin:5px 0"><b>Oraliq nazorat</b> va <b>loyiha ishi</b> bonuslari: <b>Sotib olish</b> → tanga yechiladi va ball darhol jurnalga yoziladi (test yo'q). Oraliq bahosi hali qo'yilmagan bo'lsa, u qo'yilgach qo'shiladi.</li>
+      <li style="margin:5px 0"><b>Darsni qoplash</b>: qoldirgan darsni tanlaysiz → o'sha darsning quizidan <b>10 ta savol</b> darhol ochiladi. Nechta to'g'ri ishlasangiz, o'sha darsga shu baho qo'yiladi.</li>
+      <li style="margin:5px 0">Savollar bittadan chiqadi, orqaga qaytib bo'lmaydi. Sahifadan chiqmang.</li>
     </ol>
     <h3 style="margin-top:14px">4. Kartalar</h3>${li([
       '🟨 <b>Sariq karta</b> — bonus do\'koni yopiladi. Testdan 2 marta chiqib ketsangiz, sariq karta avtomatik beriladi.',
@@ -2793,7 +2794,7 @@ function coinGuideHtml(o) {
 }
 function showCoinGuide(c) {
   c = c || S.coins || {};
-  modal(coinGuideHtml({ group: c.group, bonuses: c.bonuses, test: c.rules && c.rules.test, free: c.rules && c.rules.autoPerWeek, max: c.rules && c.rules.manualMax })
+  modal(coinGuideHtml({ group: c.group, bonuses: c.bonuses, test: c.rules && c.rules.test, earn: c.rules && c.rules.earn, max: c.rules && c.rules.manualMax })
     + `<div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn" id="cgfs">⛶ Proyektorda (to'liq ekran)</button><button class="btn primary" data-close>Yopish</button></div>`, m => {
     $('.modal', m).classList.add('wide');
     $('#cgfs', m).onclick = () => { const el = $('.modal', m); el.style.fontSize = '20px'; (el.requestFullscreen ? el.requestFullscreen() : Promise.resolve()).catch(() => {}); };
@@ -2852,8 +2853,9 @@ async function pageSettings() {
         ${s.coinRules ? `<p class="small muted">Tangadagi narxi va semestrda necha marta (0 = cheksiz).</p>
         ${s.coinRules.bonuses.map(b => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:160px">${esc((BONUS_UZ[b.key] || [b.title])[0])}<br><span class="small muted">${b.groups === 'all' ? 'barcha guruhlar' : 'guruhlar: ' + esc(b.groups.join(', '))}</span></span>
           <span style="white-space:nowrap"><input type="number" min="1" max="500" value="${b.price}" data-bp="${esc(b.key)}" style="width:70px" aria-label="price"> 🪙 × <input type="number" min="0" max="20" value="${b.limit}" data-bl="${esc(b.key)}" style="width:56px" aria-label="limit"></span></div>`).join('')}
-        <div class="row" style="margin-bottom:8px"><span style="flex:1">Haftalik bepul bonus testlari (tasdiqsiz)</span><input type="number" id="cap" min="0" max="7" value="${s.coinRules.autoPerWeek == null ? 2 : s.coinRules.autoPerWeek}" style="width:64px"></div>
-        <div class="row" style="margin-bottom:8px"><span style="flex:1">Bonus testi: savollar · daqiqa · o'tish %</span>
+        <div class="row" style="margin-bottom:8px"><span style="flex:1">Qo'shimcha tanga testi: haftasiga · necha daqiqada o'zi ochiladi</span><input type="number" id="cep" min="0" max="7" value="${s.coinRules.earn ? s.coinRules.earn.perWeek : 2}" style="width:64px"><input type="number" id="cea" min="0" max="240" value="${s.coinRules.earn ? s.coinRules.earn.autoMin : 30}" style="width:64px"></div>
+        <div class="row" style="margin-bottom:8px"><span style="flex:1">Karta testi: haftalik bepul (tasdiqsiz)</span><input type="number" id="cap" min="0" max="7" value="${s.coinRules.autoPerWeek == null ? 2 : s.coinRules.autoPerWeek}" style="width:64px"></div>
+        <div class="row" style="margin-bottom:8px"><span style="flex:1">Karta va qo'shimcha test: savollar · daqiqa · o'tish %</span>
           <input type="number" id="ctn" min="5" max="30" value="${s.coinRules.test.count}" style="width:64px"><input type="number" id="ctm" min="3" max="30" value="${s.coinRules.test.minutes}" style="width:64px"><input type="number" id="ctp" min="50" max="100" value="${s.coinRules.test.pass}" style="width:64px"></div>
         <div class="row"><button class="btn primary" id="crs">Saqlash</button><span class="spacer"></span><button class="btn danger" id="cns">Yangi semestr…</button></div>
         <p class="small muted" style="margin-top:8px">Yangi semestr: hamma balansi 0 dan boshlanadi (tarix saqlanadi).</p>` : '<p class="muted">Mavjud emas.</p>'}</div>
@@ -2874,7 +2876,7 @@ async function pageSettings() {
     $('#bts').onclick = async () => { $('#bts').disabled = true; try { await api('setBotToken', $('#bt').value); toast('Bot ulandi'); pageSettings(); } catch (e) { $('#bts').disabled = false; fail(e); } };
     if ($('#crs')) $('#crs').onclick = async () => {
       const bonuses = $$('[data-bp]').map(i => ({ key: i.dataset.bp, price: +i.value, limit: +$(`[data-bl="${i.dataset.bp}"]`).value }));
-      try { await api('setCoinRules', { bonuses, autoPerWeek: +$('#cap').value, test: { count: +$('#ctn').value, minutes: +$('#ctm').value, pass: +$('#ctp').value } }); toast('Saqlandi'); pageSettings(); } catch (e) { fail(e); }
+      try { await api('setCoinRules', { bonuses, autoPerWeek: +$('#cap').value, earn: { perWeek: +$('#cep').value, autoMin: +$('#cea').value }, test: { count: +$('#ctn').value, minutes: +$('#ctm').value, pass: +$('#ctp').value } }); toast('Saqlandi'); pageSettings(); } catch (e) { fail(e); }
     };
     if ($('#cns')) $('#cns').onclick = async () => { if (!confirm('Yangi semestr boshlansinmi? Har bir talabaning tangalari 0 ga tushadi. Tarix saqlanadi.')) return; try { await api('coinNewSemester'); toast('Yangi semestr uchun tangalar nolga tushirildi'); } catch (e) { fail(e); } };
     $('#fbs').onclick = async () => { try { await api('setFirebase', $('#fbc').value); toast('Saqlandi. Ishlatish uchun sahifani yangilang.'); pageSettings(); } catch (e) { fail(e); } };
