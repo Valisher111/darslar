@@ -1447,12 +1447,59 @@ async function liveStartDialog(id) {
     };
   });
 }
-/* ---- music: generated in the browser (Web Audio) — no files, no copyright ---- */
+/* ---- music: Kahoot-style MP3 tracks in site/music/ (bought by Valisher, 16.11.2026); the old generated themes stay in code but not in the menu ---- */
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
-const LV_THEMES = [['off', 'O\'chiq'], ['piano', 'Sokin pianino'], ['lofi', 'Lo-fi'], ['ambient', 'Ambient'], ['bells', 'Mayin qo\'ng\'iroqlar'], ['classic', 'Shiddatli (eski)']];
+/* lobby = waiting room, top 5 and scoreboard (continues where it stopped); question = restarts with every question */
+const LV_FILES = {
+  kahoot: { lobby: ['lobby-kahoot'], question: ['q-countdown'] },
+  beatbox: { lobby: ['lobby-beatbox'], question: ['q-ingame'] },
+  eighties: { lobby: ['lobby-80s'], question: ['q-ingame'] },
+  onelove: { lobby: ['lobby-onelove'], question: ['q-countdown'] },
+  xmas: { lobby: ['lobby-xmas'], question: ['q-xmas'] },
+  mix: { lobby: ['lobby-kahoot', 'lobby-beatbox', 'lobby-80s', 'lobby-onelove'], question: ['q-countdown', 'q-ingame'] }
+};
+const LV_THEMES = [['off', 'O\'chiq'], ['kahoot', 'Kahoot'], ['beatbox', 'Beatbox'], ['eighties', '80-lar'], ['onelove', 'One Love'], ['xmas', 'Yangi yil'], ['mix', 'Aralash']];
 const LVM = { ctx: null, out: null, nb: null, mode: null, timer: null, next: 0, step: 0,
-  theme: lsGet('lv_theme', lsGet('lv_music', 'on') === 'off' ? 'off' : 'piano'), vol: Math.min(1, Math.max(0.1, +lsGet('lv_vol', '0.5') || 0.5)) };
+  theme: (t => t === 'off' || LV_FILES[t] ? t : 'kahoot')(lsGet('lv_theme2', lsGet('lv_music', 'on') === 'off' ? 'off' : 'kahoot')), vol: Math.min(1, Math.max(0.1, +lsGet('lv_vol', '0.5') || 0.5)) };
+/* MP3 player on Web Audio: decoded once, looped without a gap, short fades between parts */
+const LVF = { buf: {}, loading: {}, pos: {}, cur: null, seq: 0, out: null, pick: {} };
+function lvfOut() {
+  const c = LVM.ctx; if (!LVF.out || LVF.out.context !== c) { LVF.out = c.createGain(); LVF.out.gain.value = LVM.vol; LVF.out.connect(c.destination); }
+  return LVF.out;
+}
+function lvfLoad(name) {
+  if (LVF.buf[name]) return Promise.resolve(LVF.buf[name]);
+  if (!LVF.loading[name]) LVF.loading[name] = fetch('music/' + name + '.mp3').then(r => { if (!r.ok) throw new Error('music ' + r.status); return r.arrayBuffer(); })
+    .then(a => new Promise((ok, no) => LVM.ctx.decodeAudioData(a, ok, no))).then(b => (LVF.buf[name] = b))
+    .catch(e => { delete LVF.loading[name]; console.warn('music', name, e); throw e; });
+  return LVF.loading[name];
+}
+function lvfStop(fade) {
+  const x = LVF.cur; LVF.cur = null; LVF.seq++; if (!x || !LVM.ctx) return;
+  const c = LVM.ctx, t = c.currentTime, d = fade == null ? 0.35 : fade;
+  if (x.keep) LVF.pos[x.name] = (x.off + (t - x.at)) % x.buf.duration;
+  try { x.g.gain.cancelScheduledValues(t); x.g.gain.setValueAtTime(x.g.gain.value, t); x.g.gain.linearRampToValueAtTime(0.0001, t + d); x.src.stop(t + d + 0.05); } catch (e) {}
+}
+/** play a track; keep=true remembers where it stopped (lobby), otherwise starts from 0 (question) */
+function lvfPlay(name, keep) {
+  lvfStop(0.3); const my = LVF.seq, c = lvmCtx(); if (!c) return;
+  lvfLoad(name).then(buf => {
+    if (my !== LVF.seq) return;
+    const src = c.createBufferSource(), g = c.createGain(), t = c.currentTime + 0.02, off = keep ? (LVF.pos[name] || 0) % buf.duration : 0;
+    src.buffer = buf; src.loop = true; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(1, t + 0.25);
+    src.connect(g); g.connect(lvfOut()); src.start(t, off);
+    LVF.cur = { name, src, g, buf, at: t, off, keep };
+  }).catch(() => {});
+}
+/** which file this theme plays now; 'mix' keeps one lobby for the whole game and changes the question track */
+function lvfTrack(theme, mode) {
+  const list = LV_FILES[theme][mode];
+  if (list.length === 1) return list[0];
+  if (mode === 'lobby') return LVF.pick.lobby || (LVF.pick.lobby = list[Math.floor(Math.random() * list.length)]);
+  const nx = list.filter(x => x !== LVF.pick.q); return (LVF.pick.q = nx[Math.floor(Math.random() * nx.length)]);
+}
+function lvfPreload(theme) { if (!LV_FILES[theme] || !lvmCtx()) return; ['lobby', 'question'].forEach(m => LV_FILES[theme][m].forEach(n => lvfLoad(n).catch(() => {}))); }
 Object.defineProperty(LVM, 'on', { get() { return LVM.theme !== 'off'; } });
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 function lvmCtx() {
@@ -1470,7 +1517,7 @@ function lvmWire(c, dest) {
   const dl = c.createDelay(1), fb = c.createGain(), wet = c.createGain(); dl.delayTime.value = 0.34; fb.gain.value = 0.28; wet.gain.value = 0.22;
   LVM.out.connect(lp); lp.connect(dest || c.destination); lp.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(dest || c.destination);
 }
-function lvmSetVol(v) { LVM.vol = Math.min(1, Math.max(0.1, Math.round(v * 10) / 10)); lsSet('lv_vol', String(LVM.vol)); if (LVM.out) LVM.out.gain.setTargetAtTime(LVM.vol, LVM.ctx.currentTime, 0.05); }
+function lvmSetVol(v) { LVM.vol = Math.min(1, Math.max(0.1, Math.round(v * 10) / 10)); lsSet('lv_vol', String(LVM.vol)); if (LVM.out) LVM.out.gain.setTargetAtTime(LVM.vol, LVM.ctx.currentTime, 0.05); if (LVF.out) LVF.out.gain.setTargetAtTime(LVM.vol, LVM.ctx.currentTime, 0.05); }
 function lvmTone(t, f, d, type, v) {
   const c = LVM.ctx, o = c.createOscillator(), g = c.createGain(); o.type = type || 'triangle'; o.frequency.value = f;
   g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.3, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
@@ -1561,8 +1608,10 @@ const LV_SONGS = {
 function lvmPlay(mode) {
   if (!LVM.on) mode = null;
   const key = !mode ? null : LVM.theme === 'classic' ? mode : LVM.theme;
+  const file = LV_FILES[LVM.theme], fkey = mode && file ? LVM.theme + ':' + mode : null;
+  if (file) { if (LVM.mode === fkey) return; LVM.mode = fkey; clearInterval(LVM.timer); LVM.timer = null; if (!fkey) return lvfStop(); return lvfPlay(lvfTrack(LVM.theme, mode), mode === 'lobby'); }
   if (LVM.mode === key) return;
-  LVM.mode = key; clearInterval(LVM.timer); LVM.timer = null;
+  LVM.mode = key; clearInterval(LVM.timer); LVM.timer = null; lvfStop();
   if (!key) return;
   const c = lvmCtx(); if (!c) return;
   const song = LV_SONGS[key], sp = 60 / song.bpm / 4; LVM.step = 0; LVM.next = c.currentTime + 0.08;
@@ -1643,7 +1692,7 @@ async function openLiveHost(P) {
     if (h && h !== fb.uid) throw new Error('Bu o\'yin boshqa brauzerdan boshqarilmoqda. O\'sha yerda oching yoki Quizlar sahifasida yopib, qaytadan boshlang.');
     if (!h) { await g.child('host').set(fb.uid); await g.update({ meta: { title: P.title, group: P.group, n: P.questions.length, secs: P.secs, mode: P.mode || 'classic', minutes: P.minutes || 0, scoring: P.scoring || 'accuracy', teams: P.teams || 0, zones: P.zones || 0 }, state: { phase: 'lobby' } }); }
     else { const meta = (await g.child('meta').once('value')).val() || {}; P.mode = meta.mode || 'classic'; P.minutes = meta.minutes || 0; P.scoring = meta.scoring === 'speed' ? 'speed' : 'accuracy'; P.teams = meta.teams || 0; P.zones = meta.zones || 0; }
-    lvmCtx();
+    lvmCtx(); LVF.pick = {}; LVF.pos = {}; lvfPreload(LVM.theme);
     LV = { P, fb, g, auto: lsGet('lv_auto', 'off') === 'on', reactOn: lsGet('lv_react2', 'off') === 'on', players: {}, tickets: {}, kicked: {}, cur: {}, ans: {}, qmeta: {}, rev: {}, sc: null, state: {}, tick: null, saved: null, saving: false, rp: null,
       teams: {}, fbk: {}, mission: null, byTicket: Object.fromEntries(P.roster.map(r => [r.ticket, r.name])) };
     const qm = (await g.child('questions').once('value')).val() || {}; Object.keys(qm).forEach(k => { if (qm[k]) LV.qmeta[k] = qm[k]; });
@@ -2128,7 +2177,7 @@ function lvRender() {
   $('#lvx').onclick = lvClose;
   $('#lvauto').onclick = () => { LV.auto = !LV.auto; lsSet('lv_auto', LV.auto ? 'on' : 'off'); lvRender(); };
   $('#lvmus').onclick = () => { LV.musOpen = !LV.musOpen; lvRender(); };
-  el.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { LVM.theme = b.dataset.theme; lsSet('lv_theme', LVM.theme); lsSet('lv_music', LVM.on ? 'on' : 'off'); if (LVM.on) lvmCtx(); LVM.mode = '__'; lvRender(); });
+  el.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { LVM.theme = b.dataset.theme; lsSet('lv_theme2', LVM.theme); LVF.pick = {}; lvfPreload(LVM.theme); lsSet('lv_music', LVM.on ? 'on' : 'off'); if (LVM.on) lvmCtx(); LVM.mode = '__'; lvRender(); });
   el.querySelectorAll('[data-vol]').forEach(b => b.onclick = () => { lvmSetVol(LVM.vol + +b.dataset.vol); lvRender(); });
   el.onclick = () => { if (LVM.on) lvmCtx(); };
   lvMusicFor(st); lvAuto(st);
