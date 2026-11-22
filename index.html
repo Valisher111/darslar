@@ -9,9 +9,12 @@
 <meta name="apple-mobile-web-app-title" content="Darslar">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b7a5f'/%3E%3Cpath d='M18 16h14a16 16 0 0 1 0 32H18z' fill='none' stroke='white' stroke-width='6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://darslar-api.vtangriyev.workers.dev" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- 22.11.2026: the font no longer holds up the first paint -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{
   --bg:#f3f6f5; --panel:#ffffff; --ink:#14201c; --muted:#5d6d67; --line:#e2e8e5; --soft:#f7faf9;
@@ -535,13 +538,22 @@ async function api(action, ...args) {
   if (SIG_ACTIONS.includes(action)) sigBump();
   return j.data;
 }
+/** Requests sent early (boot sends "home" at once, in parallel with "boot"); apiSWR uses each one once. */
+const PREFETCH = {};
+function prefetch(action, args) {
+  const k = 'dp_c_' + action + '_' + JSON.stringify(args || []);
+  if (PREFETCH[k]) return;
+  const p = api(action, ...(args || [])); p.catch(() => {}); PREFETCH[k] = p;
+  setTimeout(() => { if (PREFETCH[k] === p) delete PREFETCH[k]; }, 60000);   // unused: forget it
+}
 /** Shows the last saved answer at once, then the fresh one (drawn again only if it changed). */
 async function apiSWR(action, args, draw) {
   const k = 'dp_c_' + action + '_' + JSON.stringify(args);
   let had = null;
   try { had = localStorage.getItem(k); if (had) draw(JSON.parse(had), true); } catch (e) { had = null; }
   try {
-    const fresh = await api(action, ...args), s = JSON.stringify(fresh);
+    const pre = PREFETCH[k]; delete PREFETCH[k];   // a request boot() already sent (22.11.2026)
+    const fresh = await (pre || api(action, ...args)), s = JSON.stringify(fresh);
     try { localStorage.setItem(k, s); } catch (e) {}
     if (s !== had) draw(fresh, false);
   } catch (e) { if (!had) throw e; toast('Yangilab bo\'lmadi: ' + (e.message || e)); }
@@ -624,20 +636,36 @@ function signOut(silent) {
 }
 
 /* ===================== shell ===================== */
+/* 22.11.2026: the panel opens at once from the last saved "boot" answer; the fresh one replaces it
+   quietly. "home" (the Today page) is asked for at the same time, not after "boot". */
+const BOOT_CK = 'dp_c_boot';
+function applyBoot(b) {
+  S.groups = b.groups || []; S.subjects = b.subjects || {}; S.today = b.today;
+  S.teacher = b.teacher || ''; S.main = b.main !== false; S.build = b.build || '';
+  if (b.fb && b.fb.databaseURL) FB_CFG = b.fb;   // the teacher's own Firebase for live games
+  if (S.groups.indexOf(S.group) < 0) S.group = S.groups.find(g => g !== 'TEST') || S.groups[0];
+  $('#side-foot').textContent = 'Versiya ' + String(b.version || '').split(' ')[0];
+  $('#brand-sub').textContent = S.teacher || 'O\'qituvchi paneli';
+}
 async function boot() {
   if (!KEY) return startAuth();
   $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
-  loading();
+  const page = location.hash.replace(/^#\/?/, '').split('/')[0] || 'today';
+  if (page === 'today') prefetch('home', []);
+  let had = null;
+  try { had = localStorage.getItem(BOOT_CK); if (had) { applyBoot(JSON.parse(had)); buildNav(); route(); } } catch (e) { had = null; }
+  if (!had) loading();
   try {
-    const b = await api('boot');
-    S.groups = b.groups; S.subjects = b.subjects || {}; S.today = b.today;
-    S.teacher = b.teacher || ''; S.main = b.main !== false; S.build = b.build || '';
-    if (b.fb && b.fb.databaseURL) FB_CFG = b.fb;   // the teacher's own Firebase for live games
-    if (S.groups.indexOf(S.group) < 0) S.group = S.groups.find(g => g !== 'TEST') || S.groups[0];
-    $('#side-foot').textContent = 'Versiya ' + String(b.version).split(' ')[0];
-    $('#brand-sub').textContent = S.teacher || 'O\'qituvchi paneli';
-    buildNav(); route();
-  } catch (e) { if (KEY) fail(e); }
+    const b = await api('boot'), s = JSON.stringify(b);
+    try { localStorage.setItem(BOOT_CK, s); } catch (e) {}
+    if (s === had) return;
+    const old = had ? JSON.parse(had) : null;
+    applyBoot(b);
+    if (!old) { buildNav(); route(); return; }
+    // something changed (new day, a group added …): redraw only if the page could show it
+    const same = JSON.stringify([old.groups, old.subjects, old.today]) === JSON.stringify([b.groups, b.subjects, b.today]);
+    if (!same && !Object.keys(S.pending).length && !$('.modal-bg')) route(); else renderChips();
+  } catch (e) { if (KEY && !had) fail(e); else if (KEY) console.warn('boot', e); }
 }
 function buildNav() {
   $('#nav').innerHTML = PAGES.map(([id, label]) =>
@@ -2486,6 +2514,7 @@ function ddmmToIso(ddmm) {
 }
 async function refreshGroups() {
   const b = await api('boot');
+  try { localStorage.setItem(BOOT_CK, JSON.stringify(b)); } catch (e) {}   // next opening shows the new groups at once
   S.groups = b.groups; S.subjects = b.subjects || {};
   if (S.groups.indexOf(S.group) < 0) S.group = S.groups.find(g => g !== 'TEST') || S.groups[0];
   S.data = {};
