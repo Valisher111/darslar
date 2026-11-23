@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Darslar — Privacy policy / Maxfiylik siyosati</title>
+<style>
+body{margin:0;background:#f4f6f4;color:#17201b;font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+section{background:#fff;border:1px solid #dfe6e1;border-radius:14px;padding:18px 20px;margin-bottom:14px}
+h1{font-size:24px;margin:0 0 6px}h2{font-size:19px;margin:0 0 8px}
+.muted{color:#5d6b63;font-size:14px}a{color:#0f766e}
+@media (prefers-color-scheme:dark){body{background:#121614;color:#e7ece9}section{background:#1a201d;border-color:#2b3430}.muted{color:#9aa8a0}a{color:#3cc1b0}}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Darslar — Privacy policy</h1>
+<p class="muted">Last updated: 23 November 2026</p>
+
+<section><h2>English</h2>
+<p><b>Darslar</b> is a free classroom tool for teachers: a gradebook, in-class quizzes, a live quiz game and a Telegram bot for students. Each teacher installs their own copy in their own Google account.</p>
+<ul>
+<li><b>Where the data is kept.</b> The gradebook, student names, marks, attendance, quiz results and the students' Telegram IDs are stored only in the teacher's own Google Sheet and the Google Apps Script project attached to it. The author of Darslar has no access to them.</li>
+<li><b>Google permissions.</b> The script asks for access to the spreadsheet it is attached to, permission to connect to external services (Telegram, the live game server) and to run on a timer, and permission to update its own code (Apps Script API). It does not read the teacher's Gmail, Drive files or other data.</li>
+<li><b>Website and relay.</b> The website (valisher111.github.io/darslar) only shows pages. Requests from the website go through a relay (Cloudflare Worker) to the teacher's own script; the relay does not store them.</li>
+<li><b>Live game.</b> During a live game, nicknames and answers pass through a Firebase Realtime Database (a shared one, or the teacher's own). They are used only to run the game.</li>
+<li><b>No ads, no selling, no AI.</b> Data is not sold, shared with advertisers or sent to AI services.</li>
+<li><b>Deleting data.</b> A teacher deletes all data by deleting their copy of the spreadsheet. Students can ask their teacher to remove them.</li>
+</ul>
+<p>Questions: Valisher Tangriyev, Denau Institute of Entrepreneurship and Pedagogy — <a href="mailto:vtangriyev@gmail.com">vtangriyev@gmail.com</a>.</p>
+</section>
+
+<section><h2>O'zbekcha</h2>
+<p><b>Darslar</b> — o'qituvchilar uchun bepul vosita: baholar jurnali, darsdagi quiz, Live o'yin va talabalar uchun Telegram bot. Har bir o'qituvchi o'z nusxasini o'z Google hisobiga o'rnatadi.</p>
+<ul>
+<li>Jurnal, talabalar ismlari, baholar, davomat, quiz natijalari va talabalarning Telegram ID'lari faqat o'qituvchining o'z Google jadvalida va unga bog'langan skriptda saqlanadi. Platforma muallifi ularni ko'ra olmaydi.</li>
+<li>Skript faqat o'zi bog'langan jadvalga, tashqi xizmatlarga (Telegram, Live server) ulanishga, taymer bilan ishlashga va o'z kodini yangilashga ruxsat so'raydi. Gmail, Drive fayllari va boshqa ma'lumotlarni o'qimaydi.</li>
+<li>Sayt faqat sahifalarni ko'rsatadi; so'rovlar Cloudflare orqali o'qituvchining o'z skriptiga o'tadi va saqlanmaydi. Live o'yinda taxalluslar va javoblar faqat o'yinni o'tkazish uchun Firebase orqali o'tadi.</li>
+<li>Reklama yo'q, ma'lumot sotilmaydi va AI xizmatlarga yuborilmaydi. Hammasini o'chirish uchun o'qituvchi jadval nusxasini o'chiradi.</li>
+</ul>
+</section>
+</div></body></html>
