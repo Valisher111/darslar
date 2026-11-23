@@ -29,13 +29,14 @@ pre{background:var(--soft);border-radius:10px;padding:12px;overflow:auto;font-si
 <body><div class="wrap">
 <header><div class="logo">D</div><div><h1>Darslar — o'qituvchi uchun qo'llanma</h1></div></header>
 <p class="sub">Baholar jurnali, darsdagi quiz va Live o'yin, talabalar uchun Telegram bot — hammasi bitta saytda. Bepul. Ma'lumotlaringiz faqat sizning Google hisobingizda turadi.</p>
-<nav><a href="#ornatish">1. O'rnatish</a><a href="#guruh">2. Guruh va talabalar</a><a href="#bot">3. Telegram bot</a><a href="#dars">4. Darsda</a><a href="#claude">5. Claude bilan quiz</a><a href="#yangilash">Yangilash</a><a href="#firebase">O'z Firebase'ingiz</a><a href="#muammo">Muammo bo'lsa</a></nav>
+<nav><a href="#ornatish">1. O'rnatish</a><a href="#guruh">2. Guruh va talabalar</a><a href="#bot">3. Telegram bot</a><a href="#dars">4. Darsda</a><a href="#claude">5. Claude bilan quiz</a><a href="#cloud">Cloud loyihasi</a><a href="#yangilash">Yangilash</a><a href="#firebase">O'z Firebase'ingiz</a><a href="#muammo">Muammo bo'lsa</a></nav>
 
-<section id="ornatish"><h2>1. O'rnatish (bir marta, 15–20 daqiqa)</h2>
+<section id="ornatish"><h2>1. O'rnatish (bir marta, 30–40 daqiqa)</h2>
 <p>Kerak: Google hisobi (Gmail), kompyuter (o'rnatishni telefonda qilish noqulay), Telegram.</p>
 <ol>
 <li>Valisher bergan <b>shablon havolasini</b> oching → <b>Fayl → Nusxa yaratish</b> (File → Make a copy). Nomini o'zgartiring, masalan <i>Darslar — Karimova</i>. Bundan keyin faqat shu nusxada ishlaysiz.</li>
 <li>Bir marta: <a href="https://script.google.com/home/usersettings" target="_blank" rel="noopener">script.google.com/home/usersettings</a> sahifasida <b>Google Apps Script API</b> ni <b>On</b> qiling. (Bu platformaga o'zini nashr qilish va keyinchalik yangilanish imkonini beradi.)</li>
+<li>Bir marta: nusxangizni <b>o'z Google Cloud loyihangizga</b> ulang — pastdagi <a href="#cloud">«Google Cloud loyihasini ulash»</a> bo'limi (15 daqiqa). Bu qadamsiz Google platformaga o'zini nashr qilish va yangilashga ruxsat bermaydi.</li>
 <li>Nusxangizni oching va 10–15 soniya kuting: yuqori menyuda <b>Darslar</b> chiqadi. <b>Darslar → Install / open Darslar</b> ni bosing.</li>
 <li>Google ruxsat so'raydi: <b>Continue</b> → hisobingiz → <b>Advanced</b> (Kengaytirilgan) → <b>Go to Darslar (unsafe)</b> → <b>Allow</b>.
   <div class="note">«Google hasn't verified this app» degan ogohlantirish normal holat. Bu skript sizning o'zingizning nusxangiz, unga faqat siz ruxsat beryapsiz. Hech kim sizning jadvalingizni ko'ra olmaydi.</div></li>
@@ -106,8 +107,35 @@ pre{background:var(--soft);border-radius:10px;padding:12px;overflow:auto;font-si
 <p class="muted">MC: 4 variant, <code>answer</code> — to'g'ri variant raqami (0 dan). TF: <code>true</code>/<code>false</code>. Gap: <code>accept</code> — qabul qilinadigan barcha shakllar. Match: 4–6 juft. Order: so'zlar to'g'ri tartibda yoziladi, platforma o'zi aralashtiradi.</p>
 </section>
 
+<section id="cloud"><h2>Google Cloud loyihasini ulash (bir marta, ~15 daqiqa)</h2>
+<p><b>Nega kerak:</b> Google yangi skriptlarni o'zining yashirin «default» loyihasida ishga tushiradi. U loyihada Apps Script API'ni yoqib bo'lmaydi. Shuning uchun platforma o'zini yangilay olmaydi: <code>SERVICE_DISABLED</code> / <code>PERMISSION_DENIED</code> xatosi yoki «Bir martalik sozlash kerak» oynasi chiqadi. O'z (bepul) loyihangizni ulasangiz, bu muammo butunlay yo'qoladi. Jurnal, baholar va talabalarga tegilmaydi.</p>
+<div class="note">Hamma qadamlarni <b>jadval qaysi Google hisobida bo'lsa, o'sha hisobda</b> bajaring (o'ng yuqoridagi rasmni tekshiring). Karta yoki to'lov so'ralmaydi — so'ralsa, noto'g'ri sahifadasiz.</div>
+<ol>
+<li><b>Loyiha yarating.</b> <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com/projectcreate</a> → Project name: <code>Darslar</code> → <b>Create</b> (Создать). Bildirishnoma chiqqach, yuqoridagi loyiha tanlagichda <b>Darslar</b> tanlanganini tekshiring.</li>
+<li><b>Apps Script API ni yoqing.</b> <a href="https://console.cloud.google.com/apis/library/script.googleapis.com" target="_blank" rel="noopener">Apps Script API sahifasi</a> → <b>Enable</b> (Включить).</li>
+<li><b>Ruxsat oynasini (OAuth consent screen) sozlang.</b> <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">Google Auth Platform</a> → <b>Get started</b>:
+  <ul>
+  <li>App name: <code>Darslar</code>, User support email: o'z pochtangiz → Next;</li>
+  <li>Audience: <b>External</b> → Next;</li>
+  <li>Contact information: o'z pochtangiz → Next → shartlarga rozilik belgisi → <b>Create</b>.</li>
+  </ul></li>
+<li><b>«In production» ga o'tkazing — muhim!</b> Chap menyuda <b>Audience</b> → Publishing status: <b>Testing</b> ostida <b>Publish app</b> → <b>Confirm</b>. Holat <b>In production</b> bo'lishi kerak.
+  <div class="note">Shu qadam o'tkazib yuborilsa («Testing» da qolsa), Google ruxsatni har 7 kunda bekor qiladi: quizlar o'zi yopilmay qoladi, bot javob bermaydi, tangalar yozilmaydi. Tekshiruv (verification) shart emas — u faqat ko'p foydalanuvchili ilovalar uchun.</div></li>
+<li><b>Loyiha raqamini nusxalang.</b> <a href="https://console.cloud.google.com/home/dashboard" target="_blank" rel="noopener">Dashboard</a> → <b>Project info</b> kartasidagi <b>Project number</b> (faqat raqamlardan iborat, masalan <code>412345678901</code>). <i>Project ID</i> emas!</li>
+<li><b>Skriptni loyihaga ulang.</b> Jadvalingizda <b>Kengaytmalar → Apps Script</b> (Расширения → Apps Script) → chapda ⚙ <b>Project Settings</b> (Настройки проекта) → <b>Google Cloud Platform (GCP) Project</b> → <b>Change project</b> (Изменить проект) → raqamni qo'ying → <b>Set project</b>.</li>
+<li><b>Qayta ruxsat bering — shart.</b> Jadvalni yangilang → <b>Darslar → Install / open Darslar</b> → Google yana ruxsat so'raydi: <b>Advanced → Go to Darslar (unsafe) → Allow</b>. Bu trigger (quizlarni yopish, bot) va saytni yangi loyiha bilan qayta ishga tushiradi.</li>
+<li><b>Tekshiring.</b> Saytda <b>Settings → Gradebook and updates → Check for updates → Hozir yangilash</b>. «Yangilandi» chiqsa — hammasi joyida, keyingi yangilanishlar shu tugma bilan o'rnatiladi.</li>
+</ol>
+<ul>
+<li><b>«Change project» da xato chiqsa</b> («configure the OAuth consent screen…») — 3–4-qadamni oxirigacha bajaring va 2–3 daqiqadan keyin qayta urinib ko'ring.</li>
+<li><b>Yangilashda yana «Apps Script API has not been used in project …»</b> — xatodagi raqam sizning Darslar loyihangiz raqamimi, tekshiring; 2-qadamda API aynan shu loyihada yoqilganmi. Yoqqandan keyin 3–5 daqiqa kuting.</li>
+<li>Ulangandan keyin eski «default» loyihaga qaytib bo'lmaydi — bu normal, kerak ham emas.</li>
+</ul>
+</section>
+
 <section id="yangilash"><h2>Yangilash</h2>
 <p>Valisher platformani yaxshilaganda: <b>Settings → Gradebook and updates → Check for updates</b> → <b>Update now</b>. Taxminan yarim daqiqa ketadi. Jurnal, talabalar va quizlarga tegilmaydi. Sayt sahifalari esa hammada o'zi yangilanadi.</p>
+<p class="muted">Yangilash ishlashi uchun skript <a href="#cloud">o'z Cloud loyihangizga</a> ulangan bo'lishi kerak (bir marta).</p>
 </section>
 
 <section id="firebase"><h2>O'z Firebase'ingiz (ixtiyoriy)</h2>
@@ -127,6 +155,7 @@ pre{background:var(--soft);border-radius:10px;padding:12px;overflow:auto;font-si
 <li><b>Menyuda «Darslar» chiqmadi</b> — sahifani yangilang va 15 soniya kuting.</li>
 <li><b>«One more step» qayta-qayta chiqsa</b> — usersettings sahifasini <b>jadval qaysi Google hisobida bo'lsa, o'sha hisobda</b> ochganingizni tekshiring (o'ng yuqoridagi rasm). Brauzerda bir nechta hisob bo'lsa, ko'pincha boshqa hisobda yoqilgan bo'ladi. Yoqqandan keyin 2–3 daqiqa kuting.</li>
 <li><b>Baribir chiqsa — qo'lda nashr qiling (2 daqiqa):</b> jadvalda Kengaytmalar (Extensions) → Apps Script → <b>Deploy → New deployment</b> → tishli g'ildirak → <b>Web app</b> → Execute as: <b>Me</b>, Who has access: <b>Anyone</b> → <b>Deploy</b> → <b>Web app URL</b> ni nusxalang. Keyin jadvalda <b>Darslar → Connect web app URL</b> → qo'ying → OK. «Open Darslar» tugmasi chiqadi.</li>
+<li><b>Yangilashda <code>SERVICE_DISABLED</code>, «PERMISSION_DENIED» yoki «Bir martalik sozlash kerak»</b> — <a href="#cloud">Google Cloud loyihasini ulash</a> bo'limini bajaring. Shu payt platforma avvalgidek ishlayveradi.</li>
 <li><b>Saytda «Please sign in again»</b> — parolingiz bilan qayta kiring. Parolni unutsangiz, Valisherga yozing.</li>
 <li><b>Bot javob bermayapti</b> — Settings → Student bot «connected» ekanini tekshiring. Bot bir daqiqa ichida javob beradi (00:00–06:00 da xabarlar ertalabgacha kutadi).</li>
 <li><b>Ism xato yozilgan</b> — Groups → Students → Rename (jurnalda, botda va natijalarda birga o'zgaradi).</li>
