@@ -498,6 +498,15 @@ function toast(msg, err) {
   toastTimer = setTimeout(() => t.remove(), err ? 6000 : 2600);
 }
 const fail = e => toast((e && e.message) || String(e), true);
+// colleagues' copies: Google blocks self-update while the script runs on its hidden default Cloud project
+const cloudNeeded = e => /CLOUD_PROJECT_NEEDED|SERVICE_DISABLED|has not been used in project/i.test((e && e.message) || String(e));
+function cloudModal() {
+  modal(`<h3>Bir martalik sozlash kerak</h3>
+    <p>Google yangilanishni o'rnatishga ruxsat bermadi: skriptingiz hali o'z Google Cloud loyihangizga ulanmagan. Hech narsa o'zgarmadi, platforma avvalgidek ishlayveradi.</p>
+    <p>O'z (bepul) Cloud loyihangizni bir marta ulang — taxminan 15 daqiqa. Shundan keyin <b>Hozir yangilash</b> tugmasi doim ishlaydi.</p>
+    <p class="small">Claude bilan ishlasangiz, qo'llanma havolasini unga bering — qadamma-qadam olib boradi.</p>
+    <div class="row"><span class="spacer"></span><button class="btn" data-close>Keyinroq</button><a class="btn primary" href="help.html#cloud" target="_blank" rel="noopener" data-close>Qo'llanmani ochish</a></div>`);
+}
 const view = () => $('#view');
 const loading = () => { view().innerHTML = '<div class="loading">Yuklanmoqda…</div>'; };
 function modal(html, init) {
@@ -2922,7 +2931,7 @@ async function pageSettings() {
           $('#upgo', m).onclick = async () => {
             $('#upgo', m).disabled = true; $('#upgo', m).textContent = 'Yangilanmoqda…';
             try { const r = await api('updatePlatform'); closeModal(); toast(r.updated ? 'Yangilandi: ' + r.build + '. Reloading…' : 'Eng so\'nggi versiya o\'rnatilgan'); if (r.updated) setTimeout(() => location.reload(), 1500); }
-            catch (e) { $('#upgo', m).disabled = false; $('#upgo', m).textContent = 'Hozir yangilash'; fail(e); }
+            catch (e) { if (cloudNeeded(e)) return cloudModal(); $('#upgo', m).disabled = false; $('#upgo', m).textContent = 'Hozir yangilash'; fail(e); }
           };
         });
       } catch (e) { $('#upm').textContent = ''; fail(e); } finally { $('#upc').disabled = false; }
