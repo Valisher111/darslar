@@ -46,3 +46,11 @@ function updateDarslarNow() {
 - Bu funksiya jurnal, talabalar, baholar va parolga tegmaydi. U faqat skript kodini almashtiradi.
 - Yangilash muvaffaqiyatsiz bo'lsa, eski kod joyida qoladi va platforma o'zgarishsiz ishlayveradi. `Update` faylini o'chirib tashlasa ham bo'ladi.
 - 2.3.1 da faqat o'rnatish oynasining matnlari yaxshilangan. Maxsumov uchun bu yangilanish shart emas: maqsad — keyingi yangilanishlar ishlashini tekshirish.
+
+## 3-qadam (23.11 qo'shildi). `SERVICE_DISABLED` chiqdi — Cloud loyihasini ulash
+Gumon tasdiqlandi. Valisherning tanlovi: **2-yo'l — Maxsumovning o'z Google Cloud loyihasi.** Jadvalni Valisherga ulashish (1-yo'l) kerak emas.
+1. Qo'llanma: https://valisher111.github.io/darslar/help.html#cloud — 8 qadam. Maxsumov bilan qadamma-qadam bajaring, har qadamdan keyin skrinshot so'rang. Hammasi **maxsumovrustam4@gmail.com** hisobida.
+2. **Eng muhimi — 4-qadam:** Google Auth Platform → Audience → **Publish app** → holat **In production**. «Testing»da qolsa, 7 kundan keyin ruxsat bekor bo'ladi va `tick` (quizlarni yopish, bot) jim to'xtaydi.
+3. 6-qadamdan keyin **Darslar → Install / open Darslar** ni qayta bosib, ruxsat berish shart (Change project avvalgi ruxsatni bekor qiladi).
+4. Tekshiruv: saytda Settings → Check for updates → **2.3.2** → Hozir yangilash → «Yangilandi: 2.3.2». `Update` fayli yangilanishda o'zi o'chadi.
+5. Natijani (muvaffaqiyat yoki xato skrinshoti) Valisherga yuboring. «Без названия» faylini endi o'chirsa bo'ladi.
