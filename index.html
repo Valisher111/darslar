@@ -1013,7 +1013,7 @@ async function finishDialog(g, date) {
 }
 function finishResult(g, date, res, c) {
   const png = marksPng(res.group, date);
-  const cap = `${date} baholari jurnalga kiritildi. Savollar bo'lsa, shu guruhga yozing.`;
+  const cap = '';
   modal(`<h3>Baholar saqlandi · ${esc(g)} · ${esc(md(date))}</h3>
     <p class="small" style="margin:0">${res.written} ta katak to'ldirildi · baholandi ${res.marked}/${res.students} · kelmagan ${res.absent}${res.avg != null ? ' · o\'rtacha ' + res.avg : ''}</p>
     <img class="fin-img" src="${png}" alt="Marks picture">
